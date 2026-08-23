@@ -1,24 +1,23 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { renderUsernameLink } from '../utils/html';
+import { renderUsernameLink, htmlEscape } from '../utils/html';
 import { getUserColor } from '../utils/constants';
-import { formatTimeToChina } from '../utils/time';
 import type { Env } from '../env.d';
 
 export async function renderUser(env: Env, req: Request, path: string) {
-  const uid = parseInt(path.split('/')[2]);
-  if (!uid) return '用户ID无效';
-  const db = env.DB;
-  const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
-  if (!user) return '用户不存在';
-  if (!user.use) return '用户已被封禁';
-  const currentUser = await getSessionUser(env, req);
+    const uid = parseInt(path.split('/')[2]);
+    if (!uid) return '用户ID无效';
+    const db = env.DB;
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
+    if (!user) return '用户不存在';
+    if (!user.use) return '用户已被封禁';
+    const currentUser = await getSessionUser(env, req);
 
-  const followers = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followee_id = ?').bind(uid).all();
-  const followees = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.followee_id = u.id WHERE f.follower_id = ?').bind(uid).all();
-  const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
+    const followers = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followee_id = ?').bind(uid).all();
+    const followees = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.followee_id = u.id WHERE f.follower_id = ?').bind(uid).all();
+    const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
 
-  const content = `
+    const content = `
     <div class="page-header"><h1 style="color:${getUserColor(user.color)}"><i class="fas fa-user-circle"></i> ${htmlEscape(user.username)}</h1></div>
     <div style="display:grid;gap:16px;">
       <div class="card">
@@ -56,5 +55,5 @@ export async function renderUser(env: Env, req: Request, path: string) {
       }
     </script>
   `;
-  return await getLayout(env, currentUser, '用户中心', content);
+    return await getLayout(env, currentUser, '用户中心', content);
 }
