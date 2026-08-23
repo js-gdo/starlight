@@ -292,123 +292,123 @@ async function initDB(env) {
 
 	const tables = [
 		`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
-      password TEXT,
-      use INTEGER DEFAULT 1,
-      speak INTEGER DEFAULT 1,
-      admin INTEGER DEFAULT 0,
-      color TEXT DEFAULT 'red',
-      tag TEXT DEFAULT '',
-      bio TEXT DEFAULT '',
-      checkin_date TEXT,
-      last_fortune TEXT,
-      points INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`,
+																				id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                  username TEXT UNIQUE,
+			                                  password TEXT,
+			                                  use INTEGER DEFAULT 1,
+			                                  speak INTEGER DEFAULT 1,
+			                                  admin INTEGER DEFAULT 0,
+			                                  color TEXT DEFAULT 'red',
+			                                  tag TEXT DEFAULT '',
+			                                  bio TEXT DEFAULT '',
+			                                  checkin_date TEXT,
+			                                  last_fortune TEXT,
+			                                  points INTEGER DEFAULT 0,
+			                                  created_at TEXT DEFAULT (datetime('now'))
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS articles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      hex_id TEXT UNIQUE,
-      title TEXT,
-      content TEXT,
-      author_id INTEGER,
-      is_pinned INTEGER DEFAULT 0,
-      is_locked INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																					 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                     hex_id TEXT UNIQUE,
+			                                     title TEXT,
+			                                     content TEXT,
+			                                     author_id INTEGER,
+			                                     is_pinned INTEGER DEFAULT 0,
+			                                     is_locked INTEGER DEFAULT 0,
+			                                     created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      article_id INTEGER,
-      author_id INTEGER,
-      content TEXT,
-      parent_id INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																					 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                     article_id INTEGER,
+			                                     author_id INTEGER,
+			                                     content TEXT,
+			                                     parent_id INTEGER DEFAULT 0,
+			                                     created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS tickets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      content TEXT,
-      author_id INTEGER,
-      assignee_id INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'pending',
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																					id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                    title TEXT,
+			                                    content TEXT,
+			                                    author_id INTEGER,
+			                                    assignee_id INTEGER DEFAULT 0,
+			                                    status TEXT DEFAULT 'pending',
+			                                    created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS ticket_replies (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ticket_id INTEGER,
-      author_id INTEGER,
-      content TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																								 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                           ticket_id INTEGER,
+			                                           author_id INTEGER,
+			                                           content TEXT,
+			                                           created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS judgements (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      target_id INTEGER,
-      reason TEXT,
-      author_id INTEGER,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(target_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																						 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                       target_id INTEGER,
+			                                       reason TEXT,
+			                                       author_id INTEGER,
+			                                       created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(target_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS follows (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      follower_id INTEGER,
-      followee_id INTEGER,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																					id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                    follower_id INTEGER,
+			                                    followee_id INTEGER,
+			                                    created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY(followee_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS permission_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      target_id INTEGER,
-      admin_id INTEGER,
-      action TEXT,
-      permission TEXT,
-      reason TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(target_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																									id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                            target_id INTEGER,
+			                                            admin_id INTEGER,
+			                                            action TEXT,
+			                                            permission TEXT,
+			                                            reason TEXT,
+			                                            created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(target_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS benben (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT,
-      author_id INTEGER,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																				 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                   content TEXT,
+			                                   author_id INTEGER,
+			                                   created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 
 		`CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      from_user_id INTEGER,
-      to_user_id INTEGER,
-      content TEXT,
-      is_read INTEGER DEFAULT 0,
-      type TEXT DEFAULT 'private',
-      related_id INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY(from_user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(to_user_id) REFERENCES users(id) ON DELETE CASCADE
-    )`,
+																					 id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                     from_user_id INTEGER,
+			                                     to_user_id INTEGER,
+			                                     content TEXT,
+			                                     is_read INTEGER DEFAULT 0,
+			                                     type TEXT DEFAULT 'private',
+			                                     related_id INTEGER DEFAULT 0,
+			                                     created_at TEXT DEFAULT (datetime('now')),
+			FOREIGN KEY(from_user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY(to_user_id) REFERENCES users(id) ON DELETE CASCADE
+			)`,
 		`CREATE TABLE IF NOT EXISTS banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image_url TEXT NOT NULL,
-      link_url TEXT DEFAULT '',
-      sort_order INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    )`
+																					id INTEGER PRIMARY KEY AUTOINCREMENT,
+			                                    image_url TEXT NOT NULL,
+			                                    link_url TEXT DEFAULT '',
+			                                    sort_order INTEGER DEFAULT 0,
+			                                    created_at TEXT DEFAULT (datetime('now'))
+			)`
 	];
 
 	for (const sql of tables) {
@@ -426,7 +426,7 @@ async function initDB(env) {
 		const hashedPassword = 'f1d0b7f4df42bf1b97865e03fac74872d109c6c3ee5d2789d2cbe03e5cd55bd5';
 		await db.prepare(
 			`INSERT INTO users (id, username, password, admin, color, tag, points)
-       VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100)`
+			 VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100)`
 		).bind(hashedPassword).run();
 	}
 	// 初始化默认轮播图
@@ -1445,10 +1445,10 @@ async function renderMessages(env, req) {
 	const db = env.DB;
 	const messages = await db.prepare(
 		`SELECT m.*, u.username as from_name, u.color as from_color, u.tag as from_tag
-     FROM messages m
-     LEFT JOIN users u ON m.from_user_id = u.id
-     WHERE m.to_user_id = ? AND m.type != 'pm_chat'
-     ORDER BY m.created_at DESC`
+		 FROM messages m
+						LEFT JOIN users u ON m.from_user_id = u.id
+		 WHERE m.to_user_id = ? AND m.type != 'pm_chat'
+		 ORDER BY m.created_at DESC`
 	).bind(user.id).all();
 
 	await db.prepare('UPDATE messages SET is_read = 1 WHERE to_user_id = ? AND is_read = 0 AND type != \'pm_chat\'')
@@ -1484,9 +1484,9 @@ async function renderPmIndex(env, req) {
 	if (!user) return '请先登录';
 	const db = env.DB;
 	const convRows = await db.prepare(`
-    SELECT DISTINCT CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END AS other_uid
-    FROM messages WHERE type = 'pm_chat' AND (from_user_id = ? OR to_user_id = ?)
-  `).bind(user.id, user.id, user.id).all();
+		SELECT DISTINCT CASE WHEN from_user_id = ? THEN to_user_id ELSE from_user_id END AS other_uid
+		FROM messages WHERE type = 'pm_chat' AND (from_user_id = ? OR to_user_id = ?)
+	`).bind(user.id, user.id, user.id).all();
 	let convHtml = '';
 	for (const row of convRows.results) {
 		const oUid = row.other_uid;
@@ -1494,13 +1494,13 @@ async function renderPmIndex(env, req) {
 		const other = await db.prepare('SELECT * FROM users WHERE id = ?').bind(oUid).first();
 		if (!other) continue;
 		const lastMsg = await db.prepare(`
-      SELECT * FROM messages WHERE type = 'pm_chat' AND
-      ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
-      ORDER BY id DESC LIMIT 1
-    `).bind(user.id, oUid, oUid, user.id).first();
+			SELECT * FROM messages WHERE type = 'pm_chat' AND
+				((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+			ORDER BY id DESC LIMIT 1
+		`).bind(user.id, oUid, oUid, user.id).first();
 		const unread = await db.prepare(`
-      SELECT COUNT(*) AS cnt FROM messages WHERE type = 'pm_chat' AND from_user_id = ? AND to_user_id = ? AND is_read = 0
-    `).bind(oUid, user.id).first();
+			SELECT COUNT(*) AS cnt FROM messages WHERE type = 'pm_chat' AND from_user_id = ? AND to_user_id = ? AND is_read = 0
+		`).bind(oUid, user.id).first();
 		const unreadCnt = unread ? unread.cnt : 0;
 		convHtml += `
       <div onclick="location.href='/pm/${oUid}'" style="display:block;padding:10px;border-bottom:1px solid #f5f5f5;color:#333;border-radius:4px;cursor:pointer;">
@@ -1663,14 +1663,15 @@ async function renderHome(env, req) {
 
 	const articles = await db.prepare(
 		`SELECT a.*, u.username, u.color, u.tag
-     FROM articles a JOIN users u ON a.author_id = u.id
-     ORDER BY a.is_pinned DESC, a.created_at DESC LIMIT 10`
+		 FROM articles a JOIN users u ON a.author_id = u.id
+		 ORDER BY a.is_pinned DESC, a.created_at DESC LIMIT 10`
 	).all();
 
 	const benben = await db.prepare(
 		`SELECT b.*, u.username, u.color, u.tag
-     FROM benben b JOIN users u ON b.author_id = u.id
-     ORDER BY b.created_at DESC LIMIT 5`
+		 FROM benben b JOIN users u ON b.author_id = u.id
+		 WHERE u.use = 1
+		 ORDER BY b.created_at DESC LIMIT 5`
 	).all();
 
 	const articleCount = await db.prepare('SELECT COUNT(*) as count FROM articles').first();
@@ -1991,8 +1992,9 @@ async function renderBenben(env, req) {
 
 	const benben = await db.prepare(
 		`SELECT b.*, u.username, u.color, u.tag
-     FROM benben b JOIN users u ON b.author_id = u.id
-     ORDER BY b.created_at DESC LIMIT 100`
+		 FROM benben b JOIN users u ON b.author_id = u.id
+		 WHERE u.use = 1
+		 ORDER BY b.created_at DESC LIMIT 100`
 	).all();
 
 	const content = `
@@ -2040,8 +2042,8 @@ async function renderArticleList(env, req) {
 
 	const articles = await db.prepare(
 		`SELECT a.*, u.username, u.color, u.tag
-     FROM articles a JOIN users u ON a.author_id = u.id
-     ORDER BY a.is_pinned DESC, a.created_at DESC`
+		 FROM articles a JOIN users u ON a.author_id = u.id
+		 ORDER BY a.is_pinned DESC, a.created_at DESC`
 	).all();
 
 	const content = `
@@ -2146,14 +2148,14 @@ async function renderArticleDetail(env, req, path) {
 
 	const article = await db.prepare(
 		`SELECT a.*, u.username, u.color, u.tag
-     FROM articles a JOIN users u ON a.author_id = u.id
-     WHERE a.hex_id = ?`
+		 FROM articles a JOIN users u ON a.author_id = u.id
+		 WHERE a.hex_id = ?`
 	).bind(hexId).first();
 	if (!article) return '帖子不存在';
 	const comments = await db.prepare(
 		`SELECT c.*, u.username, u.color, u.tag
-     FROM comments c JOIN users u ON c.author_id = u.id
-     WHERE c.article_id = ? ORDER BY c.created_at ASC`
+		 FROM comments c JOIN users u ON c.author_id = u.id
+		 WHERE c.article_id = ? ORDER BY c.created_at ASC`
 	).bind(article.id).all();
 
 	const isAuthor = user && user.id === article.author_id;
@@ -2303,6 +2305,7 @@ async function renderUser(env, req, path) {
 	const db = env.DB;
 	const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
 	if (!user) return '用户不存在';
+	if (!user.use) return '用户已被封禁';
 	const currentUser = await getSessionUser(env, req);
 
 	let unreadCount = 0;
@@ -2371,10 +2374,10 @@ async function renderTicketList(env, req) {
 
 	const tickets = await db.prepare(
 		`SELECT t.*, u.username, u.color, u.tag, a.username as assignee_name
-     FROM tickets t
-     JOIN users u ON t.author_id = u.id
-     LEFT JOIN users a ON t.assignee_id = a.id
-     ORDER BY t.created_at DESC`
+		 FROM tickets t
+						JOIN users u ON t.author_id = u.id
+			      LEFT JOIN users a ON t.assignee_id = a.id
+		 ORDER BY t.created_at DESC`
 	).all();
 
 	const content = `
@@ -2484,9 +2487,9 @@ async function renderTicketDetail(env, req, path) {
 
 	const ticket = await db.prepare(
 		`SELECT t.*, u.username, u.color, u.tag, a.username as assignee_name
-     FROM tickets t JOIN users u ON t.author_id = u.id
-     LEFT JOIN users a ON t.assignee_id = a.id
-     WHERE t.id = ?`
+		 FROM tickets t JOIN users u ON t.author_id = u.id
+		                LEFT JOIN users a ON t.assignee_id = a.id
+		 WHERE t.id = ?`
 	).bind(id).first();
 	if (!ticket) return '工单不存在';
 	const replies = await db.prepare(
@@ -2648,11 +2651,11 @@ async function renderJudgement(env, req) {
 
 	const logs = await db.prepare(
 		`SELECT p.*, u.username as target_name, u.color as target_color, u.tag as target_tag,
-            a.username as admin_name, a.color as admin_color, a.tag as admin_tag
-     FROM permission_logs p
-     JOIN users u ON p.target_id = u.id
-     JOIN users a ON p.admin_id = a.id
-     ORDER BY p.created_at DESC LIMIT 100`
+		        a.username as admin_name, a.color as admin_color, a.tag as admin_tag
+		 FROM permission_logs p
+						JOIN users u ON p.target_id = u.id
+			      JOIN users a ON p.admin_id = a.id
+		 ORDER BY p.created_at DESC LIMIT 100`
 	).all();
 
 	const content = `
@@ -3344,6 +3347,10 @@ async function handleApi(req, env, path) {
 		if (permission === 'use') {
 			const newValue = action === 'grant' ? 1 : 0;
 			await db.prepare('UPDATE users SET use = ? WHERE id = ?').bind(newValue, id).run();
+			if(newValue === 0){
+				await db.prepare('UPDATE users SET tag = \'封禁用户\' WHERE id = ?').bind(id).run();
+			}
+
 		} else if (permission === 'speak') {
 			const newValue = action === 'grant' ? 1 : 0;
 			await db.prepare('UPDATE users SET speak = ? WHERE id = ?').bind(newValue, id).run();
@@ -3370,7 +3377,7 @@ async function handleApi(req, env, path) {
 
 		await db.prepare(
 			`INSERT INTO permission_logs (target_id, admin_id, action, permission, reason)
-       VALUES (?, ?, ?, ?, ?)`
+			 VALUES (?, ?, ?, ?, ?)`
 		).bind(id, user.id, action, permission, reason).run();
 
 		// 通知被修改权限的用户
@@ -3511,10 +3518,10 @@ async function handleApi(req, env, path) {
 		if (!user) return jsonRes({ error: '未登录' }, 403);
 		const messages = await db.prepare(
 			`SELECT m.*, u.username as from_name, u.color as from_color, u.tag as from_tag
-       FROM messages m
-       LEFT JOIN users u ON m.from_user_id = u.id
-       WHERE m.to_user_id = ?
-       ORDER BY m.created_at DESC LIMIT 50`
+			 FROM messages m
+							LEFT JOIN users u ON m.from_user_id = u.id
+			 WHERE m.to_user_id = ?
+			 ORDER BY m.created_at DESC LIMIT 50`
 		).bind(user.id).all();
 		return jsonRes({ messages: messages.results });
 	}
@@ -3553,10 +3560,10 @@ async function handleApi(req, env, path) {
 		const after = parseInt(url.searchParams.get('after')) || 0;
 		if (!toUid) return jsonRes({ error: '缺少 to_uid 参数' }, 400);
 		const messages = await db.prepare(`
-      SELECT * FROM messages WHERE type = 'pm_chat' AND id > ? AND
-      ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
-      ORDER BY id ASC LIMIT 200
-    `).bind(after, user.id, toUid, toUid, user.id).all();
+			SELECT * FROM messages WHERE type = 'pm_chat' AND id > ? AND
+				((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+			ORDER BY id ASC LIMIT 200
+		`).bind(after, user.id, toUid, toUid, user.id).all();
 		await db.prepare(`UPDATE messages SET is_read = 1 WHERE type = 'pm_chat' AND from_user_id = ? AND to_user_id = ? AND is_read = 0`)
 			.bind(toUid, user.id).run();
 		return jsonRes({ messages: messages.results });
