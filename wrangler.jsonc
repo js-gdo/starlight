@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "starlight-workers",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-23",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "sl-db",
+			"database_id": "d8281870-5d02-4d2f-ba45-b8821d2683c2"
+		}
+	]
+}
