@@ -552,7 +552,7 @@ function violationErrorPage(violation) {
 	const words = (violation.words || []).join('、') || '未知违规内容';
 	const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link rel="icon" type="image/x-icon" href="https://static.lin114514.top/icon/sl/favicon.ico">
+<link rel="icon" type="image/x-icon" href="https://https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
 <title>内容违规 - StarLight</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);}
@@ -654,7 +654,7 @@ async function renderLogin(env, req) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="https://static.lin114514.top/icon/sl/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="https://https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
   <title>登录 - StarLight</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -826,7 +826,7 @@ async function renderRegister(env, req) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="https://static.lin114514.top/icon/sl/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="https://https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
   <title>注册 - StarLight</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -1001,7 +1001,7 @@ async function getLayout(env, user, title, content, extraStyles = '') {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="https://static.lin114514.top/icon/sl/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="https://https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
   <title>${title} - StarLight</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
