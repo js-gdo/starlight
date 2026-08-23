@@ -3371,8 +3371,10 @@ async function handleApi(req, env, path) {
 		}
 
 		if (permission !== 'admin') {
-			await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?')
-				.bind(color, tag, id).run();
+			// 如果是对 use 权限进行封禁操作（撤销 use），避免覆盖之前设置的 "封禁用户" 标签
+			if (!(permission === 'use' && action === 'revoke')) {
+				await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
+			}
 		}
 
 		await db.prepare(
