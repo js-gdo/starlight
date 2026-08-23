@@ -3347,8 +3347,13 @@ async function handleApi(req, env, path) {
 		if (permission === 'use') {
 			const newValue = action === 'grant' ? 1 : 0;
 			await db.prepare('UPDATE users SET use = ? WHERE id = ?').bind(newValue, id).run();
-			if(newValue === 0){
-				await db.prepare('UPDATE users SET tag = \'封禁用户\' WHERE id = ?').bind(id).run();
+			if (newValue === 0) {
+				// 封禁：设置标签为 "封禁用户" 并把颜色设为灰色
+				await db.prepare('UPDATE users SET tag = ?, color = ? WHERE id = ?').bind('封禁用户', 'gray', id).run();
+			} else {
+				// 解封：清空 tag，根据是否为管理员恢复颜色
+				const restoredColor = targetUser.admin ? 'purple' : 'red';
+				await db.prepare('UPDATE users SET tag = ?, color = ? WHERE id = ?').bind('', restoredColor, id).run();
 			}
 
 		} else if (permission === 'speak') {
@@ -3371,8 +3376,8 @@ async function handleApi(req, env, path) {
 		}
 
 		if (permission !== 'admin') {
-			// 如果是对 use 权限进行封禁操作（撤销 use），避免覆盖之前设置的 "封禁用户" 标签
-			if (!(permission === 'use' && action === 'revoke')) {
+			// 对于 use 权限（封禁/解封），已经在上面处理颜色和标签，不再由通用表单 color/tag 覆盖
+			if (permission !== 'use') {
 				await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
 			}
 		}
