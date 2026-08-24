@@ -1,4 +1,4 @@
-import { getSessionUser, jsonRes } from '../utils/auth';
+import { jsonRes } from '../utils/auth';
 import { sha256 } from '../utils/crypto';
 import { getLocationInfo } from '../utils/auth'; // 从 auth 工具中导入
 import type { Env } from '../env.d';
