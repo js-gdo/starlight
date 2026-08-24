@@ -51,7 +51,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
 
         if (targetUser.id !== user.id) {
             const actionText = action === 'grant' ? '授予' : '撤销';
-            await sendNotification(env, targetUser.id, user.id,
+            await sendNotification(env, <number>targetUser.id, user.id,
                 `您的 "${getPermissionName(String(permission))}" 权限已被${actionText}，原因: ${reason}`,
                 'permission_change', 0);
         }
@@ -84,7 +84,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const id = parseInt(articleDeleteMatch[1]);
         const article = await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first();
         if (article && article.author_id !== user.id) {
-            await sendNotification(env, article.author_id, user.id,
+            await sendNotification(env, <number>article.author_id, user.id,
                 `您的帖子 "${article.title}" 已被管理员删除`, 'article_delete', id);
         }
         await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
