@@ -444,7 +444,7 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
         <div class="footer-note">
           ${user && user.admin ? `
             <span class="admin-entry"><i class="fas fa-crown"></i> 管理员入口</span><br>
-            <a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ 进入后台管理</a>
+            <a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ 进入管理面板</a>
           ` : `
             <i class="fas fa-users"></i> 注册加入社区
           `}
