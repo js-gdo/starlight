@@ -30,12 +30,6 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         if (permission === 'use') {
             const newValue = action === 'grant' ? 1 : 0;
             await db.prepare('UPDATE users SET use = ? WHERE id = ?').bind(newValue, id).run();
-            if (newValue === 0) {
-                await db.prepare('UPDATE users SET tag = ?, color = ? WHERE id = ?').bind('封禁用户', 'gray', id).run();
-            } else {
-                const restoredColor = targetUser.admin ? 'purple' : 'red';
-                await db.prepare('UPDATE users SET tag = ?, color = ? WHERE id = ?').bind('', restoredColor, id).run();
-            }
         } else if (permission === 'speak') {
             const newValue = action === 'grant' ? 1 : 0;
             await db.prepare('UPDATE users SET speak = ? WHERE id = ?').bind(newValue, id).run();
@@ -46,16 +40,9 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
             if (user.id !== 1) return jsonRes({ error: '只有超级管理员可以设置管理员权限' }, 403);
             const newValue = action === 'grant' ? 1 : 0;
             await db.prepare('UPDATE users SET admin = ? WHERE id = ?').bind(newValue, id).run();
-            if (newValue === 1) {
-                await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind('purple', '管理员', id).run();
-            } else {
-                await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind('red', '', id).run();
-            }
         }
 
-        if (permission !== 'admin' && permission !== 'use') {
-            await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
-        }
+        await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
 
         await db.prepare(
             `INSERT INTO permission_logs (target_id, admin_id, action, permission, reason)
