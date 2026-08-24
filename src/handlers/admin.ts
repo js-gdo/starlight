@@ -13,49 +13,58 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     if (userMatch && method === 'POST') {
         const id = parseInt(userMatch[1]);
         const form = await request.formData();
-        const color = form.get('color') || 'red';
-        const tag = form.get('tag') || '';
-        const permission = form.get('permission');
-        const action = form.get('action');
-        const reason = form.get('reason');
+       const mode = String(form.get('mode') || 'profile');
+       const color = String(form.get('color') || 'red');
+       const tag = String(form.get('tag') || '');
+       const permission = form.get('permission');
+       const action = form.get('action');
+       const reason = String(form.get('reason') || '').trim();
 
-        if (!permission || !action || !reason) {
-            return jsonRes({ error: '缺少必要参数（权限、操作、原因）' }, 400);
-        }
+       if (mode === 'permission' && (!permission || !action)) {
+           return jsonRes({ error: '缺少必要参数（权限、操作）' }, 400);
+       }
+       if ((permission && !action) || (!permission && action)) {
+           return jsonRes({ error: '权限和操作必须同时选择' }, 400);
+       }
 
-        const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
-        if (!targetUser) return jsonRes({ error: '用户不存在' }, 404);
-        if (id === 1 && user.id !== 1) return jsonRes({ error: '不能修改超级管理员' }, 403);
+       const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+       if (!targetUser) return jsonRes({ error: '用户不存在' }, 404);
+       if (id === 1 && user.id !== 1) return jsonRes({ error: '不能修改超级管理员' }, 403);
 
-        if (permission === 'use') {
-            const newValue = action === 'grant' ? 1 : 0;
-            await db.prepare('UPDATE users SET use = ? WHERE id = ?').bind(newValue, id).run();
-        } else if (permission === 'speak') {
-            const newValue = action === 'grant' ? 1 : 0;
-            await db.prepare('UPDATE users SET speak = ? WHERE id = ?').bind(newValue, id).run();
-            if (action === 'revoke') {
-                await db.prepare('UPDATE users SET violation_count = COALESCE(violation_count, 0) + 1 WHERE id = ?').bind(id).run();
-            }
-        } else if (permission === 'admin') {
-            if (user.id !== 1) return jsonRes({ error: '只有超级管理员可以设置管理员权限' }, 403);
-            const newValue = action === 'grant' ? 1 : 0;
-            await db.prepare('UPDATE users SET admin = ? WHERE id = ?').bind(newValue, id).run();
-        }
+       if (permission && action) {
+           if (permission === 'use') {
+               const newValue = action === 'grant' ? 1 : 0;
+               await db.prepare('UPDATE users SET use = ? WHERE id = ?').bind(newValue, id).run();
+           } else if (permission === 'speak') {
+               const newValue = action === 'grant' ? 1 : 0;
+               await db.prepare('UPDATE users SET speak = ? WHERE id = ?').bind(newValue, id).run();
+               if (action === 'revoke') {
+                   await db.prepare('UPDATE users SET violation_count = COALESCE(violation_count, 0) + 1 WHERE id = ?').bind(id).run();
+               }
+           } else if (permission === 'admin') {
+               if (user.id !== 1) return jsonRes({ error: '只有超级管理员可以设置管理员权限' }, 403);
+               const newValue = action === 'grant' ? 1 : 0;
+               await db.prepare('UPDATE users SET admin = ? WHERE id = ?').bind(newValue, id).run();
+           }
+       }
 
-        await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
+       await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
 
-        await db.prepare(
-            `INSERT INTO permission_logs (target_id, admin_id, action, permission, reason)
-       VALUES (?, ?, ?, ?, ?)`
-        ).bind(id, user.id, action, permission, reason).run();
+       if (permission && action) {
+           const finalReason = reason || (action === 'grant' ? '后台授予权限' : '后台取消权限');
+           await db.prepare(
+               `INSERT INTO permission_logs (target_id, admin_id, action, permission, reason)
+           VALUES (?, ?, ?, ?, ?)`
+           ).bind(id, user.id, action, permission, finalReason).run();
 
-        if (targetUser.id !== user.id) {
-            const actionText = action === 'grant' ? '授予' : '撤销';
-            await sendNotification(env, <number>targetUser.id, user.id,
-                `您的 "${getPermissionName(String(permission))}" 权限已被${actionText}，原因: ${reason}`,
-                'permission_change', 0);
-        }
-        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+           if (targetUser.id !== user.id) {
+               const actionText = action === 'grant' ? '授予' : '撤销';
+               await sendNotification(env, <number>targetUser.id, user.id,
+                   `您的 "${getPermissionName(String(permission))}" 权限已被${actionText}，原因: ${finalReason}`,
+                   'permission_change', 0);
+           }
+       }
+       return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
     // 删除用户：/api/admin/user/:id/delete
