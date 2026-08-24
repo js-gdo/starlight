@@ -29,6 +29,13 @@ export async function renderHome(env: Env, req: Request) {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const onlineResult = await db.prepare('SELECT COUNT(*) as cnt FROM users WHERE last_active_at > ?').bind(fiveMinAgo).first();
     const onlineCount = onlineResult ? onlineResult.cnt : 0;
+    const onlineUsers = await db.prepare(
+        `SELECT id, username, color, tag, last_active_at
+         FROM users
+         WHERE last_active_at > ?
+         ORDER BY last_active_at DESC
+         LIMIT 12`
+    ).bind(fiveMinAgo).all();
 
     const today = new Date().toISOString().split('T')[0];
     let isCheckedIn = false;
@@ -129,6 +136,33 @@ export async function renderHome(env: Env, req: Request) {
         margin-top: 4px;
       }
       .points-display strong { color: #8E44AD; }
+      .online-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(46, 204, 113, 0.12);
+        color: #27ae60;
+        border: 1px solid rgba(46, 204, 113, 0.25);
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .online-user-list { display: flex; flex-direction: column; gap: 8px; }
+      .online-user-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 7px 8px; border-radius: 8px; background: #faf7fc; border: 1px solid #f0e7f8;
+      }
+      .online-status-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.15);
+      }
+      .online-avatar {
+        width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 12px; font-weight: 700; flex-shrink: 0;
+      }
+      .online-user-meta { display: flex; flex-direction: column; min-width: 0; }
+      .online-user-name { font-size: 13px; line-height: 1.2; }
+      .online-user-time { font-size: 11px; color: #999; margin-top: 2px; }
       @media (max-width: 768px) {
         .home-row-top, .home-row-middle, .home-row-bottom { grid-template-columns: 1fr; }
       }
@@ -232,6 +266,24 @@ export async function renderHome(env: Env, req: Request) {
         </div>
 
         <div class="right-side">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-user-friends"></i> 在线用户</h3>
+              <span class="online-pill"><i class="fas fa-circle" style="font-size:8px;"></i> ${onlineCount} 在线</span>
+            </div>
+            <div class="online-user-list">
+              ${onlineUsers.results.length > 0 ? onlineUsers.results.map((u: any) => `
+                <div class="online-user-item">
+                  <span class="online-status-dot"></span>
+                  <div class="online-avatar" style="background:${getUserColor(u.color)}">${htmlEscape(u.username).charAt(0).toUpperCase()}</div>
+                  <div class="online-user-meta">
+                    <div class="online-user-name">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</div>
+                    <div class="online-user-time">${u.last_active_at ? '活跃于 ' + formatTimeToChina(u.last_active_at) : '刚刚'}</div>
+                  </div>
+                </div>
+              `).join('') : '<div style="color:#999;padding:6px 0;text-align:center;">暂无在线用户</div>'}
+            </div>
+          </div>
           <div class="card">
             <div class="card-header">
               <h3><i class="fas fa-comment-dots"></i> 动态</h3>
