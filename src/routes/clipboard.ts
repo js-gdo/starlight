@@ -1,4 +1,4 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 export async function renderClipboard(env, req) {
     const user = await getSessionUser(env, req);

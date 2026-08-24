@@ -1,8 +1,8 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
-import { formatTimeToChina, getChinaTime, getHitokoto } from '../utils/time';
-import { getUserColor, getTicketStatus } from '../utils/constants';
+import { formatTimeToChina } from '../utils/time';
+import { getTicketStatus } from '../utils/constants';
 export async function renderTicketList(env, req) {
     const user = await getSessionUser(env, req);
     const db = env.DB;

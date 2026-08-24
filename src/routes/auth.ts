@@ -1,4 +1,4 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 export async function renderLogin(env, req) {
     const user = await getSessionUser(env, req);
     if (user) {
