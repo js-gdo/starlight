@@ -55,8 +55,8 @@ export function jsonRes(data: any, status = 200): Response {
  */
 export function getPermissionName(permission: string): string {
     const map: Record<string, string> = {
-        'use': '进入网站',
-        'speak': '发言',
+        'use': '进入主站',
+        'speak': '自由发言',
         'admin': '管理员'
     };
     return map[permission] || permission;
