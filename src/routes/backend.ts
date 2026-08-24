@@ -17,7 +17,6 @@ export async function renderBackend(env: Env, req: Request) {
 
     const content = `
   <style>
-    /* 表格滚动 */
     .table-wrap { overflow-x: auto; }
     .admin-table {
       width: 100%;
@@ -71,7 +70,6 @@ export async function renderBackend(env: Env, req: Request) {
     }
     .field-group.hidden { display: none; }
 
-    /* 按钮通用样式 */
     .btn-sm {
       padding: 4px 12px;
       border: none;
@@ -80,7 +78,7 @@ export async function renderBackend(env: Env, req: Request) {
       font-weight: 500;
       font-size: 13px;
       transition: 0.15s;
-      color: #fff; /* 默认白色文字 */
+      color: #fff;
     }
     .btn-sm:hover { opacity: 0.85; }
     .btn-primary { background: #8E44AD; color: #fff; }
@@ -93,7 +91,6 @@ export async function renderBackend(env: Env, req: Request) {
       border: 1px solid #ddd;
     }
 
-    /* 卡片 */
     .card {
       background: #fff;
       border-radius: 8px;
@@ -136,7 +133,6 @@ export async function renderBackend(env: Env, req: Request) {
       flex-wrap: wrap;
     }
 
-    /* 轮播图 */
     .banner-item {
       display: flex;
       align-items: center;
@@ -272,10 +268,11 @@ export async function renderBackend(env: Env, req: Request) {
                   <!-- 执行按钮 -->
                   <button type="submit" class="btn-sm btn-primary" style="font-size:13px; color:#fff;">执行</button>
                 </form>
-                <!-- 删除按钮 -->
-                <form action="/api/admin/user/${u.id}/delete" method="POST" style="display:inline;margin-top:4px;">
-                  <button type="submit" class="btn-sm btn-danger" style="font-size:13px; color:#fff;">删除</button>
-                </form>
+
+                <!-- 删除按钮（触发弹窗） -->
+                <button type="button" class="btn-sm btn-danger" style="font-size:13px; color:#fff; margin-top:4px;" onclick="confirmDelete(${u.id}, '${htmlEscape(u.username)}')">
+                  <i class="fas fa-trash-alt"></i> 删除
+                </button>
               </td>
             </tr>
           `).join('')}
@@ -370,6 +367,74 @@ export async function renderBackend(env: Env, req: Request) {
         profileGroup.classList.add('hidden');
         permissionGroup.classList.remove('hidden');
       }
+    }
+
+    // 删除用户确认弹窗（纯文本，10秒倒计时）
+    function confirmDelete(userId, username) {
+      if (typeof Swal === 'undefined') {
+        if (confirm('确定要删除用户 ' + username + ' 吗？此操作不可恢复！')) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/admin/user/' + userId + '/delete';
+          document.body.appendChild(form);
+          form.submit();
+        }
+        return;
+      }
+
+      let countdown = 10;
+      let timer = null;
+
+      Swal.fire({
+        title: '危险操作',
+        html: \`
+          <div style="text-align:left; font-size:15px; line-height:1.8;">
+            <p><strong>用户：</strong>\${username} (ID: \${userId})</p>
+            <p><strong>警告：</strong>删除后该用户所有内容（帖子、评论、工单、消息等）将永久丢失，不可恢复！</p>
+            <p style="margin-top:16px; font-weight:500;">请确认是否继续？</p>
+            <p style="margin-top:8px; color:#999; font-size:14px;">
+              <span id="countdownDisplay">\${countdown}</span> 秒后可点击确认
+            </p>
+          </div>
+        \`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        confirmButtonColor: '#e74c3c',
+        cancelButtonColor: '#95a5a6',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          const confirmBtn = Swal.getConfirmButton();
+          confirmBtn.disabled = true;
+          confirmBtn.innerHTML = '等待中... ' + countdown + 's';
+
+          timer = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+              clearInterval(timer);
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = '确认删除';
+              document.getElementById('countdownDisplay').innerText = '0';
+            } else {
+              confirmBtn.innerHTML = '等待中... ' + countdown + 's';
+              document.getElementById('countdownDisplay').innerText = countdown;
+            }
+          }, 1000);
+        },
+        willClose: () => {
+          if (timer) clearInterval(timer);
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/admin/user/' + userId + '/delete';
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
     }
   </script>
   `;
