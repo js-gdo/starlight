@@ -53,6 +53,10 @@ export async function renderBackend(env, req) {
               </td>
               <td style="padding:6px;">
                 <form action="/api/admin/user/${u.id}" method="POST" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+                  <select name="mode" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
+                    <option value="profile">更改资料</option>
+                    <option value="permission">更改权限</option>
+                  </select>
                   <select name="color" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
                     <option value="purple" ${u.color === 'purple' ? 'selected' : ''}>紫名</option>
                     <option value="red" ${u.color === 'red' ? 'selected' : ''}>红名</option>
@@ -61,17 +65,19 @@ export async function renderBackend(env, req) {
                     <option value="blue" ${u.color === 'blue' ? 'selected' : ''}>蓝名</option>
                     <option value="gray" ${u.color === 'gray' ? 'selected' : ''}>灰名</option>
                   </select>
-                  <input type="text" name="tag" placeholder="牌子" value="${u.tag || ''}" style="width:50px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
+                  <input type="text" name="tag" placeholder="牌子（可选）" value="${u.tag || ''}" style="width:60px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
                   <select name="permission" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
+                    <option value="">-- 权限 --</option>
                     <option value="use">进入网站</option>
                     <option value="speak">发言</option>
                     <option value="admin">管理员</option>
                   </select>
                   <select name="action" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
+                    <option value="">-- 操作 --</option>
                     <option value="grant">授予</option>
                     <option value="revoke">取消</option>
                   </select>
-                  <input type="text" name="reason" placeholder="原因" required style="width:70px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
+                  <input type="text" name="reason" placeholder="原因（可选）" style="width:80px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
                   <button type="submit" style="background:#8E44AD;color:#fff;padding:3px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">执行</button>
                 </form>
                 <form action="/api/admin/user/${u.id}/delete" method="POST" style="display:inline;">
