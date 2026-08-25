@@ -1,14 +1,18 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import { generateFortune } from '../utils/fortune';
+import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
 export async function handleCheckin(request: Request, env: Env) {
-    if (request.method !== 'POST') return jsonRes({ error: 'Method not allowed' }, 405);
+    const t = getTranslator(request);
+    if (request.method !== 'POST') return jsonRes({ error: t('apiMethodNotAllowed') }, 405);
+
     const user = await getSessionUser(env, request);
-    if (!user) return jsonRes({ error: '未登录' }, 403);
+    if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
 
     const db = env.DB;
     const today = new Date().toISOString().split('T')[0];
+
     if (user.checkin_date === today) {
         let fortune = null;
         if (user.last_fortune) {
@@ -16,7 +20,7 @@ export async function handleCheckin(request: Request, env: Env) {
         }
         if (!fortune) fortune = generateFortune();
         return jsonRes({
-            message: '今日已签到',
+            message: t('apiAlreadyCheckedin'),
             fortune: fortune,
             checked: true,
             points: 0
@@ -28,7 +32,7 @@ export async function handleCheckin(request: Request, env: Env) {
     await db.prepare('UPDATE users SET checkin_date = ?, last_fortune = ?, points = ? WHERE id = ?')
         .bind(today, JSON.stringify(fortune), newPoints, user.id).run();
     return jsonRes({
-        message: '签到成功！获得 10 积分',
+        message: t('apiCheckinSuccess'),
         fortune: fortune,
         checked: false,
         points: 10,

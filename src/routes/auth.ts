@@ -1,5 +1,9 @@
 import { getSessionUser } from '../utils/auth';
-export async function renderLogin(env, req) {
+import { getTranslator } from '../utils/i18n';
+import type { Env } from '../env.d';
+
+export async function renderLogin(env: Env, req: Request) {
+    const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (user) {
         return { redirect: '/' };
@@ -11,7 +15,7 @@ export async function renderLogin(env, req) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
-  <title>登录 - StarLight</title>
+  <title>${t('login')} - ${t('appName')}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -116,26 +120,26 @@ export async function renderLogin(env, req) {
 </head>
 <body>
   <div class="login-container">
-    <div class="logo">StarLight</div>
-    <div class="logo-sub">登录您的账号</div>
+    <div class="logo">${t('appName')}</div>
+    <div class="logo-sub">${t('login')}</div>
     <div class="demo-info">
-      <span><i class="fas fa-info-circle"></i> 管理员</span>
+      <span><i class="fas fa-info-circle"></i> ${t('adminPanel2')}</span>
       <span><strong>lin114514</strong></span>
     </div>
     <div id="error-msg" class="error-msg"></div>
     <form id="login-form">
       <div class="form-group">
-        <label>用户名</label>
-        <input type="text" id="username" placeholder="请输入用户名" required>
+        <label>${t('username')}</label>
+        <input type="text" id="username" placeholder="${t('username')}" required>
       </div>
       <div class="form-group">
-        <label>密码</label>
-        <input type="password" id="password" placeholder="请输入密码" required>
+        <label>${t('password')}</label>
+        <input type="password" id="password" placeholder="${t('password')}" required>
       </div>
-      <button type="submit" class="btn">登录</button>
+      <button type="submit" class="btn">${t('login')}</button>
     </form>
     <div class="register-link">
-      还没有账号？ <a href="/register">立即注册</a>
+      ${t('register')}？ <a href="/register">${t('register')}</a>
     </div>
   </div>
   <script>
@@ -154,12 +158,12 @@ export async function renderLogin(env, req) {
           window.location.href = '/';
         } else {
           const errorEl = document.getElementById('error-msg');
-          errorEl.textContent = data.error || '登录失败';
+          errorEl.textContent = data.error || '${t('loginFailed')}';
           errorEl.style.display = 'block';
         }
       } catch (err) {
         const errorEl = document.getElementById('error-msg');
-        errorEl.textContent = '网络错误，请重试';
+        errorEl.textContent = '${t('networkError')}';
         errorEl.style.display = 'block';
       }
     });
@@ -170,7 +174,8 @@ export async function renderLogin(env, req) {
     return { html };
 }
 
-export async function renderRegister(env, req) {
+export async function renderRegister(env: Env, req: Request) {
+    const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (user) {
         return { redirect: '/' };
@@ -182,7 +187,7 @@ export async function renderRegister(env, req) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
-  <title>注册 - StarLight</title>
+  <title>${t('register')} - ${t('appName')}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -284,23 +289,23 @@ export async function renderRegister(env, req) {
 </head>
 <body>
   <div class="register-container">
-    <div class="logo">StarLight</div>
-    <div class="logo-sub">创建新账号</div>
+    <div class="logo">${t('appName')}</div>
+    <div class="logo-sub">${t('register')}</div>
     <div id="error-msg" class="error-msg"></div>
     <div id="success-msg" class="success-msg"></div>
     <form id="register-form">
       <div class="form-group">
-        <label>用户名</label>
-        <input type="text" id="username" placeholder="3-25个字符" required minlength="3" maxlength="25">
+        <label>${t('username')}</label>
+        <input type="text" id="username" placeholder="3-25 ${t('username')}" required minlength="3" maxlength="25">
       </div>
       <div class="form-group">
-        <label>密码</label>
-        <input type="password" id="password" placeholder="至少6个字符" required minlength="6">
+        <label>${t('password')}</label>
+        <input type="password" id="password" placeholder="${t('passwordLength')}" required minlength="6">
       </div>
-      <button type="submit" class="btn">注册</button>
+      <button type="submit" class="btn">${t('register')}</button>
     </form>
     <div class="login-link">
-      已有账号？ <a href="/login">立即登录</a>
+      ${t('login')}？ <a href="/login">${t('login')}</a>
     </div>
   </div>
   <script>
@@ -317,19 +322,19 @@ export async function renderRegister(env, req) {
         const data = await res.json();
         if (res.ok) {
           const successEl = document.getElementById('success-msg');
-          successEl.textContent = data.message || '注册成功！即将跳转...';
+          successEl.textContent = data.message || '${t('registerSuccess')}';
           successEl.style.display = 'block';
           document.getElementById('error-msg').style.display = 'none';
           setTimeout(() => { window.location.href = '/login'; }, 1500);
         } else {
           const errorEl = document.getElementById('error-msg');
-          errorEl.textContent = data.error || '注册失败';
+          errorEl.textContent = data.error || '${t('error')}';
           errorEl.style.display = 'block';
           document.getElementById('success-msg').style.display = 'none';
         }
       } catch (err) {
         const errorEl = document.getElementById('error-msg');
-        errorEl.textContent = '网络错误，请重试';
+        errorEl.textContent = '${t('networkError')}';
         errorEl.style.display = 'block';
       }
     });
