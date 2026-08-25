@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes, generateHex } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
+import { validateAtMentionSpacing } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleArticles(request: Request, env: Env, path: string) {
@@ -18,6 +19,9 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const title = form.get('title');
         const content = form.get('content');
         if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+
+        const invalidMentions = validateAtMentionSpacing(String(content));
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(`${title}\n${content}`);
         if (violation.violated) return violationErrorPage(violation, t);
@@ -44,6 +48,9 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             const title = form.get('title');
             const content = form.get('content');
             if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+
+            const invalidMentions = validateAtMentionSpacing(String(content));
+            if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
             const violation = await checkViolation(`${title}\n${content}`);
             if (violation.violated) return violationErrorPage(violation, t);
@@ -77,6 +84,9 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             .bind(article_id).first();
         if (!targetArticle) return jsonRes({ error: t('apiArticleNotFound') }, 404);
         if (targetArticle.is_locked && !user.admin) return jsonRes({ error: t('lockedCannotComment') }, 403);
+
+        const invalidMentions = validateAtMentionSpacing(String(content));
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(content);
         if (violation.violated) return violationErrorPage(violation, t);

@@ -306,6 +306,7 @@ export default {
 	apiUsernameBadWords: '使用者名稱包含違禁詞：{words}',
 	apiContentBadWords: '內容包含違禁詞：{words}',
 	apiMissingParams: '缺少參數',
+	apiAtMentionFormat: '@ 功能使用方式：@uid 或 @username，前後必須留空格',
 	apiMissingTitleOrContent: '缺少標題或內容',
 	apiArticleNotFound: '貼文不存在',
 	apiArticleDeleted: '貼文已刪除',

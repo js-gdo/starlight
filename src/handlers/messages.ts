@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes } from '../utils/auth';
 import { checkViolation } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
+import { validateAtMentionSpacing } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleMessages(request: Request, env: Env, path: string) {
@@ -21,6 +22,9 @@ export async function handleMessages(request: Request, env: Env, path: string) {
 
         const target = await db.prepare('SELECT * FROM users WHERE id = ?').bind(to_user_id).first();
         if (!target) return jsonRes({ error: t('apiUserNotFound') }, 404);
+
+        const invalidMentions = validateAtMentionSpacing(content);
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(content);
         if (violation.violated) {

@@ -305,6 +305,7 @@ export default {
     apiUsernameBadWords: 'Username contains forbidden words: {words}',
     apiContentBadWords: 'Content contains forbidden words: {words}',
     apiMissingParams: 'Missing parameters',
+    apiAtMentionFormat: '@ mentions must use @uid or @username with spaces before and after',
     apiMissingTitleOrContent: 'Missing title or content',
     apiArticleNotFound: 'Article not found',
     apiArticleDeleted: 'Article deleted',

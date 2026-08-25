@@ -1,6 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { renderUsernameLink, htmlEscape } from '../utils/html';
+import { renderUsernameLink, htmlEscape, renderAtMentions, extractAtMentionTokens } from '../utils/html';
 import { formatTimeToChina } from '../utils/time';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
@@ -19,6 +19,24 @@ export async function renderMessages(env: Env, req: Request) {
          ORDER BY m.created_at DESC`
     ).bind(user.id).all();
 
+    const mentionTokens = Array.from(new Set(messages.results.flatMap((m: any) => extractAtMentionTokens(m.content || ''))));
+    const mentionMap = new Map<string, any>();
+    if (mentionTokens.length > 0) {
+        const numericTokens = mentionTokens.filter((token) => /^\d+$/.test(token));
+        const usernameTokens = mentionTokens.filter((token) => !/^\d+$/.test(token));
+        if (numericTokens.length > 0) {
+            const ids = numericTokens.map((token) => parseInt(token, 10));
+            const idRows = await db.prepare(`SELECT id, username, color, tag FROM users WHERE id IN (${ids.map(() => '?').join(',')})`)
+                .bind(...ids).all();
+            for (const row of idRows.results) mentionMap.set(String(row.id), row);
+        }
+        if (usernameTokens.length > 0) {
+            const nameRows = await db.prepare(`SELECT id, username, color, tag FROM users WHERE username IN (${usernameTokens.map(() => '?').join(',')})`)
+                .bind(...usernameTokens).all();
+            for (const row of nameRows.results) mentionMap.set(String(row.username).toLowerCase(), row);
+        }
+    }
+
     await db.prepare('UPDATE messages SET is_read = 1 WHERE to_user_id = ? AND is_read = 0 AND type != \'pm_chat\'')
         .bind(user.id).run();
 
@@ -36,7 +54,10 @@ export async function renderMessages(env: Env, req: Request) {
                         </div>
                         <span style="font-size:11px;color:#8E44AD;">${m.type}</span>
                     </div>
-                    <div style="margin-top:4px;font-size:14px;color:#333;">${htmlEscape(m.content)}</div>
+                    <div style="margin-top:4px;font-size:14px;color:#333;">${renderAtMentions(m.content || '', (token) => {
+                        if (/^\d+$/.test(token)) return mentionMap.get(token) || null;
+                        return mentionMap.get(token.toLowerCase()) || null;
+                    })}</div>
                 </div>
             `).join('')}
         </div>
