@@ -2,7 +2,7 @@ import { getUserColor } from './constants';
 import { htmlEscape, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
-import { getTranslator } from './i18n';
+import { getTranslator, getLanguage } from './i18n';
 import type { Env } from '../env.d';
 
 export async function getLayout(
@@ -14,6 +14,7 @@ export async function getLayout(
     request?: Request
 ) {
     const t = getTranslator(request);
+    const lang = getLanguage(request);
 
     let systemUnread = 0;
     let pmUnread = 0;
@@ -83,8 +84,35 @@ export async function getLayout(
   `;
 
     const footerNote = user && user.admin
-        ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminEntry')}</a>`
+        ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>`
         : `<i class="fas fa-users"></i> ${t('registerToJoin')}`;
+
+    // 语言切换下拉框 HTML（固定定位在右上角）
+    const langSwitcherHtml = `
+    <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px;">
+      <select id="lang-select" onchange="switchLanguage(this.value)" style="
+        padding:4px 8px;
+        border-radius:4px;
+        border:1px solid rgba(255,255,255,0.3);
+        background:rgba(52,73,94,0.85);
+        color:#fff;
+        font-size:12px;
+        cursor:pointer;
+        outline:none;
+        backdrop-filter:blur(4px);
+        box-shadow:0 2px 8px rgba(0,0,0,0.1);
+      ">
+        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
+        <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
+      </select>
+    </div>
+    <script>
+    function switchLanguage(lang) {
+      document.cookie = 'lang=' + lang + '; path=/; max-age=31536000';
+      window.location.reload();
+    }
+    </script>
+  `;
 
     return `<!DOCTYPE html>
 <html>
@@ -352,6 +380,7 @@ export async function getLayout(
       .sidebar-left { display: none; }
       .sidebar-right { display: none; }
       .mobile-menu-toggle { display: flex !important; }
+      #lang-switcher { top: 60px !important; right: 10px !important; }
     }
     .mobile-menu-toggle {
       display: none;
@@ -453,6 +482,8 @@ export async function getLayout(
   </script>
 </head>
 <body>
+  ${langSwitcherHtml}
+
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
 
