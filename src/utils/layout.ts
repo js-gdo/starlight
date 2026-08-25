@@ -103,6 +103,7 @@ export async function getLayout(
         box-shadow:0 2px 8px rgba(0,0,0,0.1);
       ">
         <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
+        <option value="tw" ${lang === 'tw' ? 'selected' : ''}>繁體中文</option>
         <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
       </select>
     </div>
