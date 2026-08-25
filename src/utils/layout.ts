@@ -1,10 +1,21 @@
-import { getUserColor } from './constants';        // 从 constants 导入
+import { getUserColor } from './constants';
 import { htmlEscape, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
+import { getTranslator, getLanguage } from './i18n';
 import type { Env } from '../env.d';
 
-export async function getLayout(env: Env, user: any | null, title: string, content: string, extraStyles = '') {
+export async function getLayout(
+    env: Env,
+    user: any | null,
+    title: string,
+    content: string,
+    extraStyles = '',
+    request?: Request
+) {
+    const t = getTranslator(request);
+    const lang = getLanguage(request);
+
     let systemUnread = 0;
     let pmUnread = 0;
     if (user && env?.DB) {
@@ -14,14 +25,102 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
     const chinaTime = getChinaTime();
     const hitokoto = await getHitokoto();
 
-    // 下面直接复制原 getLayout 的模板字符串，替换掉所有内部的函数调用，使用导入的函数
+    const navItems = [
+        { href: '/', label: t('home'), active: title === t('home') },
+        { href: '/benben', label: t('benben'), active: title === t('benben') },
+        { href: '/articles/list', label: t('articleList'), active: ['帖子列表', '帖子详情', '发布帖子', '编辑帖子'].includes(title) },
+        { href: '/ticket/list', label: t('ticketList'), active: ['工单列表', '工单详情', '创建工单', '编辑工单'].includes(title) },
+        { href: '/judgement', label: t('judgement'), active: title === t('judgement') },
+        { href: '/clipboard', label: t('clipboard'), active: title === t('clipboard') },
+        { href: '#', label: t('oj'), onclick: 'openOJ()' },
+        { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
+        { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
+    ];
+    if (user && user.admin) {
+        navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
+    }
+
+    const sidebarLinks = navItems.map(item => {
+        const badgeHtml = item.badge ? `<span class="badge">${item.badge}</span>` : '';
+        const onclickAttr = item.onclick ? ` onclick="${item.onclick}"` : '';
+        const iconMap: Record<string, string> = {
+            '/': 'fa-home',
+            '/benben': 'fa-comment',
+            '/articles/list': 'fa-file-alt',
+            '/ticket/list': 'fa-ticket-alt',
+            '/judgement': 'fa-gavel',
+            '/clipboard': 'fa-clipboard',
+            '/messages': 'fa-bell',
+            '/pm': 'fa-envelope',
+            '/backend': 'fa-cog',
+        };
+        const icon = iconMap[item.href] || 'fa-link';
+        return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span> ${item.label}${badgeHtml}</a>`;
+    }).join('');
+
+    let userSection = '';
+    if (user) {
+        userSection = `
+      <div class="avatar" style="background:${getUserColor(user.color)}">${user.username.charAt(0).toUpperCase()}</div>
+      <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
+      <form action="/logout" method="GET">
+        <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
+      </form>
+    `;
+    } else {
+        userSection = `
+      <div class="auth-btns">
+        <a href="/login">${t('login')}</a>
+        <a href="/register">${t('register')}</a>
+      </div>
+    `;
+    }
+
+    const quickLinks = `
+    <a href="/articles/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newArticle')}</a>
+    <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newTicket')}</a>
+    <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> ${t('judgement')}</a>
+    ${user ? `<a href="/user/${user.id}" class="quick-link"><i class="fas fa-user"></i> ${t('userProfile')}</a>` : ''}
+  `;
+
+    const footerNote = user && user.admin
+        ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>`
+        : `<i class="fas fa-users"></i> ${t('registerToJoin')}`;
+
+    // 语言切换下拉框 HTML（固定定位在右上角）
+    const langSwitcherHtml = `
+    <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px;">
+      <select id="lang-select" onchange="switchLanguage(this.value)" style="
+        padding:4px 8px;
+        border-radius:4px;
+        border:1px solid rgba(255,255,255,0.3);
+        background:rgba(52,73,94,0.85);
+        color:#fff;
+        font-size:12px;
+        cursor:pointer;
+        outline:none;
+        backdrop-filter:blur(4px);
+        box-shadow:0 2px 8px rgba(0,0,0,0.1);
+      ">
+        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
+        <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
+      </select>
+    </div>
+    <script>
+    function switchLanguage(lang) {
+      document.cookie = 'lang=' + lang + '; path=/; max-age=31536000';
+      window.location.reload();
+    }
+    </script>
+  `;
+
     return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
-  <title>${title} - StarLight</title>
+  <title>${title} - ${t('appName')}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.3/sweetalert2.all.min.js" defer></script>
@@ -281,6 +380,7 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
       .sidebar-left { display: none; }
       .sidebar-right { display: none; }
       .mobile-menu-toggle { display: flex !important; }
+      #lang-switcher { top: 60px !important; right: 10px !important; }
     }
     .mobile-menu-toggle {
       display: none;
@@ -368,10 +468,10 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
     };
     function openOJ() {
       Swal.fire({
-        title: 'OJ 在线评测系统',
-        html: '要使用OJ，请登录，<br>登录的用户名和密码与StarLight中的用户名和密码相同。',
+        title: 'OJ ${t('appName')}',
+        html: '${t('loginRequired')}',
         icon: 'info',
-        confirmButtonText: '确定',
+        confirmButtonText: '${t('confirm')}',
         confirmButtonColor: '#8E44AD'
       }).then(function(result) {
         if (result.isConfirmed) {
@@ -382,37 +482,17 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
   </script>
 </head>
 <body>
+  ${langSwitcherHtml}
+
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar-left" id="sidebarLeft">
       <div class="brand">✦</div>
-      <a href="/" class="${title === '首页' ? 'active' : ''}"><span class="icon"><i class="fas fa-home"></i></span> 首页</a>
-      <a href="/benben" class="${title === '动态' ? 'active' : ''}"><span class="icon"><i class="fas fa-comment"></i></span> 动态</a>
-      <a href="/articles/list" class="${title === '帖子列表' || title === '帖子详情' || title === '发布帖子' || title === '编辑帖子' ? 'active' : ''}"><span class="icon"><i class="fas fa-file-alt"></i></span> 帖子</a>
-      <a href="/ticket/list" class="${title === '工单列表' || title === '工单详情' || title === '创建工单' || title === '编辑工单' ? 'active' : ''}"><span class="icon"><i class="fas fa-ticket-alt"></i></span> 工单</a>
-      <a href="/judgement" class="${title === '陶片放逐' ? 'active' : ''}"><span class="icon"><i class="fas fa-gavel"></i></span> 放逐</a>
-      <a href="/clipboard" class="${title === '云剪贴板' ? 'active' : ''}"><span class="icon"><i class="fas fa-clipboard"></i></span> 剪贴板</a>
-      <a href="javascript:void(0)" onclick="openOJ()"><span class="icon"><i class="fas fa-code"></i></span> OJ</a>
-      <a href="/messages" class="${title === '消息' ? 'active' : ''}"><span class="icon"><i class="fas fa-bell"></i></span> 消息${systemUnread > 0 ? `<span class="badge">${systemUnread}</span>` : ''}</a>
-      <a href="/pm" class="${title === '私信' ? 'active' : ''}"><span class="icon"><i class="fas fa-envelope"></i></span> 私信${pmUnread > 0 ? `<span class="badge">${pmUnread}</span>` : ''}</a>
-      ${user && user.admin ? `
-        <a href="/backend" class="${title === '后台管理' ? 'active' : ''}"><span class="icon"><i class="fas fa-cog"></i></span> 管理</a>
-      ` : ''}
+      ${sidebarLinks}
       <div class="user-section">
-        ${user ? `
-          <div class="avatar" style="background:${getUserColor(user.color)}">${user.username.charAt(0).toUpperCase()}</div>
-          <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
-          <form action="/logout" method="GET">
-            <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> 登出</button>
-          </form>
-        ` : `
-          <div class="auth-btns">
-            <a href="/login">登录</a>
-            <a href="/register">注册</a>
-          </div>
-        `}
+        ${userSection}
       </div>
     </aside>
 
@@ -429,25 +509,17 @@ export async function getLayout(env: Env, user: any | null, title: string, conte
         </div>
       </div>
       <div class="card">
-        <h3><i class="fas fa-quote-left"></i> 一言</h3>
+        <h3><i class="fas fa-quote-left"></i> ${t('hitokoto')}</h3>
         <div class="hitokoto-box">
           <div class="sentence">「${htmlEscape(hitokoto.sentence)}」</div>
           <div class="from">—— ${htmlEscape(hitokoto.from)}</div>
         </div>
       </div>
       <div class="card">
-        <h3><i class="fas fa-link"></i> 快速链接</h3>
-        <a href="/articles/new" class="quick-link"><i class="fas fa-plus-circle"></i> 发布帖子</a>
-        <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> 创建工单</a>
-        <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> 陶片放逐</a>
-        ${user ? `<a href="/user/${user.id}" class="quick-link"><i class="fas fa-user"></i> 我的主页</a>` : ''}
+        <h3><i class="fas fa-link"></i> ${t('quickLinks')}</h3>
+        ${quickLinks}
         <div class="footer-note">
-          ${user && user.admin ? `
-            <span class="admin-entry"><i class="fas fa-crown"></i> 管理员入口</span><br>
-            <a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ 进入管理面板</a>
-          ` : `
-            <i class="fas fa-users"></i> 注册加入社区
-          `}
+          ${footerNote}
         </div>
       </div>
     </aside>

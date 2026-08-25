@@ -26,12 +26,15 @@ export async function checkViolation(content: string) {
     }
 }
 
-export function violationErrorPage(violation: any) {
+export function violationErrorPage(violation: any, t?: (key: string, vars?: any) => string) {
     const words = (violation.words || []).join('、') || '未知违规内容';
+    const title = t ? t('warning') : '警告';
+    const message = t ? t('apiContentBadWords', { words }) : '内容包含违禁词';
+    const hint = t ? t('edit') : '修改';
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
-<title>内容违规 - StarLight</title>
+<title>${title} - StarLight</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);}
 .box{background:#fff;padding:40px;border-radius:12px;text-align:center;max-width:420px;box-shadow:0 8px 30px rgba(0,0,0,0.15);}
@@ -43,12 +46,11 @@ p{color:#666;margin-bottom:6px;font-size:14px;}
 .btn:hover{background:#7d3c98;}
 </style></head>
 <body><div class="box">
-<div class="icon">警告</div>
-<h2>内容包含违禁词</h2>
-<p>您提交的内容中检测到违规词汇：</p>
+<div class="icon">⚠️</div>
+<h2>${message}</h2>
+<p>${t ? t('edit') : '请修改后重新提交。'}</p>
 <div class="words">${words}</div>
-<p style="margin-top:10px;">请修改后重新提交。</p>
-<button class="btn" onclick="history.back()">返回修改</button>
+<button class="btn" onclick="history.back()">${hint}</button>
 </div></body></html>`;
     return new Response(html, { status: 400, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }

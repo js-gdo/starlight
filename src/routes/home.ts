@@ -3,8 +3,11 @@ import { getLayout } from '../utils/layout';
 import { formatTimeToChina } from '../utils/time';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { getUserColor } from '../utils/constants';
+import { getTranslator } from '../utils/i18n';
+import type { Env } from '../env.d';
 
 export async function renderHome(env: Env, req: Request) {
+    const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     const db = env.DB;
 
@@ -56,7 +59,7 @@ export async function renderHome(env: Env, req: Request) {
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0;">
               <div style="text-align:center;margin-bottom:10px;">
                 <div style="font-size:22px;font-weight:700;color:${fortune.color};">${fortune.level}</div>
-                <div style="font-size:12px;color:#bbb;margin-top:2px;">仅供娱乐</div>
+                <div style="font-size:12px;color:#bbb;margin-top:2px;">${t('info')}</div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div>
@@ -174,12 +177,12 @@ export async function renderHome(env: Env, req: Request) {
             <div class="banner-slides" id="bannerSlides">
               ${banners.results.map((b: any, i: number) => `
                 <div class="banner-slide">
-                  ${b.link_url ? `<a href="${htmlEscape(b.link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>StarLight 社区</div>';"></a>` : `<img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>StarLight 社区</div>';">`}
+                  ${b.link_url ? `<a href="${htmlEscape(b.link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
                 </div>
               `).join('')}
               ${banners.results.length > 1 ? `
                 <div class="banner-slide">
-                  ${banners.results[0].link_url ? `<a href="${htmlEscape(banners.results[0].link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>StarLight 社区</div>';"></a>` : `<img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>StarLight 社区</div>';">`}
+                  ${banners.results[0].link_url ? `<a href="${htmlEscape(banners.results[0].link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
                 </div>
               ` : ''}
             </div>
@@ -193,28 +196,28 @@ export async function renderHome(env: Env, req: Request) {
           </div>
         </div>
         <div class="card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;gap:6px;">
-          <div style="font-size:14px;color:#666;"><i class="fas fa-calendar-check"></i> 每日签到</div>
+          <div style="font-size:14px;color:#666;"><i class="fas fa-calendar-check"></i> ${t('checkinTitle')}</div>
           ${user ? `
             <div>
               ${isCheckedIn ? `
                 <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
                   <span class="checked-in-badge">
-                    <i class="fas fa-check-circle"></i> 今日已签到
+                    <i class="fas fa-check-circle"></i> ${t('alreadyCheckedin')}
                   </span>
                   ${fortuneDisplay}
                 </div>
               ` : `
                 <button class="checkin-btn" onclick="checkin()">
-                  <i class="fas fa-check"></i> 签到 (+10积分)
+                  <i class="fas fa-check"></i> ${t('checkinTitle')} (+10 ${t('points')})
                 </button>
                 <div id="checkin-status" style="font-size:13px;color:#999;margin-top:4px;"></div>
               `}
             </div>
-            <div class="fortune-display">${isCheckedIn ? '今日运势 ' + fortuneDisplay : '签到获取今日运势'}</div>
-            <div class="points-display"><i class="fas fa-coins"></i> 当前积分：<strong>${userPoints}</strong></div>
+            <div class="fortune-display">${isCheckedIn ? t('fortuneDisplay') : t('checkinToGetFortune')}</div>
+            <div class="points-display"><i class="fas fa-coins"></i> ${t('points')}：<strong>${userPoints}</strong></div>
             ${fortuneDetail}
           ` : `
-            <div style="color:#999;font-size:13px;">请 <a href="/login" style="color:#8E44AD;">登录</a> 后签到</div>
+            <div style="color:#999;font-size:13px;">${t('loginRequired')}</div>
           `}
         </div>
       </div>
@@ -223,19 +226,19 @@ export async function renderHome(env: Env, req: Request) {
         <div class="card">
           <div class="stat-box">
             <div class="num">${articleCount ? articleCount.count : 0}</div>
-            <div class="label"><i class="fas fa-file-alt"></i> 帖子总数</div>
+            <div class="label"><i class="fas fa-file-alt"></i> ${t('totalArticles')}</div>
           </div>
         </div>
         <div class="card">
           <div class="stat-box">
             <div class="num">${ticketCount ? ticketCount.count : 0}</div>
-            <div class="label"><i class="fas fa-ticket-alt"></i> 工单总数</div>
+            <div class="label"><i class="fas fa-ticket-alt"></i> ${t('totalTickets')}</div>
           </div>
         </div>
         <div class="card">
           <div class="stat-box">
             <div class="num">${onlineCount}</div>
-            <div class="label"><i class="fas fa-users"></i> 在线用户</div>
+            <div class="label"><i class="fas fa-users"></i> ${t('onlineUsers')}</div>
           </div>
         </div>
       </div>
@@ -244,15 +247,15 @@ export async function renderHome(env: Env, req: Request) {
         <div style="display:flex;flex-direction:column;gap:16px;">
           <div class="card">
             <div class="card-header">
-              <h3><i class="fas fa-thumbtack"></i> 置顶 / 最新讨论</h3>
-              <a href="/articles/list" style="font-size:13px;color:#8E44AD;text-decoration:none;">查看全部 →</a>
+              <h3><i class="fas fa-thumbtack"></i> ${t('latestDiscussions')}</h3>
+              <a href="/articles/list" style="font-size:13px;color:#8E44AD;text-decoration:none;">${t('viewAll')} →</a>
             </div>
             ${articles.results.slice(0, 8).map((a: any) => `
               <div class="discuss-item">
                 <div class="title">
                   <a href="/articles/${a.hex_id}">${htmlEscape(a.title)}</a>
-                  ${a.is_pinned ? '<span class="pin-tag">置顶</span>' : ''}
-                  ${a.is_locked ? '<span class="pin-tag" style="background:#e74c3c;">锁定</span>' : ''}
+                  ${a.is_pinned ? `<span class="pin-tag">${t('articlePinned')}</span>` : ''}
+                  ${a.is_locked ? `<span class="pin-tag" style="background:#e74c3c;">${t('articleLocked')}</span>` : ''}
                 </div>
                 <div class="meta">
                   ${renderUsernameLink(a.username, a.color, a.tag, a.author_id)}
@@ -260,15 +263,15 @@ export async function renderHome(env: Env, req: Request) {
                 </div>
               </div>
             `).join('')}
-            ${articles.results.length === 0 ? '<div style="color:#999;padding:12px 0;text-align:center;">暂无帖子</div>' : ''}
+            ${articles.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">${t('noArticles')}</div>` : ''}
           </div>
         </div>
 
         <div class="right-side">
           <div class="card">
             <div class="card-header">
-              <h3><i class="fas fa-user-friends"></i> 在线用户</h3>
-              <span class="online-pill"><i class="fas fa-circle" style="font-size:8px;"></i> ${onlineCount} 在线</span>
+              <h3><i class="fas fa-user-friends"></i> ${t('onlineUsers')}</h3>
+              <span class="online-pill"><i class="fas fa-circle" style="font-size:8px;"></i> ${onlineCount} ${t('onlineCount')}</span>
             </div>
             <div class="online-user-list">
               ${onlineUsers.results.length > 0 ? onlineUsers.results.map((u: any) => `
@@ -277,24 +280,24 @@ export async function renderHome(env: Env, req: Request) {
                   <div class="online-avatar" style="background:${getUserColor(u.color)}">${htmlEscape(u.username).charAt(0).toUpperCase()}</div>
                   <div class="online-user-meta">
                     <div class="online-user-name">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</div>
-                    <div class="online-user-time">${u.last_active_at ? '活跃于 ' + formatTimeToChina(u.last_active_at) : '刚刚'}</div>
+                    <div class="online-user-time">${u.last_active_at ? t('activeAt') + ' ' + formatTimeToChina(u.last_active_at) : t('justNow')}</div>
                   </div>
                 </div>
-              `).join('') : '<div style="color:#999;padding:6px 0;text-align:center;">暂无在线用户</div>'}
+              `).join('') : `<div style="color:#999;padding:6px 0;text-align:center;">${t('noOnlineUsers')}</div>`}
             </div>
           </div>
           <div class="card">
             <div class="card-header">
-              <h3><i class="fas fa-comment-dots"></i> 动态</h3>
-              <a href="/benben" style="font-size:13px;color:#8E44AD;text-decoration:none;">更多 →</a>
+              <h3><i class="fas fa-comment-dots"></i> ${t('benben')}</h3>
+              <a href="/benben" style="font-size:13px;color:#8E44AD;text-decoration:none;">${t('viewAll')} →</a>
             </div>
             ${user ? `
               <form action="/api/benben" method="POST" style="display:flex;gap:6px;margin-bottom:10px;">
-                <input type="text" name="content" placeholder="说点什么..." required style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
-                <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 14px;border:none;border-radius:4px;cursor:pointer;font-size:13px;">发布</button>
+                <input type="text" name="content" placeholder="${t('benbenPlaceholder')}" required style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
+                <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 14px;border:none;border-radius:4px;cursor:pointer;font-size:13px;">${t('submit')}</button>
               </form>
             ` : `
-              <div style="color:#999;font-size:13px;margin-bottom:10px;">请 <a href="/login" style="color:#8E44AD;">登录</a> 后发布动态</div>
+              <div style="color:#999;font-size:13px;margin-bottom:10px;">${t('loginRequired')}</div>
             `}
             ${benben.results.map((b: any) => `
               <div class="benben-item">
@@ -303,7 +306,7 @@ export async function renderHome(env: Env, req: Request) {
                 <div class="content">${htmlEscape(b.content)}</div>
               </div>
             `).join('')}
-            ${benben.results.length === 0 ? '<div style="color:#999;padding:6px 0;text-align:center;">暂无动态</div>' : ''}
+            ${benben.results.length === 0 ? `<div style="color:#999;padding:6px 0;text-align:center;">${t('noBenben')}</div>` : ''}
           </div>
         </div>
       </div>
@@ -317,7 +320,7 @@ export async function renderHome(env: Env, req: Request) {
         if (data.message) {
           statusEl.innerHTML = '<span style="color:#2ecc71;"><i class="fas fa-check-circle"></i> ' + data.message + '</span>';
           if (data.points !== undefined) {
-            statusEl.innerHTML += '<br><span style="color:#8E44AD;">+ ' + data.points + ' 积分</span>';
+            statusEl.innerHTML += '<br><span style="color:#8E44AD;">+ ' + data.points + ' ${t('points')}</span>';
           }
           setTimeout(() => location.reload(), 1500);
         }
@@ -373,5 +376,5 @@ export async function renderHome(env: Env, req: Request) {
     </script>
   `;
 
-    return await getLayout(env, user, '首页', content);
+    return await getLayout(env, user, t('home'), content, '', req);
 }
