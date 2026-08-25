@@ -1,19 +1,14 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
-import { formatTimeToChina, getChinaTime, getHitokoto } from '../utils/time';
+import { formatTimeToChina } from '../utils/time';
 import { getUserColor, getTicketStatus } from '../utils/constants';
-export async function renderBackend(env, req) {
+import type { Env } from '../env.d';
+
+export async function renderBackend(env: Env, req: Request) {
     const user = await getSessionUser(env, req);
     if (!user || !user.admin) return '无权限';
     const db = env.DB;
-
-    let unreadCount = 0;
-    if (user) {
-        const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
-            .bind(user.id).first();
-        unreadCount = countResult ? countResult.cnt : 0;
-    }
 
     const users = await db.prepare('SELECT * FROM users ORDER BY id').all();
     const articles = await db.prepare('SELECT * FROM articles ORDER BY id DESC').all();
@@ -21,140 +16,427 @@ export async function renderBackend(env, req) {
     const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
 
     const content = `
-    <div class="page-header"><h1><i class="fas fa-cog"></i> 后台管理</h1></div>
+  <style>
+    .table-wrap { overflow-x: auto; }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .admin-table th {
+      background: #f8f6fa;
+      color: #4a3f5e;
+      font-weight: 600;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 2px solid #e8e3ed;
+    }
+    .admin-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0edf3;
+      vertical-align: middle;
+    }
+    .admin-table tr:last-child td { border-bottom: none; }
+    .admin-table tr:hover td { background: #faf8fc; }
 
-    <div class="card" style="overflow-x:auto;">
-      <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;"><i class="fas fa-users"></i> 用户管理</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    .user-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .user-actions select, .user-actions input {
+      font-size: 12px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      background: #fff;
+      transition: 0.15s;
+    }
+    .user-actions select:focus, .user-actions input:focus {
+      border-color: #8E44AD;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(142,68,173,0.15);
+    }
+    .field-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+    .field-group.hidden { display: none; }
+
+    .btn-sm {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      transition: 0.15s;
+      color: #fff;
+    }
+    .btn-sm:hover { opacity: 0.85; }
+    .btn-primary { background: #8E44AD; color: #fff; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-warning { background: #f39c12; color: #fff; }
+    .btn-outline {
+      background: transparent;
+      color: #555;
+      border: 1px solid #ddd;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+    }
+    .card:last-child { margin-bottom: 0; }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title i { color: #8E44AD; }
+
+    .article-item, .ticket-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0edf3;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .article-item:last-child, .ticket-item:last-child { border-bottom: none; }
+    .article-item .title, .ticket-item .title {
+      font-size: 14px;
+      color: #333;
+    }
+    .article-item .meta, .ticket-item .meta {
+      color: #999;
+      font-size: 12px;
+    }
+    .action-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .banner-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0edf3;
+    }
+    .banner-item:last-child { border-bottom: none; }
+    .banner-thumb {
+      width: 80px;
+      height: 45px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #eee;
+      flex-shrink: 0;
+    }
+    .banner-info {
+      flex: 1;
+      min-width: 0;
+      font-size: 13px;
+    }
+    .banner-info .url { word-break: break-all; color: #333; }
+    .banner-info .meta { color: #999; font-size: 12px; margin-top: 2px; }
+
+    .add-banner-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #f8f6fa;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .add-banner-form input {
+      flex: 1;
+      min-width: 150px;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .add-banner-form input:focus {
+      border-color: #8E44AD;
+      outline: none;
+    }
+    .add-banner-form button {
+      background: #8E44AD;
+      color: #fff;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .add-banner-form button:hover { background: #7d3c98; }
+  </style>
+
+  <div class="page-header"><h1><i class="fas fa-cog"></i> 后台管理</h1></div>
+
+  <!-- 用户管理 -->
+  <div class="card">
+    <div class="section-title"><i class="fas fa-users"></i> 用户管理</div>
+    <div class="table-wrap">
+      <table class="admin-table">
         <thead>
-          <tr style="border-bottom:2px solid #f0f0f0;">
-            <th style="text-align:left;padding:6px;">ID</th>
-            <th style="text-align:left;padding:6px;">用户名</th>
-            <th style="text-align:left;padding:6px;">权限</th>
-            <th style="text-align:left;padding:6px;">颜色</th>
-            <th style="text-align:left;padding:6px;">牌子</th>
-            <th style="text-align:left;padding:6px;">禁言</th>
-            <th style="text-align:left;padding:6px;">最近登录</th>
-            <th style="text-align:left;padding:6px;">操作</th>
+          <tr>
+            <th>ID</th>
+            <th>用户名</th>
+            <th>权限</th>
+            <th>颜色</th>
+            <th>牌子</th>
+            <th>禁言</th>
+            <th>最近登录</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          ${users.results.map(u => `
-            <tr style="border-bottom:1px solid #f5f5f5;">
-              <td style="padding:6px;">${u.id}</td>
-              <td style="padding:6px;">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</td>
-              <td style="padding:6px;font-size:12px;">use:${u.use} speak:${u.speak} admin:${u.admin}</td>
-              <td style="padding:6px;"><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${getUserColor(u.color)};vertical-align:middle;margin-right:4px;"></span>${({ purple: '紫名', red: '红名', orange: '橙名', green: '绿名', blue: '蓝名', gray: '灰名' })[u.color] || u.color}</td>
-              <td style="padding:6px;">${u.tag || '无'}</td>
-              <td style="padding:6px;"><span style="color:${u.violation_count > 0 ? '#e74c3c' : '#999'};font-weight:600;">${u.violation_count || 0}</span></td>
-              <td style="padding:6px;font-size:12px;color:#666;line-height:1.5;">
+          ${users.results.map((u: any) => `
+            <tr>
+              <td>${u.id}</td>
+              <td>${renderUsernameLink(u.username, u.color, u.tag, u.id)}</td>
+              <td style="font-size:12px;">use:${u.use} speak:${u.speak} admin:${u.admin}</td>
+              <td>
+                <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:${getUserColor(u.color)};vertical-align:middle;margin-right:4px;"></span>
+                ${({ purple: '紫名', red: '红名', orange: '橙名', green: '绿名', blue: '蓝名', gray: '灰名' })[u.color] || u.color}
+              </td>
+              <td>${u.tag || '无'}</td>
+              <td><span style="color:${u.violation_count > 0 ? '#e74c3c' : '#999'};font-weight:600;">${u.violation_count || 0}</span></td>
+              <td style="font-size:12px;color:#666;line-height:1.5;">
                 ${u.last_ip ? `<div><i class="fas fa-network-wired" style="color:#8E44AD;"></i> ${htmlEscape(u.last_ip)}</div>` : '<div style="color:#bbb;">无记录</div>'}
                 ${u.last_login_at ? `<div style="color:#999;">${formatTimeToChina(u.last_login_at)}</div>` : ''}
               </td>
-              <td style="padding:6px;">
-                <form action="/api/admin/user/${u.id}" method="POST" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-                  <select name="mode" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                    <option value="profile">更改资料</option>
+              <td>
+                <form action="/api/admin/user/${u.id}" method="POST" class="user-actions">
+                  <!-- mode 选择 -->
+                  <select name="mode" onchange="toggleFields(this)" style="width:auto;">
+                    <option value="profile" selected>更改资料</option>
                     <option value="permission">更改权限</option>
                   </select>
-                  <select name="color" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                    <option value="purple" ${u.color === 'purple' ? 'selected' : ''}>紫名</option>
-                    <option value="red" ${u.color === 'red' ? 'selected' : ''}>红名</option>
-                    <option value="orange" ${u.color === 'orange' ? 'selected' : ''}>橙名</option>
-                    <option value="green" ${u.color === 'green' ? 'selected' : ''}>绿名</option>
-                    <option value="blue" ${u.color === 'blue' ? 'selected' : ''}>蓝名</option>
-                    <option value="gray" ${u.color === 'gray' ? 'selected' : ''}>灰名</option>
-                  </select>
-                  <input type="text" name="tag" placeholder="牌子（可选）" value="${u.tag || ''}" style="width:60px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                  <select name="permission" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                    <option value="">-- 权限 --</option>
-                    <option value="use">进入网站</option>
-                    <option value="speak">发言</option>
-                    <option value="admin">管理员</option>
-                  </select>
-                  <select name="action" style="padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                    <option value="">-- 操作 --</option>
-                    <option value="grant">授予</option>
-                    <option value="revoke">取消</option>
-                  </select>
-                  <input type="text" name="reason" placeholder="原因（可选）" style="width:80px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;font-size:12px;">
-                  <button type="submit" style="background:#8E44AD;color:#fff;padding:3px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">执行</button>
+
+                  <!-- 资料字段（默认显示） -->
+                  <span class="field-group profile-fields">
+                    <select name="color" style="width:auto;">
+                      <option value="purple" ${u.color === 'purple' ? 'selected' : ''}>紫名</option>
+                      <option value="red" ${u.color === 'red' ? 'selected' : ''}>红名</option>
+                      <option value="orange" ${u.color === 'orange' ? 'selected' : ''}>橙名</option>
+                      <option value="green" ${u.color === 'green' ? 'selected' : ''}>绿名</option>
+                      <option value="blue" ${u.color === 'blue' ? 'selected' : ''}>蓝名</option>
+                      <option value="gray" ${u.color === 'gray' ? 'selected' : ''}>灰名</option>
+                    </select>
+                    <input type="text" name="tag" placeholder="牌子（可选）" value="${u.tag || ''}" style="width:70px;">
+                  </span>
+
+                  <!-- 权限字段（默认隐藏） -->
+                  <span class="field-group permission-fields hidden">
+                    <select name="permission" style="width:auto;">
+                      <option value="">选择权限</option>
+                      <option value="use">进入主站</option>
+                      <option value="speak">自由发言</option>
+                      <option value="admin">管理员</option>
+                    </select>
+                    <select name="action" style="width:auto;">
+                      <option value="">授予/撤销</option>
+                      <option value="grant">授予</option>
+                      <option value="revoke">撤销</option>
+                    </select>
+                    <input type="text" name="reason" placeholder="原因（可选）" style="width:80px;">
+                  </span>
+
+                  <!-- 执行按钮 -->
+                  <button type="submit" class="btn-sm btn-primary" style="font-size:13px; color:#fff;">执行</button>
                 </form>
-                <form action="/api/admin/user/${u.id}/delete" method="POST" style="display:inline;">
-                  <button type="submit" style="background:#e74c3c;color:#fff;padding:3px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;margin-top:3px;">删除</button>
-                </form>
+
+                <!-- 删除按钮（触发弹窗） -->
+                <button type="button" class="btn-sm btn-danger" style="font-size:13px; color:#fff; margin-top:4px;" onclick="confirmDelete(${u.id}, '${htmlEscape(u.username)}')">
+                  <i class="fas fa-trash-alt"></i> 删除
+                </button>
               </td>
             </tr>
           `).join('')}
         </tbody>
       </table>
     </div>
+  </div>
 
-    <div class="card">
-      <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;"><i class="fas fa-file-alt"></i> 帖子管理</h2>
-      ${articles.results.map(a => `
-        <div style="padding:6px 0;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span style="font-size:14px;">${htmlEscape(a.title)} <span style="color:#999;font-size:12px;">· ${formatTimeToChina(a.created_at)}</span></span>
-          <div style="display:flex;gap:4px;">
-            <form action="/api/admin/article/${a.id}/delete" method="POST" style="display:inline;">
-              <button type="submit" style="background:#e74c3c;color:#fff;padding:2px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">删除</button>
-            </form>
-            <form action="/api/admin/article/${a.id}/pin" method="POST" style="display:inline;">
-              <button type="submit" style="background:#8E44AD;color:#fff;padding:2px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">${a.is_pinned ? '取消置顶' : '置顶'}</button>
-            </form>
-            <form action="/api/admin/article/${a.id}/lock" method="POST" style="display:inline;">
-              <button type="submit" style="background:${a.is_locked ? '#27ae60' : '#7f8c8d'};color:#fff;padding:2px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">${a.is_locked ? '解锁' : '锁定'}</button>
-            </form>
-          </div>
+  <!-- 帖子管理 -->
+  <div class="card">
+    <div class="section-title"><i class="fas fa-file-alt"></i> 帖子管理</div>
+    ${articles.results.map((a: any) => `
+      <div class="article-item">
+        <div>
+          <span class="title">${htmlEscape(a.title)}</span>
+          <span class="meta">· ${formatTimeToChina(a.created_at)}</span>
         </div>
-      `).join('')}
-    </div>
-
-    <div class="card">
-      <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;"><i class="fas fa-ticket-alt"></i> 工单管理</h2>
-      ${tickets.results.map(t => {
-        const statusInfo = getTicketStatus(t.status);
-        return `
-          <div style="padding:6px 0;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <span style="font-size:14px;">#${t.id} ${htmlEscape(t.title)} <span style="color:#999;font-size:12px;">
-              <i class="fas ${statusInfo.icon}"></i> ${statusInfo.label} · ${formatTimeToChina(t.created_at)}
-            </span></span>
-            <div style="display:flex;gap:4px;">
-              <form action="/api/admin/ticket/${t.id}/delete" method="POST" style="display:inline;">
-                <button type="submit" style="background:#e74c3c;color:#fff;padding:2px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">删除</button>
-              </form>
-            </div>
-          </div>
-        `;
-    }).join('')}
-    </div>
-    <div class="card">
-      <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;"><i class="fas fa-images"></i> 轮播图管理</h2>
-      <form action="/api/admin/banner/add" method="POST" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px;background:#f8f9fa;border-radius:6px;">
-        <input type="url" name="image_url" placeholder="图片URL (16:9)" required style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
-        <input type="url" name="link_url" placeholder="跳转链接 (可选)" style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
-        <input type="number" name="sort_order" placeholder="排序" value="0" style="width:70px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;">
-        <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 16px;border:none;border-radius:4px;cursor:pointer;font-size:13px;"><i class="fas fa-plus"></i> 添加</button>
-      </form>
-      ${banners.results.length === 0 ? '<div style="color:#999;padding:12px 0;text-align:center;">暂无轮播图</div>' : ''}
-      ${banners.results.map(b => `
-        <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:200px;">
-            <img src="${htmlEscape(b.image_url)}" style="width:80px;height:45px;object-fit:cover;border-radius:4px;background:#eee;" onerror="this.style.display='none';">
-            <div style="font-size:13px;">
-              <div style="color:#333;word-break:break-all;">${htmlEscape(b.image_url)}</div>
-              <div style="color:#999;font-size:12px;margin-top:2px;">
-                ${b.link_url ? `<i class="fas fa-link"></i> ${htmlEscape(b.link_url)}` : '<i class="fas fa-link-slash"></i> 无跳转'}
-                &nbsp;·&nbsp; 排序: ${b.sort_order}
-              </div>
-            </div>
-          </div>
-          <form action="/api/admin/banner/${b.id}/delete" method="POST" style="display:inline;">
-            <button type="submit" style="background:#e74c3c;color:#fff;padding:4px 12px;border:none;border-radius:4px;cursor:pointer;font-size:12px;"><i class="fas fa-trash-alt"></i> 删除</button>
+        <div class="action-group">
+          <form action="/api/admin/article/${a.id}/delete" method="POST" style="display:inline;">
+            <button type="submit" class="btn-sm btn-danger">删除</button>
+          </form>
+          <form action="/api/admin/article/${a.id}/pin" method="POST" style="display:inline;">
+            <button type="submit" class="btn-sm ${a.is_pinned ? 'btn-outline' : 'btn-primary'}">${a.is_pinned ? '取消置顶' : '置顶'}</button>
+          </form>
+          <form action="/api/admin/article/${a.id}/lock" method="POST" style="display:inline;">
+            <button type="submit" class="btn-sm ${a.is_locked ? 'btn-success' : 'btn-warning'}">${a.is_locked ? '解锁' : '锁定'}</button>
           </form>
         </div>
-      `).join('')}
-    </div>
+      </div>
+    `).join('')}
+  </div>
+
+  <!-- 工单管理 -->
+  <div class="card">
+    <div class="section-title"><i class="fas fa-ticket-alt"></i> 工单管理</div>
+    ${tickets.results.map((t: any) => {
+        const statusInfo = getTicketStatus(t.status);
+        return `
+        <div class="ticket-item">
+          <div>
+            <span class="title">#${t.id} ${htmlEscape(t.title)}</span>
+            <span class="meta">
+              <i class="fas ${statusInfo.icon}"></i> ${statusInfo.label} · ${formatTimeToChina(t.created_at)}
+            </span>
+          </div>
+          <div class="action-group">
+            <form action="/api/admin/ticket/${t.id}/delete" method="POST" style="display:inline;">
+              <button type="submit" class="btn-sm btn-danger">删除</button>
+            </form>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  </div>
+
+  <!-- 轮播图管理 -->
+  <div class="card">
+    <div class="section-title"><i class="fas fa-images"></i> 轮播图管理</div>
+    <form action="/api/admin/banner/add" method="POST" class="add-banner-form">
+      <input type="url" name="image_url" placeholder="图片URL（16:9）" required>
+      <input type="url" name="link_url" placeholder="跳转链接（可选）">
+      <input type="number" name="sort_order" placeholder="排序" value="0" style="width:80px;">
+      <button type="submit"><i class="fas fa-plus"></i> 添加</button>
+    </form>
+    ${banners.results.length === 0 ? '<div style="color:#999;padding:12px 0;text-align:center;">暂无轮播图</div>' : ''}
+    ${banners.results.map((b: any) => `
+      <div class="banner-item">
+        <img src="${htmlEscape(b.image_url)}" class="banner-thumb" onerror="this.style.display='none'">
+        <div class="banner-info">
+          <div class="url">${htmlEscape(b.image_url)}</div>
+          <div class="meta">
+            ${b.link_url ? `<i class="fas fa-link"></i> ${htmlEscape(b.link_url)}` : '<i class="fas fa-link-slash"></i> 无跳转'}
+            &nbsp;·&nbsp; 排序: ${b.sort_order}
+          </div>
+        </div>
+        <form action="/api/admin/banner/${b.id}/delete" method="POST">
+          <button type="submit" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> 删除</button>
+        </form>
+      </div>
+    `).join('')}
+  </div>
+
+  <script>
+    function toggleFields(select) {
+      const row = select.closest('tr');
+      const profileGroup = row.querySelector('.profile-fields');
+      const permissionGroup = row.querySelector('.permission-fields');
+      if (select.value === 'profile') {
+        profileGroup.classList.remove('hidden');
+        permissionGroup.classList.add('hidden');
+      } else {
+        profileGroup.classList.add('hidden');
+        permissionGroup.classList.remove('hidden');
+      }
+    }
+
+    // 删除用户确认弹窗（纯文本，10秒倒计时）
+    function confirmDelete(userId, username) {
+      if (typeof Swal === 'undefined') {
+        if (confirm('确定要删除用户 ' + username + ' 吗？此操作不可恢复！')) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/admin/user/' + userId + '/delete';
+          document.body.appendChild(form);
+          form.submit();
+        }
+        return;
+      }
+
+      let countdown = 10;
+      let timer = null;
+
+      Swal.fire({
+        title: '危险操作',
+        html: \`
+          <div style="text-align:left; font-size:15px; line-height:1.8;">
+            <p><strong>用户：</strong>\${username} (ID: \${userId})</p>
+            <p><strong>警告：</strong>删除后该用户所有内容（帖子、评论、工单、消息等）将永久丢失，不可恢复！</p>
+            <p style="margin-top:16px; font-weight:500;">请确认是否继续？</p>
+            <p style="margin-top:8px; color:#999; font-size:14px;">
+              <span id="countdownDisplay">\${countdown}</span> 秒后可点击确认
+            </p>
+          </div>
+        \`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        confirmButtonColor: '#e74c3c',
+        cancelButtonColor: '#95a5a6',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          const confirmBtn = Swal.getConfirmButton();
+          confirmBtn.disabled = true;
+          confirmBtn.innerHTML = '等待中... ' + countdown + 's';
+
+          timer = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+              clearInterval(timer);
+              confirmBtn.disabled = false;
+              confirmBtn.innerHTML = '确认删除';
+              document.getElementById('countdownDisplay').innerText = '0';
+            } else {
+              confirmBtn.innerHTML = '等待中... ' + countdown + 's';
+              document.getElementById('countdownDisplay').innerText = countdown;
+            }
+          }, 1000);
+        },
+        willClose: () => {
+          if (timer) clearInterval(timer);
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/admin/user/' + userId + '/delete';
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    }
+  </script>
   `;
     return await getLayout(env, user, '后台管理', content, '', req);
 }

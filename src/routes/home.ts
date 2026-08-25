@@ -1,6 +1,6 @@
-import { getSessionUser, generateHex } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { formatTimeToChina, getChinaTime } from '../utils/time';
+import { formatTimeToChina } from '../utils/time';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { getUserColor } from '../utils/constants';
 import { generateFortune } from '../utils/fortune';

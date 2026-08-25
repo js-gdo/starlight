@@ -1,4 +1,4 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
 import { formatTimeToChina, getChinaTime, getHitokoto } from '../utils/time';

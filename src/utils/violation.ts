@@ -1,12 +1,10 @@
-import { htmlEscape } from './html';
-
 const VIOLATION_API_KEY = 'bdc4eb58b4da0ecc';
 
 export async function checkViolation(content: string) {
     if (!content || !String(content).trim()) return { violated: false, words: [] };
     try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 5000);
+        const timer = setTimeout(() => ctrl.abort(), 1000);
         const res = await fetch(
             `https://api.auth.top/api/aidetect?key=${VIOLATION_API_KEY}&content=${encodeURIComponent(String(content))}`,
             { signal: ctrl.signal }

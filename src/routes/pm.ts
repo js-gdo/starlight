@@ -1,4 +1,4 @@
-import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
 export async function renderPmIndex(env, req) {
@@ -72,7 +72,7 @@ export async function renderPmIndex(env, req) {
     return await getLayout(env, user, '私信', content);
 }
 
-export async function renderPmChat(env, req, path) {
+export async function renderPmChat(env: Env, req: Request, path: string) {
     const user = await getSessionUser(env, req);
     if (!user) return '请先登录';
     const db = env.DB;
@@ -81,8 +81,11 @@ export async function renderPmChat(env, req, path) {
     if (targetUid === user.id) return '不能和自己聊天';
     const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').bind(targetUid).first();
     if (!targetUser) return '该用户不存在';
+
+    // 标记已读
     await db.prepare(`UPDATE messages SET is_read = 1 WHERE type = 'pm_chat' AND from_user_id = ? AND to_user_id = ? AND is_read = 0`)
         .bind(targetUid, user.id).run();
+
     const content = `
     <div class="page-header">
       <h1><i class="fas fa-envelope"></i> 与 ${htmlEscape(targetUser.username)} 的对话</h1>
@@ -98,9 +101,13 @@ export async function renderPmChat(env, req, path) {
     <script>
       const PM_TARGET_UID = ${targetUid};
       const PM_MY_UID = ${user.id};
-      let pmLastId = 0;
+      let pmLastId = 0;            // 当前已显示的最大消息ID
+      let pmIsLoading = false;     // 防止并发请求
+      let pmPolling = null;        // 定时器句柄
       const pmChatBox = document.getElementById('pm-chat-box');
-      function appendPmMessage(m){
+
+      // 追加单条消息到聊天框
+      function appendPmMessage(m) {
         const isMe = m.from_user_id === PM_MY_UID;
         const wrap = document.createElement('div');
         wrap.style.display = 'flex';
@@ -114,7 +121,7 @@ export async function renderPmChat(env, req, path) {
         bubble.style.whiteSpace = 'pre-wrap';
         bubble.style.fontSize = '14px';
         bubble.style.lineHeight = '1.5';
-        if(isMe){
+        if (isMe) {
           bubble.style.background = '#8E44AD';
           bubble.style.color = '#fff';
         } else {
@@ -126,26 +133,39 @@ export async function renderPmChat(env, req, path) {
         wrap.appendChild(bubble);
         pmChatBox.appendChild(wrap);
       }
-      async function loadPmMessages(){
+
+      // 加载新消息（轮询调用）
+      async function loadPmMessages() {
+        if (pmIsLoading) return; // 防止重复请求
+        pmIsLoading = true;
         try {
           const res = await fetch('/api/pm/chat?to_uid=' + PM_TARGET_UID + '&after=' + pmLastId);
           const json = await res.json();
-          if(json.messages && json.messages.length > 0){
-            for(const m of json.messages){
-              appendPmMessage(m);
-              if(m.id > pmLastId) pmLastId = m.id;
+          if (json.messages && json.messages.length > 0) {
+            // 只追加新消息（id > pmLastId）
+            for (const m of json.messages) {
+              if (m.id > pmLastId) {
+                appendPmMessage(m);
+                // 更新最大ID
+                if (m.id > pmLastId) pmLastId = m.id;
+              }
             }
+            // 滚动到底部
             pmChatBox.scrollTop = pmChatBox.scrollHeight;
           }
-        } catch(e){ console.warn('轮询失败', e); }
+          // 如果没有新消息，pmLastId 保持不变，但服务器返回的消息一定都 > 旧值，所以不会重复
+        } catch (e) {
+          console.warn('轮询失败', e);
+        } finally {
+          pmIsLoading = false;
+        }
       }
-      let pmSending = false;
-      async function sendPmMessage(){
-        if(pmSending) return;
+
+      // 发送消息
+      async function sendPmMessage() {
         const ta = document.getElementById('pm-textarea');
         const text = ta.value.trim();
-        if(!text) return;
-        pmSending = true;
+        if (!text) return;
         ta.value = '';
         try {
           await fetch('/api/pm/send', {
@@ -153,19 +173,52 @@ export async function renderPmChat(env, req, path) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({to_uid: PM_TARGET_UID, content: text})
           });
-        } catch(e){ toast('发送失败','error'); }
-        pmSending = false;
-        await loadPmMessages();
+          // 发送成功后立即拉取新消息（包括自己刚发的）
+          await loadPmMessages();
+        } catch (e) {
+          toast('发送失败', 'error');
+        }
       }
-      document.getElementById('pm-textarea').addEventListener('keydown', function(e){
-        if(e.key === 'Enter' && !e.shiftKey){
+
+      // 键盘事件
+      document.getElementById('pm-textarea').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           sendPmMessage();
         }
       });
+
+      // 初始加载
       loadPmMessages();
-      setInterval(loadPmMessages, 2000);
+
+      // 启动轮询（每2秒）
+      pmPolling = setInterval(loadPmMessages, 2000);
+
+      // 页面不可见时停止轮询，节省资源
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+          if (pmPolling) {
+            clearInterval(pmPolling);
+            pmPolling = null;
+          }
+        } else {
+          if (!pmPolling) {
+            pmPolling = setInterval(loadPmMessages, 2000);
+            // 回到页面时立即刷新一次
+            loadPmMessages();
+          }
+        }
+      });
+
+      // 页面卸载时清除定时器
+      window.addEventListener('beforeunload', function() {
+        if (pmPolling) {
+          clearInterval(pmPolling);
+          pmPolling = null;
+        }
+      });
     </script>
   `;
+
     return await getLayout(env, user, '私信', content);
 }
