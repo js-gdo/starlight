@@ -24,6 +24,8 @@ export async function getLayout(
     }
     const chinaTime = getChinaTime();
     const hitokoto = await getHitokoto();
+    const currentLang = getCurrentLanguage(req);
+    const t = (id: string) => GetText(id, currentLang);
 
     const navItems = [
         { href: '/', label: t('home'), active: title === t('home') },

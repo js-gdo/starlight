@@ -5,6 +5,8 @@ import type { Env } from '../env.d';
 export async function renderLogin(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
+    const currentLang = getCurrentLanguage(req);
+    const t = (id: string) => GetText(id, currentLang);
     if (user) {
         return { redirect: '/' };
     }
@@ -119,6 +121,7 @@ export async function renderLogin(env: Env, req: Request) {
   </style>
 </head>
 <body>
+  ${getLanguageSwitch(currentLang)}
   <div class="login-container">
     <div class="logo">${t('appName')}</div>
     <div class="logo-sub">${t('login')}</div>

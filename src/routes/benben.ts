@@ -9,6 +9,7 @@ export async function renderBenben(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     const db = env.DB;
+    const t = (id: string) => GetText(id, req);
 
     if (user) {
         await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')

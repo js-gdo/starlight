@@ -86,6 +86,8 @@ export async function renderHome(env: Env, req: Request) {
         }
     }
 
+    const t = (id: string) => GetText(id, req);
+
     const content = `
     <style>
       .home-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
