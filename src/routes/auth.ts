@@ -1,6 +1,9 @@
 import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
+import { GetText, getCurrentLanguage, getLanguageSwitch } from '../utils/language';
 export async function renderLogin(env, req) {
     const user = await getSessionUser(env, req);
+    const currentLang = getCurrentLanguage(req);
+    const t = (id: string) => GetText(id, currentLang);
     if (user) {
         return { redirect: '/' };
     }
@@ -115,28 +118,29 @@ export async function renderLogin(env, req) {
   </style>
 </head>
 <body>
+  ${getLanguageSwitch(currentLang)}
   <div class="login-container">
-    <div class="logo">StarLight</div>
-    <div class="logo-sub">登录您的账号</div>
-    <div class="demo-info">
-      <span><i class="fas fa-info-circle"></i> 管理员</span>
-      <span><strong>lin114514</strong></span>
-    </div>
-    <div id="error-msg" class="error-msg"></div>
-    <form id="login-form">
-      <div class="form-group">
-        <label>用户名</label>
-        <input type="text" id="username" placeholder="请输入用户名" required>
-      </div>
-      <div class="form-group">
-        <label>密码</label>
-        <input type="password" id="password" placeholder="请输入密码" required>
-      </div>
-      <button type="submit" class="btn">登录</button>
-    </form>
-    <div class="register-link">
-      还没有账号？ <a href="/register">立即注册</a>
-    </div>
+<div class="logo">StarLight</div>
+<div class="logo-sub">${t('common.login.title')} ${t('common.user')}</div>
+<div class="demo-info">
+  <span><i class="fas fa-info-circle"></i> ${t('common.admin.account')}</span>
+  <span><strong>lin114514</strong></span>
+</div>
+<div id="error-msg" class="error-msg"></div>
+<form id="login-form">
+  <div class="form-group">
+    <label>${t('common.username')}</label>
+    <input type="text" id="username" placeholder="${t('common.username.placeholder')}" required>
+  </div>
+  <div class="form-group">
+    <label>${t('common.password')}</label>
+    <input type="password" id="password" placeholder="${t('common.password.placeholder')}" required>
+  </div>
+  <button type="submit" class="btn">${t('common.login.title')}</button>
+</form>
+<div class="register-link">
+  ${t('common.no.account')} <a href="/register">${t('common.sign.now')}</a>
+</div>
   </div>
   <script>
     document.getElementById('login-form').addEventListener('submit', async function(e) {
@@ -154,7 +158,7 @@ export async function renderLogin(env, req) {
           window.location.href = '/';
         } else {
           const errorEl = document.getElementById('error-msg');
-          errorEl.textContent = data.error || '登录失败';
+          errorEl.textContent = data.error || '${t('common.login.failed')}';
           errorEl.style.display = 'block';
         }
       } catch (err) {

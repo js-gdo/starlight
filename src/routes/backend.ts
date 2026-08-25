@@ -156,5 +156,5 @@ export async function renderBackend(env, req) {
       `).join('')}
     </div>
   `;
-    return await getLayout(env, user, '后台管理', content);
+    return await getLayout(env, user, '后台管理', content, '', req);
 }

@@ -2,9 +2,11 @@ import { getSessionUser, generateHex, jsonRes } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
 import { formatTimeToChina, getChinaTime, getHitokoto } from '../utils/time';
+import { GetText } from '../utils/language';
 export async function renderArticleList(env, req) {
 	const user = await getSessionUser(env, req);
 	const db = env.DB;
+	const t = (id: string) => GetText(id, req);
 
 	let unreadCount = 0;
 	if (user) {
@@ -21,8 +23,8 @@ export async function renderArticleList(env, req) {
 
 	const content = `
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-      <div><h1><i class="fas fa-file-alt"></i> 帖子列表</h1></div>
-      <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> 发布新帖</a>
+	    <div><h1><i class="fas fa-file-alt"></i> ${t('common.posts.title')}</h1></div>
+	    <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${t('common.post.new')}</a>
     </div>
     <div class="card">
       ${articles.results.map(a => `
@@ -38,13 +40,14 @@ export async function renderArticleList(env, req) {
       `).join('')}
     </div>
   `;
-	return await getLayout(env, user, '帖子列表', content);
+	return await getLayout(env, user, t('common.posts.title'), content, '', req);
 }
 
 export async function renderArticleNew(env, req) {
 	const user = await getSessionUser(env, req);
 	if (!user) return '请先登录';
-
+	const t = (id: string) => GetText(id, req);
+ 
 	const db = env.DB;
 	let unreadCount = 0;
 	if (user) {
@@ -54,26 +57,26 @@ export async function renderArticleNew(env, req) {
 	}
 
 	const content = `
-    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> 发布新帖</h1></div>
+	  <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${t('common.post.new')}</h1></div>
     <div class="card" style="max-width:800px;">
       <form action="/api/articles" method="POST">
         <div style="margin-bottom:14px;">
-          <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">标题</label>
-          <input name="title" placeholder="请输入标题" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+	        <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">${t('common.title')}</label>
+	        <input name="title" placeholder="${t('common.placeholder.title')}" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
         </div>
         <div style="margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <label style="font-weight:500;font-size:14px;">内容（支持 Markdown）</label>
+	          <label style="font-weight:500;font-size:14px;">${t('common.content.markdown')}</label>
             <div style="display:flex;gap:4px;">
-              <button type="button" id="mdEditBtn" onclick="toggleMdPreview('articleMd','edit')" style="padding:3px 12px;border:1px solid #8E44AD;background:#8E44AD;color:#fff;border-radius:4px;font-size:12px;cursor:pointer;">编辑</button>
-              <button type="button" id="mdPreviewBtn" onclick="toggleMdPreview('articleMd','preview')" style="padding:3px 12px;border:1px solid #ddd;background:#fff;color:#666;border-radius:4px;font-size:12px;cursor:pointer;">预览</button>
+	            <button type="button" id="mdEditBtn" onclick="toggleMdPreview('articleMd','edit')" style="padding:3px 12px;border:1px solid #8E44AD;background:#8E44AD;color:#fff;border-radius:4px;font-size:12px;cursor:pointer;">${t('common.edit')}</button>
+	            <button type="button" id="mdPreviewBtn" onclick="toggleMdPreview('articleMd','preview')" style="padding:3px 12px;border:1px solid #ddd;background:#fff;color:#666;border-radius:4px;font-size:12px;cursor:pointer;">${t('common.preview')}</button>
             </div>
           </div>
-          <textarea id="articleMd" name="content" placeholder="支持 Markdown 语法" rows="8" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;resize:vertical;font-family:monospace;"></textarea>
+	        <textarea id="articleMd" name="content" placeholder="${t('common.placeholder.content')}" rows="8" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;resize:vertical;font-family:monospace;"></textarea>
           <div id="articleMdPreview" class="markdown-body md-preview-box" style="display:none;width:100%;padding:12px;border:1px solid #eee;border-radius:4px;min-height:200px;background:#fafbfc;"></div>
         </div>
-        <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 24px;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;">发布</button>
-        <a href="/articles/list" style="margin-left:10px;color:#999;text-decoration:none;">取消</a>
+	      <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 24px;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;">${t('common.publish')}</button>
+	      <a href="/articles/list" style="margin-left:10px;color:#999;text-decoration:none;">${t('common.cancel')}</a>
       </form>
     </div>
     <script>
@@ -102,12 +105,13 @@ export async function renderArticleNew(env, req) {
     }
     </script>
   `;
-	return await getLayout(env, user, '发布帖子', content);
+	return await getLayout(env, user, t('common.post.new'), content, '', req);
 }
 
 export async function renderArticleDetail(env, req, path) {
 	const user = await getSessionUser(env, req);
 	const db = env.DB;
+	const t = (id: string) => GetText(id, req);
 	const hexId = path.split('/')[2];
 
 	let unreadCount = 0;
@@ -133,7 +137,7 @@ export async function renderArticleDetail(env, req, path) {
 	const isAdmin = user && user.admin;
 
 	const content = `
-    <div class="page-header"><h1>${htmlEscape(article.title)} ${article.is_pinned ? '<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">置顶</span>' : ''} ${article.is_locked ? '<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> 已锁定</span>' : ''}</h1></div>
+    <div class="page-header"><h1>${htmlEscape(article.title)} ${article.is_pinned ? '<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">' + t('common.pinned') + '</span>' : ''} ${article.is_locked ? '<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> ' + t('common.locked') + '</span>' : ''}</h1></div>
     <div class="card">
       <div style="color:#999;margin-bottom:12px;font-size:14px;">
         ${renderUsernameLink(article.username, article.color, article.tag, article.author_id)}
@@ -153,7 +157,7 @@ export async function renderArticleDetail(env, req, path) {
       </div>
     </div>
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> 评论</h3>
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> ${t('common.comment')}</h3>
       ${comments.results.map(c => `
         <div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">
           ${renderUsernameLink(c.username, c.color, c.tag, c.author_id)}
@@ -195,7 +199,7 @@ export async function renderArticleDetail(env, req, path) {
       ` : ''}
     </div>
   `;
-	return await getLayout(env, user, '帖子详情', content);
+	return await getLayout(env, user, t('common.post.detail'), content, '', req);
 }
 
 export async function renderArticleEdit(env, req, path) {
