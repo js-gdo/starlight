@@ -3,6 +3,8 @@ import { getLayout } from '../utils/layout';
 import { formatTimeToChina } from '../utils/time';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { getUserColor } from '../utils/constants';
+import { generateFortune } from '../utils/fortune';
+import { GetText } from '../utils/language';
 
 export async function renderHome(env: Env, req: Request) {
     const user = await getSessionUser(env, req);
@@ -82,6 +84,8 @@ export async function renderHome(env: Env, req: Request) {
             } catch { }
         }
     }
+
+    const t = (id: string) => GetText(id, req);
 
     const content = `
     <style>
@@ -193,28 +197,28 @@ export async function renderHome(env: Env, req: Request) {
           </div>
         </div>
         <div class="card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;gap:6px;">
-          <div style="font-size:14px;color:#666;"><i class="fas fa-calendar-check"></i> 每日签到</div>
+          <div style="font-size:14px;color:#666;"><i class="fas fa-calendar-check"></i> ${t('common.today.checkin')}</div>
           ${user ? `
             <div>
               ${isCheckedIn ? `
                 <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
                   <span class="checked-in-badge">
-                    <i class="fas fa-check-circle"></i> 今日已签到
+                    <i class="fas fa-check-circle"></i> ${t('common.checked.in')}
                   </span>
                   ${fortuneDisplay}
                 </div>
               ` : `
                 <button class="checkin-btn" onclick="checkin()">
-                  <i class="fas fa-check"></i> 签到 (+10积分)
+                  <i class="fas fa-check"></i> ${t('common.checkin.points')}
                 </button>
                 <div id="checkin-status" style="font-size:13px;color:#999;margin-top:4px;"></div>
               `}
             </div>
-            <div class="fortune-display">${isCheckedIn ? '今日运势 ' + fortuneDisplay : '签到获取今日运势'}</div>
-            <div class="points-display"><i class="fas fa-coins"></i> 当前积分：<strong>${userPoints}</strong></div>
+            <div class="fortune-display">${isCheckedIn ? t('common.forecast') + ' ' + fortuneDisplay : t('common.checkin.getFortune')}</div>
+            <div class="points-display"><i class="fas fa-coins"></i> ${t('common.points')}：<strong>${userPoints}</strong></div>
             ${fortuneDetail}
           ` : `
-            <div style="color:#999;font-size:13px;">请 <a href="/login" style="color:#8E44AD;">登录</a> 后签到</div>
+            <div style="color:#999;font-size:13px;">${t('common.login.prompt')} <a href="/login" style="color:#8E44AD;">${t('nav.login')}</a></div>
           `}
         </div>
       </div>
@@ -223,19 +227,19 @@ export async function renderHome(env: Env, req: Request) {
         <div class="card">
           <div class="stat-box">
             <div class="num">${articleCount ? articleCount.count : 0}</div>
-            <div class="label"><i class="fas fa-file-alt"></i> 帖子总数</div>
+            <div class="label"><i class="fas fa-file-alt"></i> ${t('common.article.count')}</div>
           </div>
         </div>
         <div class="card">
           <div class="stat-box">
             <div class="num">${ticketCount ? ticketCount.count : 0}</div>
-            <div class="label"><i class="fas fa-ticket-alt"></i> 工单总数</div>
+            <div class="label"><i class="fas fa-ticket-alt"></i> ${t('common.ticket.count')}</div>
           </div>
         </div>
         <div class="card">
           <div class="stat-box">
             <div class="num">${onlineCount}</div>
-            <div class="label"><i class="fas fa-users"></i> 在线用户</div>
+            <div class="label"><i class="fas fa-users"></i> ${t('common.online.users')}</div>
           </div>
         </div>
       </div>
@@ -267,8 +271,8 @@ export async function renderHome(env: Env, req: Request) {
         <div class="right-side">
           <div class="card">
             <div class="card-header">
-              <h3><i class="fas fa-user-friends"></i> 在线用户</h3>
-              <span class="online-pill"><i class="fas fa-circle" style="font-size:8px;"></i> ${onlineCount} 在线</span>
+              <h3><i class="fas fa-user-friends"></i> ${t('common.online.users')}</h3>
+              <span class="online-pill"><i class="fas fa-circle" style="font-size:8px;"></i> ${onlineCount} ${t('common.online')}</span>
             </div>
             <div class="online-user-list">
               ${onlineUsers.results.length > 0 ? onlineUsers.results.map((u: any) => `
@@ -277,10 +281,10 @@ export async function renderHome(env: Env, req: Request) {
                   <div class="online-avatar" style="background:${getUserColor(u.color)}">${htmlEscape(u.username).charAt(0).toUpperCase()}</div>
                   <div class="online-user-meta">
                     <div class="online-user-name">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</div>
-                    <div class="online-user-time">${u.last_active_at ? '活跃于 ' + formatTimeToChina(u.last_active_at) : '刚刚'}</div>
+                    <div class="online-user-time">${u.last_active_at ? t('common.active.at') + ' ' + formatTimeToChina(u.last_active_at) : 'just now'}</div>
                   </div>
                 </div>
-              `).join('') : '<div style="color:#999;padding:6px 0;text-align:center;">暂无在线用户</div>'}
+              `).join('') : '<div style="color:#999;padding:6px 0;text-align:center;">' + t('common.no.online') + '</div>'}
             </div>
           </div>
           <div class="card">
@@ -373,5 +377,5 @@ export async function renderHome(env: Env, req: Request) {
     </script>
   `;
 
-    return await getLayout(env, user, '首页', content);
+    return await getLayout(env, user, t('common.home.title'), content, '', req);
 }

@@ -438,6 +438,5 @@ export async function renderBackend(env: Env, req: Request) {
     }
   </script>
   `;
-
-    return await getLayout(env, user, '后台管理', content);
+    return await getLayout(env, user, '后台管理', content, '', req);
 }

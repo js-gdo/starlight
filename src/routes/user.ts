@@ -55,5 +55,5 @@ export async function renderUser(env: Env, req: Request, path: string) {
       }
     </script>
   `;
-    return await getLayout(env, currentUser, '用户中心', content);
+    return await getLayout(env, currentUser, '用户中心', content, '', req);
 }
