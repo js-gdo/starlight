@@ -1,6 +1,7 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
+import { validateAtMentionSpacing } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleBenben(request: Request, env: Env, path: string) {
@@ -16,6 +17,9 @@ export async function handleBenben(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const content = form.get('content');
         if (!content || content.trim() === '') return jsonRes({ error: t('apiBenbenContentEmpty') }, 400);
+
+        const invalidMentions = validateAtMentionSpacing(content);
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(content);
         if (violation.violated) return violationErrorPage(violation, t);

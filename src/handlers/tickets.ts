@@ -3,6 +3,7 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTicketStatus } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
+import { validateAtMentionSpacing } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleTickets(request: Request, env: Env, path: string) {
@@ -18,6 +19,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const title = form.get('title');
         const content = form.get('content');
         if (!title || !content) return jsonRes({ error: t('apiMissingParams') });
+
+        const invalidMentions = validateAtMentionSpacing(String(content));
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(`${title}\n${content}`);
         if (violation.violated) return violationErrorPage(violation, t);
@@ -43,6 +47,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             const title = form.get('title');
             const content = form.get('content');
             if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+            const invalidMentions = validateAtMentionSpacing(String(content));
+            if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
+
             const violation = await checkViolation(`${title}\n${content}`);
             if (violation.violated) return violationErrorPage(violation, t);
 
@@ -104,6 +111,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const content = form.get('content');
         if (!content) return jsonRes({ error: t('apiMissingParams') });
+
+        const invalidMentions = validateAtMentionSpacing(String(content));
+        if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
         const violation = await checkViolation(content);
         if (violation.violated) return violationErrorPage(violation, t);

@@ -121,6 +121,16 @@ export async function renderPmChat(env: Env, req: Request, path: string) {
             let pmPolling = null;
             const pmChatBox = document.getElementById('pm-chat-box');
 
+            function escapeHtml(text) {
+                return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+
+            function renderAtMentions(text) {
+                return escapeHtml(text).replace(/(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g, function(match, prefix, token) {
+                    return prefix + '<span style="color:#8E44AD;font-weight:600;">@' + token + '</span>';
+                });
+            }
+
             function appendPmMessage(m) {
                 const isMe = m.from_user_id === PM_MY_UID;
                 const wrap = document.createElement('div');
@@ -143,7 +153,7 @@ export async function renderPmChat(env: Env, req: Request, path: string) {
                     bubble.style.color = '#333';
                     bubble.style.border = '1px solid #e0e0e0';
                 }
-                bubble.textContent = m.content;
+                bubble.innerHTML = renderAtMentions(m.content || '');
                 wrap.appendChild(bubble);
                 pmChatBox.appendChild(wrap);
             }
