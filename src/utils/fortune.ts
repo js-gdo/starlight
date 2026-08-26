@@ -20,7 +20,15 @@ const FORTUNE_ACTIVITIES = [
     { name: '出去玩', good: '心情好', bad: '被人碰瓷' },
     { name: '上StarLight', good: '发现有趣的东西', bad: '发现系统宕机了' },
     { name: '用豆包', good: 'AI太好用了', bad: '《请输入文本》' },
-    { name: '听音乐', good: '豪庭', bad: '南亭的钥匙' }
+    { name: '听音乐', good: '豪庭', bad: '南亭的钥匙' },
+	{ name: '交友', good: '志同道合，关系很好', bad: '被背刺'},
+	{ name: '交StarLightPR', good: '一遍过，被管理员赏识', bad: '没有pull，冲突了'},
+	{ name: '交工单', good: '快速解决', bad: '被认为是无意义内容，禁言了'},
+	{ name: '下棋', good: '这盘棋，分明就是《老叟戏顽童》', bad: '你走！'},
+	{ name: '打OI比赛', good: 'rk1', bad: 'freopen写错'},
+	{ name: '考试', good: '分数1e9', bad: '排名1e9'},
+	{ name: '上洛谷', good: '轻松晋升紫名', bad: '被神权压制'},
+	{ name: '学whk', good: '血脉觉醒', bad: '血脉“觉醒”'}
 ];
 
 const GAOKAO_ACTIVITY = { name: '高考', good: '金榜题名', bad: '无' };
