@@ -21,7 +21,6 @@ const FORTUNE_ACTIVITIES = [
     { name: '上StarLight', good: '发现有趣的东西', bad: '发现系统宕机了' },
     { name: '用豆包', good: 'AI太好用了', bad: '《请输入文本》' },
     { name: '听音乐', good: '豪庭', bad: '南亭的钥匙' },
-	{ name: '听音乐', good: '豪庭', bad: '南亭的钥匙' },
 	{ name: '交友', good: '志同道合，关系很好', bad: '被背刺'},
 	{ name: '交StarLightPR', good: '一遍过，被管理员赏识', bad: '没有pull，冲突了'},
 	{ name: '交工单', good: '快速解决', bad: '被认为是无意义内容，禁言了'},
