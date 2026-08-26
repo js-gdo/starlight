@@ -3,7 +3,7 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTicketStatus } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
-import { validateAtMentionSpacing } from '../utils/html';
+import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleTickets(request: Request, env: Env, path: string) {
@@ -26,8 +26,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const violation = await checkViolation(`${title}\n${content}`);
         if (violation.violated) return violationErrorPage(violation, t);
 
+        const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         await db.prepare('INSERT INTO tickets (title, content, author_id) VALUES (?, ?, ?)')
-            .bind(title, content, user.id).run();
+            .bind(title, normalizedContent, user.id).run();
         return new Response(null, { status: 302, headers: { Location: '/ticket/list' } });
     }
 
@@ -53,8 +54,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             const violation = await checkViolation(`${title}\n${content}`);
             if (violation.violated) return violationErrorPage(violation, t);
 
+            const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
             await db.prepare('UPDATE tickets SET title = ?, content = ? WHERE id = ?')
-                .bind(title, content, id).run();
+                .bind(title, normalizedContent, id).run();
             return new Response(null, { status: 302, headers: { Location: `/ticket/${id}` } });
         } else {
             // 指派处理人
@@ -118,8 +120,9 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const violation = await checkViolation(content);
         if (violation.violated) return violationErrorPage(violation, t);
 
+        const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         await db.prepare('INSERT INTO ticket_replies (ticket_id, author_id, content) VALUES (?, ?, ?)')
-            .bind(id, user.id, content).run();
+            .bind(id, user.id, normalizedContent).run();
 
         const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
         if (ticket) {
