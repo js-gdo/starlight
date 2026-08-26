@@ -2,7 +2,7 @@ import { getSessionUser, jsonRes, generateHex } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
-import { validateAtMentionSpacing } from '../utils/html';
+import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handleArticles(request: Request, env: Env, path: string) {
@@ -26,9 +26,10 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const violation = await checkViolation(`${title}\n${content}`);
         if (violation.violated) return violationErrorPage(violation, t);
 
+        const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         const hex = generateHex();
         await db.prepare('INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)')
-            .bind(hex, title, content, user.id).run();
+            .bind(hex, title, normalizedContent, user.id).run();
         return new Response(null, { status: 302, headers: { Location: `/articles/${hex}` } });
     }
 
@@ -55,8 +56,9 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             const violation = await checkViolation(`${title}\n${content}`);
             if (violation.violated) return violationErrorPage(violation, t);
 
+            const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
             await db.prepare('UPDATE articles SET title = ?, content = ? WHERE id = ?')
-                .bind(title, content, id).run();
+                .bind(title, normalizedContent, id).run();
             return new Response(null, { status: 302, headers: { Location: `/articles/${article.hex_id}` } });
         } else if (methodOverride === 'DELETE') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
@@ -91,8 +93,9 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const violation = await checkViolation(content);
         if (violation.violated) return violationErrorPage(violation, t);
 
+        const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         await db.prepare('INSERT INTO comments (article_id, author_id, content, parent_id) VALUES (?, ?, ?, ?)')
-            .bind(article_id, user.id, content, parent_id).run();
+            .bind(article_id, user.id, normalizedContent, parent_id).run();
 
         if (targetArticle.author_id !== user.id) {
             await sendNotification(env, targetArticle.author_id, user.id,

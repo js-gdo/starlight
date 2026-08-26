@@ -2,7 +2,7 @@ import { getSessionUser, jsonRes } from '../utils/auth';
 import { checkViolation } from '../utils/violation';
 import { sendPmChatMessage } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
-import { validateAtMentionSpacing } from '../utils/html';
+import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function handlePm(request: Request, env: Env, path: string) {
@@ -42,7 +42,8 @@ export async function handlePm(request: Request, env: Env, path: string) {
             return jsonRes({ error: t('apiContentBadWords', { words: violation.words.join('、') }) }, 400);
         }
 
-        await sendPmChatMessage(env, user.id, toUid, content);
+        const normalizedContent = await normalizeAtMentionsInContent(db, content);
+        await sendPmChatMessage(env, user.id, toUid, normalizedContent);
         return jsonRes({ message: t('apiMessageSent') });
     }
 
