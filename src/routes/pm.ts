@@ -126,9 +126,19 @@ export async function renderPmChat(env: Env, req: Request, path: string) {
             }
 
             function renderAtMentions(text) {
-                return escapeHtml(text).replace(/(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g, function(match, prefix, token) {
-                    return prefix + '<span style="color:#8E44AD;font-weight:600;">@' + token + '</span>';
-                });
+               const byId = (window.__mentionUsers && window.__mentionUsers.byId) || {};
+               const byName = (window.__mentionUsers && window.__mentionUsers.byName) || {};
+               return escapeHtml(text).replace(/(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g, function(match, prefix, token) {
+                   const idInfo = byId[String(token)];
+                   if (idInfo) {
+                       return prefix + '<a href="/user/' + idInfo.uid + '" style="color:#8E44AD;font-weight:600;">' + escapeHtml(idInfo.username) + '</a>';
+                   }
+                   const nameInfo = byName[String(token).toLowerCase()];
+                   if (nameInfo) {
+                       return prefix + '<a href="/user/' + nameInfo.uid + '" style="color:#8E44AD;font-weight:600;">' + escapeHtml(nameInfo.username) + '</a>';
+                   }
+                   return prefix + '<span style="color:#8E44AD;font-weight:600;">@' + token + '</span>';
+               });
             }
 
             function appendPmMessage(m) {
