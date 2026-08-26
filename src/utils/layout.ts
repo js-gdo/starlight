@@ -116,6 +116,7 @@ export async function getLayout(
       ">
         <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
         <option value="tw" ${lang === 'tw' ? 'selected' : ''}>繁體中文</option>
+        <option value="lzh" ${lang === 'lzh' ? 'selected' : ''}>文言</option>
         <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
       </select>
     </div>
