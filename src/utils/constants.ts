@@ -16,13 +16,27 @@ export const COLOR_MAP: Record<string, string> = {
     purple: '#8E44AD',
     red: '#E74C3C',
     orange: '#E67E22',
+    yellow: '#F1C40F',
     green: '#5EB95E',
+    cyan: '#00BCD4',
     blue: '#0E90D2',
     gray: '#BFBFBF'
 };
 
+export const RAINBOW_GRADIENT = 'linear-gradient(90deg, #E74C3C 0%, #E67E22 14%, #F1C40F 29%, #5EB95E 43%, #00BCD4 57%, #0E90D2 71%, #8E44AD 100%)';
+
 export function getUserColor(color: string): string {
-    return COLOR_MAP[color] || color || '#E74C3C';
+    const normalized = String(color || '').trim().toLowerCase();
+    if (normalized === 'rainbow') return RAINBOW_GRADIENT;
+    return COLOR_MAP[normalized] || color || '#E74C3C';
+}
+
+export function getUserColorTextStyle(color: string): string {
+    const normalized = String(color || '').trim().toLowerCase();
+    if (normalized === 'rainbow') {
+        return `background:${RAINBOW_GRADIENT};-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;`;
+    }
+    return `color:${getUserColor(normalized)};`;
 }
 
 // 中国省级行政区中文映射
