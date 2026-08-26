@@ -1,4 +1,4 @@
-import { getUserColor } from './constants';
+import { getUserColor, getUserColorTextStyle } from './constants';
 
 export type MentionUser = {
     id: number;
@@ -108,7 +108,7 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
         result += htmlEscape(text.slice(lastIndex, start));
         const user = resolveUser(token);
         if (user) {
-            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" style="color:${getUserColor(user.color || 'purple')};text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}</a>`;
+            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}</a>`;
         } else {
             result += `${htmlEscape(prefix)}${htmlEscape('@' + token)}`;
         }
@@ -122,5 +122,5 @@ export function renderUsernameLink(username: string, color: string, tag: string,
     if (!username) return '';
     const displayColor = getUserColor(color);
     const tagHtml = tag ? `<span style="background:${displayColor};color:#fff;padding:0 10px;border-radius:3px;font-size:11px;margin-left:4px;display:inline-block;">${htmlEscape(tag)}</span>` : '';
-    return `<a href="/user/${uid}" style="color:${displayColor};text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
+    return `<a href="/user/${uid}" style="${getUserColorTextStyle(color)}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
 }

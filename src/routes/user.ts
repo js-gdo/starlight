@@ -1,7 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
-import { getUserColor } from '../utils/constants';
+import { getUserColor, getUserColorTextStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -22,7 +22,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
     const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
 
     const content = `
-        <div class="page-header"><h1 style="color:${getUserColor(user.color)}"><i class="fas fa-user-circle"></i> ${htmlEscape(user.username)}</h1></div>
+        <div class="page-header"><h1 style="${getUserColorTextStyle(user.color)}"><i class="fas fa-user-circle"></i> ${htmlEscape(user.username)}</h1></div>
         <div style="display:grid;gap:16px;">
             <div class="card">
                 ${user.tag ? `<span style="background:${getUserColor(user.color)};color:#fff;padding:0 12px;border-radius:3px;display:inline-block;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}

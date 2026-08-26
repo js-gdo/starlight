@@ -22,8 +22,11 @@ export async function renderBackend(env: Env, req: Request) {
         purple: t('colorPurple'),
         red: t('colorRed'),
         orange: t('colorOrange'),
+        yellow: t('colorYellow'),
         green: t('colorGreen'),
+        cyan: t('colorCyan'),
         blue: t('colorBlue'),
+        rainbow: t('colorRainbow'),
         gray: t('colorGray'),
     };
 
@@ -251,8 +254,11 @@ export async function renderBackend(env: Env, req: Request) {
                                             <option value="purple" ${u.color === 'purple' ? 'selected' : ''}>${t('colorPurple')}</option>
                                             <option value="red" ${u.color === 'red' ? 'selected' : ''}>${t('colorRed')}</option>
                                             <option value="orange" ${u.color === 'orange' ? 'selected' : ''}>${t('colorOrange')}</option>
+                                            <option value="yellow" ${u.color === 'yellow' ? 'selected' : ''}>${t('colorYellow')}</option>
                                             <option value="green" ${u.color === 'green' ? 'selected' : ''}>${t('colorGreen')}</option>
+                                            <option value="cyan" ${u.color === 'cyan' ? 'selected' : ''}>${t('colorCyan')}</option>
                                             <option value="blue" ${u.color === 'blue' ? 'selected' : ''}>${t('colorBlue')}</option>
+                                            <option value="rainbow" ${u.color === 'rainbow' ? 'selected' : ''}>${t('colorRainbow')}</option>
                                             <option value="gray" ${u.color === 'gray' ? 'selected' : ''}>${t('colorGray')}</option>
                                         </select>
                                         <input type="text" name="tag" placeholder="${t('userTagPlaceholder')}" value="${u.tag || ''}" style="width:70px;">
