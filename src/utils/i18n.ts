@@ -2,22 +2,23 @@ import type { Env } from '../env.d';
 import zh from '../locales/zh';
 import en from '../locales/en';
 import tw from '../locales/tw';
+import lzh from '../locales/lzh';
 
-type Language = 'zh' | 'en' | 'tw';
+type Language = 'zh' | 'en' | 'tw' | 'lzh';
 type TranslationKeys = keyof typeof zh;
 
-const locales = { zh, en, tw };
+const locales = { zh, en, tw, lzh };
 
 // 从请求中获取语言偏好（优先从 cookie 或查询参数）
 export function getLanguage(request?: Request): Language {
     if (!request) return 'zh';
     const url = new URL(request.url);
     const langParam = url.searchParams.get('lang') as Language;
-    if (langParam && (langParam === 'zh' || langParam === 'en' || langParam === 'tw')) return langParam;
+    if (langParam && (langParam === 'zh' || langParam === 'en' || langParam === 'tw' || langParam === 'lzh')) return langParam;
 
     const cookie = request.headers.get('Cookie') || '';
     const match = cookie.match(/(?:^|;\s*)lang=([^;]+)/);
-    if (match && (match[1] === 'zh' || match[1] === 'en' || match[1] === 'tw')) return match[1] as Language;
+    if (match && (match[1] === 'zh' || match[1] === 'en' || match[1] === 'tw' || match[1] === 'lzh')) return match[1] as Language;
 
     return 'zh'; // 默认中文
 }
