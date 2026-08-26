@@ -25,6 +25,18 @@ export async function getLayout(
     const chinaTime = getChinaTime();
     const hitokoto = await getHitokoto();
 
+    let mentionUserMap = { byId: {}, byName: {} } as { byId: Record<string, { uid: number; username: string }>; byName: Record<string, { uid: number; username: string }> };
+    if (env?.DB) {
+      const userRows = await env.DB.prepare('SELECT id, username FROM users ORDER BY id ASC').all();
+      for (const row of userRows.results || []) {
+        const uid = Number(row.id);
+        const username = String(row.username || '');
+        if (!uid || !username) continue;
+        mentionUserMap.byId[String(uid)] = { uid, username };
+        mentionUserMap.byName[username.toLowerCase()] = { uid, username };
+      }
+    }
+
     const navItems = [
         { href: '/', label: t('home'), active: title === t('home') },
         { href: '/benben', label: t('benben'), active: title === t('benben') },
@@ -419,8 +431,28 @@ export async function getLayout(
     ${extraStyles}
   </style>
   <script>
+    window.__mentionUsers = ${JSON.stringify(mentionUserMap)};
+
+    function resolveMentionMarkdown(text) {
+      if (!text || !window.__mentionUsers) return text;
+      const byId = window.__mentionUsers.byId || {};
+      const byName = window.__mentionUsers.byName || {};
+      return String(text).replace(/(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g, function(match, prefix, token) {
+        const idInfo = byId[String(token)];
+        if (idInfo) {
+          return prefix + '[' + idInfo.username + '](/user/' + idInfo.uid + ')';
+        }
+        const nameInfo = byName[String(token).toLowerCase()];
+        if (nameInfo) {
+          return prefix + '[' + nameInfo.username + '](/user/' + nameInfo.uid + ')';
+        }
+        return match;
+      });
+    }
+
     function renderMarkdown(text) {
-      if (!text) return '';
+      const resolvedText = resolveMentionMarkdown(text);
+      if (!resolvedText) return '';
       try {
         if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
           marked.setOptions({
@@ -430,12 +462,12 @@ export async function getLayout(
             headerIds: false,
             mangle: false
           });
-          return marked.parse(text);
+          return marked.parse(resolvedText);
         }
       } catch(e) {
         console.warn('Markdown parse error:', e);
       }
-      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');
+      return String(resolvedText).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');
     }
 
     document.addEventListener('DOMContentLoaded', function() {
