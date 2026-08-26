@@ -353,4 +353,7 @@ export default {
     apiPermissionUse: 'Access site',
     apiPermissionSpeak: 'Speak freely',
     apiPermissionAdmin: 'Administrator',
+
+	//checkin
+	checkinMessage: 'For entertainment purposes only'
 }

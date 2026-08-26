@@ -59,7 +59,7 @@ export async function renderHome(env: Env, req: Request) {
             <div style="margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0;">
               <div style="text-align:center;margin-bottom:10px;">
                 <div style="font-size:22px;font-weight:700;color:${fortune.color};">${fortune.level}</div>
-                <div style="font-size:12px;color:#bbb;margin-top:2px;">${t('info')}</div>
+                <div style="font-size:12px;color:#bbb;margin-top:2px;">${t('checkinMessage')}</div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div>

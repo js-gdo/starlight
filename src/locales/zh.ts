@@ -354,4 +354,6 @@ export default {
     apiPermissionUse: '进入主站',
     apiPermissionSpeak: '自由发言',
     apiPermissionAdmin: '管理员',
+	//checkin
+	checkinMessage: '仅供娱乐'
 }
