@@ -51,7 +51,7 @@ export function jsonRes(data: any, status = 200): Response {
 }
 
 /**
- * 获取权限的中文名称
+ * 获取权限的名称
  */
 export function getPermissionName(permission: string): string {
     const map: Record<string, string> = {
