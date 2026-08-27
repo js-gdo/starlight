@@ -2,7 +2,7 @@
     "$schema": "node_modules/wrangler/config-schema.json",
     "name": "starlight-workers",
     "main": "src/index.ts", // 直接指向源文件
-    "compatibility_date": "2026-08-23",
+    "compatibility_date": "2026-08-20",
     "observability": {
         "enabled": true
     },

@@ -3,22 +3,31 @@ import zh from '../locales/zh';
 import en from '../locales/en';
 import tw from '../locales/tw';
 import lzh from '../locales/lzh';
+import ko from '../locales/ko';
+import ru from '../locales/ru';
+import fr from '../locales/fr';
+import es from '../locales/es';
 
-type Language = 'zh' | 'en' | 'tw' | 'lzh';
+const supportedLanguages = ['zh', 'en', 'tw', 'lzh', 'ko', 'ru', 'fr', 'es'] as const;
+type Language = typeof supportedLanguages[number];
 type TranslationKeys = keyof typeof zh;
 
-const locales = { zh, en, tw, lzh };
+const locales = { zh, en, tw, lzh, ko, ru, fr, es } as Record<Language, Record<TranslationKeys, string>>;
+
+function isSupportedLanguage(value: string | null | undefined): value is Language {
+    return !!value && supportedLanguages.includes(value as Language);
+}
 
 // 从请求中获取语言偏好（优先从 cookie 或查询参数）
 export function getLanguage(request?: Request): Language {
     if (!request) return 'zh';
     const url = new URL(request.url);
-    const langParam = url.searchParams.get('lang') as Language;
-    if (langParam && (langParam === 'zh' || langParam === 'en' || langParam === 'tw' || langParam === 'lzh')) return langParam;
+    const langParam = url.searchParams.get('lang')?.toLowerCase();
+    if (isSupportedLanguage(langParam)) return langParam;
 
     const cookie = request.headers.get('Cookie') || '';
     const match = cookie.match(/(?:^|;\s*)lang=([^;]+)/);
-    if (match && (match[1] === 'zh' || match[1] === 'en' || match[1] === 'tw' || match[1] === 'lzh')) return match[1] as Language;
+    if (match && isSupportedLanguage(match[1].toLowerCase())) return match[1].toLowerCase() as Language;
 
     return 'zh'; // 默认中文
 }
