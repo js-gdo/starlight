@@ -1,7 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
-import { getUserColor, getUserColorTextStyle } from '../utils/constants';
+import { getUserColorTextStyle, getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -25,7 +25,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
         <div class="page-header"><h1 style="${getUserColorTextStyle(user.color)}"><i class="fas fa-user-circle"></i> ${htmlEscape(user.username)}</h1></div>
         <div style="display:grid;gap:16px;">
             <div class="card">
-                ${user.tag ? `<span style="background:${getUserColor(user.color)};color:#fff;padding:0 12px;border-radius:3px;display:inline-block;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
+                ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0} · ${t('violationCount')}: <span style="color:${user.violation_count > 0 ? '#e74c3c' : '#999'};font-weight:600;">${user.violation_count || 0}</span></p>
                 ${currentUser && currentUser.id == user.id ? `
