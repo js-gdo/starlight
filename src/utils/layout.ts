@@ -114,7 +114,7 @@ export async function getLayout(
         backdrop-filter:blur(4px);
         box-shadow:0 2px 8px rgba(0,0,0,0.1);
       ">
-        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
+        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>简体中文</option>
         <option value="tw" ${lang === 'tw' ? 'selected' : ''}>繁體中文</option>
         <option value="lzh" ${lang === 'lzh' ? 'selected' : ''}>文言</option>
         <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>

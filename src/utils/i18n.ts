@@ -29,7 +29,7 @@ export function getLanguage(request?: Request): Language {
     const match = cookie.match(/(?:^|;\s*)lang=([^;]+)/);
     if (match && isSupportedLanguage(match[1].toLowerCase())) return match[1].toLowerCase() as Language;
 
-    return 'zh'; // 默认中文
+    return 'zh'; // 默认简体中文
 }
 
 // 翻译函数，支持变量替换如 {name}
