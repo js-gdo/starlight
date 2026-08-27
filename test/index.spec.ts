@@ -6,6 +6,7 @@ import {
 } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
+import { renderUsernameLink } from "../src/utils/html";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -25,5 +26,14 @@ describe("Hello World worker", () => {
 	it("responds with Hello World! (integration style)", async () => {
 		const response = await SELF.fetch("https://example.com");
 		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+	});
+});
+
+describe("user tag rendering", () => {
+	it("keeps rainbow tags visible", () => {
+		const html = renderUsernameLink("Alice", "rainbow", "admin", 42);
+		expect(html).toContain("background:linear-gradient");
+		expect(html).toContain("-webkit-text-fill-color:#fff");
+		expect(html).toContain("admin");
 	});
 });

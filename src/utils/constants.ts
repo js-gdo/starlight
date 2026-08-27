@@ -39,6 +39,10 @@ export function getUserColorTextStyle(color: string): string {
     return `color:${getUserColor(normalized)};`;
 }
 
+export function getUserTagStyle(color: string): string {
+    return `background:${getUserColor(color)};color:#fff;-webkit-text-fill-color:#fff;padding:0 10px;border-radius:3px;font-size:11px;margin-left:4px;display:inline-block;vertical-align:middle;`;
+}
+
 // 中国省级行政区中文映射
 export const REGION_CN_MAP: Record<string, string> = {
     'Beijing': '北京市', 'Tianjin': '天津市', 'Shanghai': '上海市', 'Chongqing': '重庆市',

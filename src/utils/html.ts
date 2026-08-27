@@ -1,4 +1,4 @@
-import { getUserColor, getUserColorTextStyle } from './constants';
+import { getUserColor, getUserColorTextStyle, getUserTagStyle } from './constants';
 
 export type MentionUser = {
     id: number;
@@ -120,7 +120,6 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
 
 export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '') {
     if (!username) return '';
-    const displayColor = getUserColor(color);
-    const tagHtml = tag ? `<span style="background:${displayColor};color:#fff;padding:0 10px;border-radius:3px;font-size:11px;margin-left:4px;display:inline-block;">${htmlEscape(tag)}</span>` : '';
+    const tagHtml = tag ? `<span style="${getUserTagStyle(color)}">${htmlEscape(tag)}</span>` : '';
     return `<a href="/user/${uid}" style="${getUserColorTextStyle(color)}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
 }
