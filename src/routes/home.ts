@@ -303,7 +303,7 @@ export async function renderHome(env: Env, req: Request) {
               <div class="benben-item">
                 ${renderUsernameLink(b.username, b.color, b.tag, b.author_id)}
                 <span style="font-size:11px;color:#999;margin-left:6px;">${formatTimeToChina(b.created_at)}</span>
-                <div class="content">${htmlEscape(b.content)}</div>
+                <div class="markdown-body markdown-content" style="margin-top:4px;font-size:14px;">${htmlEscape(b.content)}</div>
               </div>
             `).join('')}
             ${benben.results.length === 0 ? `<div style="color:#999;padding:6px 0;text-align:center;">${t('noBenben')}</div>` : ''}
