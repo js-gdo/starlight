@@ -23,6 +23,9 @@ export async function initDB(env: Env) {
       title TEXT,
       content TEXT,
       author_id INTEGER,
+      type TEXT DEFAULT 'normal',
+      problem_id TEXT DEFAULT '',
+      problem_name TEXT DEFAULT '',
       is_pinned INTEGER DEFAULT 0,
       is_locked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
@@ -155,7 +158,10 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN last_login_at TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_active_at TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN violation_count INTEGER DEFAULT 0',
-        'ALTER TABLE articles ADD COLUMN is_locked INTEGER DEFAULT 0'
+        'ALTER TABLE articles ADD COLUMN is_locked INTEGER DEFAULT 0',
+        'ALTER TABLE articles ADD COLUMN type TEXT DEFAULT "normal"',
+        'ALTER TABLE articles ADD COLUMN problem_id TEXT DEFAULT ""',
+        'ALTER TABLE articles ADD COLUMN problem_name TEXT DEFAULT ""'
     ];
     for (const sql of alterColumns) {
         try { await db.prepare(sql).run(); } catch { }
