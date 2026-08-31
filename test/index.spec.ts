@@ -7,6 +7,7 @@ import {
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
 import { renderUsernameLink } from "../src/utils/html";
+import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -35,5 +36,14 @@ describe("user tag rendering", () => {
 		expect(html).toContain("background:linear-gradient");
 		expect(html).toContain("-webkit-text-fill-color:#fff");
 		expect(html).toContain("admin");
+	});
+});
+
+describe("problem article formatting", () => {
+	it("adds the problem prefix and jump link", () => {
+		expect(buildProblemArticleTitle("if you WA on #3", { id: "1001", title: "A+B Problem" })).toBe("[1001 A+B Problem] if you WA on #3");
+		const content = buildProblemArticleContent("Original content", "1001");
+		expect(content).toContain("Original content");
+		expect(content).toContain("https://oj.lin114514.top/1001");
 	});
 });
