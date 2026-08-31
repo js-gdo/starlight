@@ -23,6 +23,8 @@ export async function initDB(env: Env) {
       title TEXT,
       content TEXT,
       author_id INTEGER,
+      article_type TEXT DEFAULT 'normal',
+      problem_id TEXT DEFAULT '',
       is_pinned INTEGER DEFAULT 0,
       is_locked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),

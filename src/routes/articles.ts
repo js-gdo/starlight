@@ -9,6 +9,9 @@ export async function renderArticleList(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     const db = env.DB;
+    const url = new URL(req.url);
+    const typeParam = url.searchParams.get('type') || 'all';
+    const problemIdParam = url.searchParams.get('id') || '';
 
     let unreadCount = 0;
     if (user) {
@@ -17,21 +20,66 @@ export async function renderArticleList(env: Env, req: Request) {
         unreadCount = countResult ? countResult.cnt : 0;
     }
 
-    const articles = await db.prepare(
-        `SELECT a.*, u.username, u.color, u.tag
-         FROM articles a JOIN users u ON a.author_id = u.id
-         ORDER BY a.is_pinned DESC, a.created_at DESC`
-    ).all();
+    let sql = `SELECT a.*, u.username, u.color, u.tag
+         FROM articles a JOIN users u ON a.author_id = u.id`;
+    const bindValues: any[] = [];
+    if (typeParam === 'normal') {
+        sql += ` WHERE (a.article_type IS NULL OR a.article_type = ?)`;
+        bindValues.push('normal');
+    } else if (typeParam === 'problem') {
+        sql += ` WHERE a.article_type = ?`;
+        bindValues.push('problem');
+        if (problemIdParam) {
+            sql += ` AND a.problem_id = ?`;
+            bindValues.push(problemIdParam);
+        }
+    }
+    sql += ` ORDER BY a.is_pinned DESC, a.created_at DESC`;
+
+    const articles = await db.prepare(sql).bind(...bindValues).all();
+    const filterLinks = [
+        { value: 'all', label: '全部' },
+        { value: 'normal', label: '普通帖子' },
+        { value: 'problem', label: '题目讨论帖' },
+    ];
+    const problemFilterUrl = typeParam === 'problem' ? `?type=problem&id=${encodeURIComponent(problemIdParam)}` : '?type=problem';
 
     const content = `
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div><h1><i class="fas fa-file-alt"></i> ${t('articleList')}</h1></div>
-      <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${t('newArticle')}</a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${t('newArticle')}</a>
+        <a href="/articles/new?problem=true" style="background:#2c7be5;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> 发布题目讨论帖</a>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        ${filterLinks.map((item) => {
+            const selected = typeParam === item.value;
+            const href = item.value === 'problem' ? '/articles/list?type=problem' : `/articles/list?type=${item.value}`;
+            return `<a href="${href}" style="padding:6px 12px;border-radius:999px;text-decoration:none;font-size:13px;border:1px solid ${selected ? '#8E44AD' : '#ddd'};background:${selected ? '#8E44AD' : '#fff'};color:${selected ? '#fff' : '#333'};">${item.label}</a>`;
+        }).join('')}
+      </div>
+      ${typeParam === 'problem' ? `
+        <form method="GET" action="/articles/list" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="hidden" name="type" value="problem">
+          <label style="font-size:13px;color:#666;">选择题目</label>
+          <select name="id" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;min-width:180px;">
+            <option value="">全部题目</option>
+            ${await (async () => {
+                const problemOptions = (await import('../utils/problem')).fetchProblemList();
+                const problems = await problemOptions;
+                return problems.map((problem) => `<option value="${problem.id}" ${problemIdParam === String(problem.id) ? 'selected' : ''}>${problem.title || problem.name || problem.id}</option>`).join('');
+            })()}
+          </select>
+        </form>
+      ` : ''}
     </div>
     <div class="card">
       ${articles.results.map((a: any) => `
         <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
           <a href="/articles/${a.hex_id}" style="font-size:16px;font-weight:500;color:#333;text-decoration:none;">${htmlEscape(a.title)}</a>
+          ${a.article_type === 'problem' ? `<span style="background:#2c7be5;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">题目讨论帖</span>` : ''}
           ${a.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">${t('articlePinned')}</span>` : ''}
           ${a.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}
           <div style="color:#999;font-size:13px;margin-top:2px;">
@@ -59,10 +107,24 @@ export async function renderArticleNew(env: Env, req: Request) {
         unreadCount = countResult ? countResult.cnt : 0;
     }
 
+    const url = new URL(req.url);
+    const isProblemMode = url.searchParams.get('problem') === 'true';
+    const problemOptions = await (await import('../utils/problem')).fetchProblemList();
+
     const content = `
-    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${t('newArticle')}</h1></div>
+    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${isProblemMode ? '发布题目讨论帖' : t('newArticle')}</h1></div>
     <div class="card" style="max-width:800px;">
       <form action="/api/articles" method="POST">
+        ${isProblemMode ? '<input type="hidden" name="problem" value="true">' : ''}
+        ${isProblemMode ? `
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">选择题目</label>
+            <select name="problem_id" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+              <option value="">请选择题目</option>
+              ${problemOptions.map((problem) => `<option value="${problem.id}">${problem.title || problem.name || problem.id}</option>`).join('')}
+            </select>
+          </div>
+        ` : ''}
         <div style="margin-bottom:14px;">
           <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">${t('articleTitle')}</label>
           <input name="title" placeholder="${t('articleTitle')}" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
@@ -131,6 +193,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
     ).bind(hexId).first();
     if (!article) return t('articleNotFound');
 
+    const problemUrl = article.article_type === 'problem' && article.problem_id ? `https://oj.lin114514.top/${article.problem_id}` : '';
     const comments = await db.prepare(
         `SELECT c.*, u.username, u.color, u.tag
          FROM comments c JOIN users u ON c.author_id = u.id
@@ -141,11 +204,12 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
     const isAdmin = user && user.admin;
 
     const content = `
-    <div class="page-header"><h1>${htmlEscape(article.title)} ${article.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">${t('articlePinned')}</span>` : ''} ${article.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}</h1></div>
+    <div class="page-header"><h1>${htmlEscape(article.title)} ${article.article_type === 'problem' ? `<span style="background:#2c7be5;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">题目讨论帖</span>` : ''} ${article.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">${t('articlePinned')}</span>` : ''} ${article.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}</h1></div>
     <div class="card">
       <div style="color:#999;margin-bottom:12px;font-size:14px;">
         ${renderUsernameLink(article.username, article.color, article.tag, article.author_id)}
         · ${formatTimeToChina(article.created_at)}
+        ${problemUrl ? `· <a href="${problemUrl}" target="_blank" rel="noopener" style="color:#2c7be5;text-decoration:none;">${problemUrl}</a>` : ''}
       </div>
       <div class="markdown-body markdown-content">${htmlEscape(article.content)}</div>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
@@ -226,11 +290,24 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
     if (!article) return t('articleNotFound');
     if (user.id !== article.author_id && !user.admin) return t('permissionDenied');
 
+    const problemOptions = await (await import('../utils/problem')).fetchProblemList();
+    const isProblemPost = article.article_type === 'problem' || article.problem_id;
+
     const content = `
     <div class="page-header"><h1><i class="fas fa-edit"></i> ${t('editArticle')}</h1></div>
     <div class="card" style="max-width:800px;">
       <form action="/api/articles/${article.id}" method="POST">
         <input type="hidden" name="_method" value="PUT">
+        ${isProblemPost ? '<input type="hidden" name="problem" value="true">' : ''}
+        ${isProblemPost ? `
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">选择题目</label>
+            <select name="problem_id" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+              <option value="">请选择题目</option>
+              ${problemOptions.map((problem) => `<option value="${problem.id}" ${String(article.problem_id || '') === String(problem.id) ? 'selected' : ''}>${problem.title || problem.name || problem.id}</option>`).join('')}
+            </select>
+          </div>
+        ` : ''}
         <div style="margin-bottom:14px;">
           <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">${t('articleTitle')}</label>
           <input name="title" value="${htmlEscape(article.title)}" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">

@@ -3,6 +3,7 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
+import { buildProblemArticleTitle, buildProblemArticleContent, fetchProblemList } from '../utils/problem';
 import type { Env } from '../env.d';
 
 export async function handleArticles(request: Request, env: Env, path: string) {
@@ -16,9 +17,20 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('newArticle') }) }, 403);
 
         const form = await request.formData();
-        const title = form.get('title');
-        const content = form.get('content');
+        let title = String(form.get('title') ?? '').trim();
+        let content = String(form.get('content') ?? '').trim();
+        const isProblem = form.get('problem') === 'true' || form.get('problem') === '1';
+        const problemId = String(form.get('problem_id') ?? '').trim();
+
         if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+
+        if (isProblem) {
+            if (!problemId) return jsonRes({ error: '请选择题目' }, 400);
+            const problem = (await fetchProblemList()).find((item) => String(item.id) === problemId);
+            if (!problem) return jsonRes({ error: '题目不存在' }, 400);
+            title = buildProblemArticleTitle(title, problem);
+            content = buildProblemArticleContent(content, problemId);
+        }
 
         const invalidMentions = validateAtMentionSpacing(String(content));
         if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
@@ -28,8 +40,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
 
         const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         const hex = generateHex();
-        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)')
-            .bind(hex, title, normalizedContent, user.id).run();
+        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id, article_type, problem_id) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(hex, title, normalizedContent, user.id, isProblem ? 'problem' : 'normal', isProblem ? problemId : '').run();
         return new Response(null, { status: 302, headers: { Location: `/articles/${hex}` } });
     }
 
@@ -46,9 +58,19 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
             if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('editArticle') }) }, 403);
 
-            const title = form.get('title');
-            const content = form.get('content');
+            let title = String(form.get('title') ?? '').trim();
+            let content = String(form.get('content') ?? '').trim();
+            const isProblem = String(form.get('problem') ?? '').trim() === 'true' || String(form.get('problem') ?? '').trim() === '1' || article.article_type === 'problem';
+            const problemId = String(form.get('problem_id') ?? article.problem_id ?? '').trim();
             if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+
+            if (isProblem) {
+                if (!problemId) return jsonRes({ error: '请选择题目' }, 400);
+                const problem = (await fetchProblemList()).find((item) => String(item.id) === problemId);
+                if (!problem) return jsonRes({ error: '题目不存在' }, 400);
+                title = buildProblemArticleTitle(title, problem);
+                content = buildProblemArticleContent(content, problemId);
+            }
 
             const invalidMentions = validateAtMentionSpacing(String(content));
             if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
@@ -57,8 +79,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (violation.violated) return violationErrorPage(violation, t);
 
             const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
-            await db.prepare('UPDATE articles SET title = ?, content = ? WHERE id = ?')
-                .bind(title, normalizedContent, id).run();
+            await db.prepare('UPDATE articles SET title = ?, content = ?, article_type = ?, problem_id = ? WHERE id = ?')
+                .bind(title, normalizedContent, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', id).run();
             return new Response(null, { status: 302, headers: { Location: `/articles/${article.hex_id}` } });
         } else if (methodOverride === 'DELETE') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
