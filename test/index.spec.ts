@@ -7,25 +7,41 @@ import {
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
 import { renderUsernameLink } from "../src/utils/html";
+import {
+	buildProblemArticleTitle,
+	buildProblemArticleContent,
+	resolveArticleTypeFilter,
+} from "../src/utils/problem";
 
-// For now, you'll need to do something like this to get a correctly-typed
-// `Request` to pass to `worker.fetch()`.
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
-describe("Hello World worker", () => {
-	it("responds with Hello World! (unit style)", async () => {
-		const request = new IncomingRequest("http://example.com");
-		// Create an empty context to pass to `worker.fetch()`.
+describe("worker root page", () => {
+	it("returns the app home page", async () => {
+		const request = new IncomingRequest("http://example.com/");
 		const ctx = createExecutionContext();
 		const response = await worker.fetch(request, env, ctx);
-		// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
 		await waitOnExecutionContext(ctx);
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+		const html = await response.text();
+		expect(response.status).toBe(200);
+		expect(html).toContain("StarLight");
 	});
 
-	it("responds with Hello World! (integration style)", async () => {
-		const response = await SELF.fetch("https://example.com");
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+	it("handles the integration route", async () => {
+		const response = await SELF.fetch("https://example.com/");
+		expect(response.status).toBe(200);
+	});
+});
+
+describe("problem article helpers", () => {
+	it("prefixes the title and adds the problem link", () => {
+		expect(buildProblemArticleTitle("1001", "A+B Problem", "if you WA on #3")).toBe("[1001 A+B Problem] if you WA on #3");
+		expect(buildProblemArticleContent("hello", "1001")).toContain("https://oj.lin114514.top/1001");
+	});
+
+	it("resolves the article filter modes", () => {
+		expect(resolveArticleTypeFilter(new URL("https://example.com/articles/list?type=all"))).toEqual({ type: "all", problemId: null });
+		expect(resolveArticleTypeFilter(new URL("https://example.com/articles/list?type=problem&id=1002"))).toEqual({ type: "problem", problemId: "1002" });
+		expect(resolveArticleTypeFilter(new URL("https://example.com/articles/list?type=normal"))).toEqual({ type: "normal", problemId: null });
 	});
 });
 

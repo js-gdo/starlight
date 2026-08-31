@@ -3,12 +3,15 @@ import { getLayout } from '../utils/layout';
 import { renderUsernameLink, htmlEscape } from '../utils/html';
 import { formatTimeToChina } from '../utils/time';
 import { getTranslator } from '../utils/i18n';
+import { fetchProblemList, resolveArticleTypeFilter } from '../utils/problem';
 import type { Env } from '../env.d';
 
 export async function renderArticleList(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     const db = env.DB;
+    const url = new URL(req.url);
+    const filter = resolveArticleTypeFilter(url);
 
     let unreadCount = 0;
     if (user) {
@@ -17,21 +20,48 @@ export async function renderArticleList(env: Env, req: Request) {
         unreadCount = countResult ? countResult.cnt : 0;
     }
 
-    const articles = await db.prepare(
-        `SELECT a.*, u.username, u.color, u.tag
+    const query = `SELECT a.*, u.username, u.color, u.tag
          FROM articles a JOIN users u ON a.author_id = u.id
-         ORDER BY a.is_pinned DESC, a.created_at DESC`
-    ).all();
+         WHERE 1 = 1`;
+    const params: any[] = [];
+
+    if (filter.type === 'normal') {
+        params.push('normal');
+        query += ' AND (a.type IS NULL OR a.type = ? OR a.type = "")';
+    }
+    if (filter.type === 'problem') {
+        query += ' AND a.type = "problem"';
+        if (filter.problemId) {
+            params.push(filter.problemId);
+            query += ' AND a.problem_id = ?';
+        }
+    }
+
+    query += ' ORDER BY a.is_pinned DESC, a.created_at DESC';
+    const stmt = params.length ? db.prepare(query).bind(...params) : db.prepare(query);
+    const articles = await stmt.all();
 
     const content = `
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div><h1><i class="fas fa-file-alt"></i> ${t('articleList')}</h1></div>
-      <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${t('newArticle')}</a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="/articles/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${t('newArticle')}</a>
+        <a href="/articles/new?problem=true" style="background:#fff;color:#8E44AD;border:1px solid #8E44AD;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-question-circle"></i> 发布题目讨论帖</a>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <a href="/articles/list?type=all" style="padding:5px 12px;border-radius:999px;text-decoration:none;font-size:13px;${filter.type === 'all' ? 'background:#8E44AD;color:#fff;' : 'background:#f5f1fa;color:#8E44AD;border:1px solid #e6d5f3;'}">全部</a>
+        <a href="/articles/list?type=normal" style="padding:5px 12px;border-radius:999px;text-decoration:none;font-size:13px;${filter.type === 'normal' ? 'background:#8E44AD;color:#fff;' : 'background:#f5f1fa;color:#8E44AD;border:1px solid #e6d5f3;'}">普通帖子</a>
+        <a href="/articles/list?type=problem" style="padding:5px 12px;border-radius:999px;text-decoration:none;font-size:13px;${filter.type === 'problem' && !filter.problemId ? 'background:#8E44AD;color:#fff;' : 'background:#f5f1fa;color:#8E44AD;border:1px solid #e6d5f3;'}">题目讨论帖</a>
+        ${filter.type === 'problem' && filter.problemId ? `<a href="/articles/list?type=problem&id=${encodeURIComponent(filter.problemId)}" style="padding:5px 12px;border-radius:999px;text-decoration:none;font-size:13px;background:#c94d8d;color:#fff;">题号 ${htmlEscape(filter.problemId)}</a>` : ''}
+      </div>
     </div>
     <div class="card">
       ${articles.results.map((a: any) => `
         <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
           <a href="/articles/${a.hex_id}" style="font-size:16px;font-weight:500;color:#333;text-decoration:none;">${htmlEscape(a.title)}</a>
+          ${a.type === 'problem' ? `<span style="background:#2e86de;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">题目讨论</span>` : ''}
           ${a.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">${t('articlePinned')}</span>` : ''}
           ${a.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}
           <div style="color:#999;font-size:13px;margin-top:2px;">
@@ -46,12 +76,16 @@ export async function renderArticleList(env: Env, req: Request) {
     return await getLayout(env, user, t('articleList'), content, '', req);
 }
 
+
 export async function renderArticleNew(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (!user) return t('loginRequired');
 
     const db = env.DB;
+    const url = new URL(req.url);
+    const isProblem = url.searchParams.get('problem') === 'true' || url.searchParams.get('problem') === '1';
+    const problems = await fetchProblemList();
     let unreadCount = 0;
     if (user) {
         const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
@@ -59,10 +93,27 @@ export async function renderArticleNew(env: Env, req: Request) {
         unreadCount = countResult ? countResult.cnt : 0;
     }
 
+    const problemOptions = problems.map((problem: any) => {
+        const value = String(problem.id || '').trim();
+        const name = String(problem.name || problem.title || problem.id || '').trim();
+        return `<option value="${htmlEscape(value)}" data-name="${htmlEscape(name)}">${htmlEscape(value)} ${htmlEscape(name)}</option>`;
+    }).join('');
+
     const content = `
-    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${t('newArticle')}</h1></div>
+    <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${isProblem ? '发布题目讨论帖' : t('newArticle')}</h1></div>
     <div class="card" style="max-width:800px;">
       <form action="/api/articles" method="POST">
+        ${isProblem ? `<input type="hidden" name="problem" value="true">` : ''}
+        ${isProblem ? `
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">选择讨论题目</label>
+            <select id="problemSelect" name="problem_id" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+              <option value="">请选择题目</option>
+              ${problemOptions}
+            </select>
+            <input type="hidden" name="problem_name" id="problemName" value="">
+          </div>
+        ` : ''}
         <div style="margin-bottom:14px;">
           <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">${t('articleTitle')}</label>
           <input name="title" placeholder="${t('articleTitle')}" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
@@ -106,6 +157,17 @@ export async function renderArticleNew(env: Env, req: Request) {
         previewBtn.style.background = '#fff'; previewBtn.style.color = '#666'; previewBtn.style.borderColor = '#ddd';
       }
     }
+    ${isProblem ? `
+      var problemSelect = document.getElementById('problemSelect');
+      var problemName = document.getElementById('problemName');
+      function syncProblemName() {
+        var selected = problemSelect.options[problemSelect.selectedIndex];
+        var selectedName = selected ? selected.getAttribute('data-name') || selected.textContent.trim() : '';
+        problemName.value = selectedName.replace(/^\s*\d+\s+/, '');
+      }
+      problemSelect.addEventListener('change', syncProblemName);
+      syncProblemName();
+    ` : ''}
     </script>
   `;
     return await getLayout(env, user, t('newArticle'), content, '', req);
