@@ -3,7 +3,6 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
-import { buildProblemArticleTitle, buildProblemArticleContent, normalizeProblemName } from '../utils/problem';
 import type { Env } from '../env.d';
 
 export async function handleArticles(request: Request, env: Env, path: string) {
@@ -17,33 +16,20 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('newArticle') }) }, 403);
 
         const form = await request.formData();
-        const title = String(form.get('title') ?? '').trim();
-        const content = String(form.get('content') ?? '').trim();
-        const isProblem = String(form.get('problem') ?? '').trim() === 'true' || String(form.get('problem') ?? '').trim() === '1';
-        const problemId = String(form.get('problem_id') ?? '').trim();
-        const problemName = normalizeProblemName(problemId, String(form.get('problem_name') ?? '').trim());
+        const title = form.get('title');
+        const content = form.get('content');
         if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
 
-        let finalTitle = title;
-        let finalContent = content;
-        let type = 'normal';
-        if (isProblem) {
-            if (!problemId || !problemName) return jsonRes({ error: '请选择要讨论的题目' }, 400);
-            finalTitle = buildProblemArticleTitle(problemId, problemName, title);
-            finalContent = buildProblemArticleContent(content, problemId);
-            type = 'problem';
-        }
-
-        const invalidMentions = validateAtMentionSpacing(String(finalContent));
+        const invalidMentions = validateAtMentionSpacing(String(content));
         if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
-        const violation = await checkViolation(`${finalTitle}\n${finalContent}`);
+        const violation = await checkViolation(`${title}\n${content}`);
         if (violation.violated) return violationErrorPage(violation, t);
 
-        const normalizedContent = await normalizeAtMentionsInContent(db, finalContent);
+        const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         const hex = generateHex();
-        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id, type, problem_id, problem_name) VALUES (?, ?, ?, ?, ?, ?, ?)')
-            .bind(hex, finalTitle, normalizedContent, user.id, type, problemId, problemName).run();
+        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)')
+            .bind(hex, title, normalizedContent, user.id).run();
         return new Response(null, { status: 302, headers: { Location: `/articles/${hex}` } });
     }
 
