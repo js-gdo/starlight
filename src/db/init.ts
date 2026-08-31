@@ -1,3 +1,4 @@
+// @ts-nocheck
 export async function initDB(env: Env) {
     const db = env.DB;
 

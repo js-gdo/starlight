@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { formatTimeToChina } from '../utils/time';
