@@ -1,4 +1,4 @@
-import { jsonRes } from '../utils/auth';
+import { getSessionUser, jsonRes } from '../utils/auth';
 import { sha256 } from '../utils/crypto';
 import { getLocationInfo } from '../utils/auth';
 import { getTranslator } from '../utils/i18n';
@@ -8,6 +8,21 @@ export async function handleAuth(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
     const method = request.method;
     const db = env.DB;
+
+    if (path === '/api/login' && method === 'GET') {
+        const user = await getSessionUser(env, request);
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+
+        return jsonRes({
+            user: {
+                id: user.id,
+                username: user.username,
+                admin: user.admin,
+                color: user.color,
+                tag: user.tag,
+            },
+        });
+    }
 
     if (path === '/api/login' && method === 'POST') {
         const body = await request.json() as { username: string; password: string };
