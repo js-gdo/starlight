@@ -140,6 +140,14 @@ export async function getLayout(
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
   <title>${title} - ${t('appName')}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.3/sweetalert2.all.min.js" defer></script>
   <style>
@@ -475,11 +483,21 @@ export async function getLayout(
       return String(resolvedText).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');
     }
 
+    function typesetMath(root) {
+      if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+        window.MathJax.typesetPromise(root ? [root] : undefined).catch(function(error) {
+          console.warn('MathJax typeset error:', error);
+        });
+      }
+    }
+    window.typesetMath = typesetMath;
+
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.markdown-content').forEach(function(el) {
         var text = el.textContent;
         el.innerHTML = renderMarkdown(text);
       });
+      typesetMath();
     });
 
     function toggleMobileMenu() {
