@@ -128,6 +128,7 @@ export async function renderTicketNew(env: Env, req: Request) {
             if (typeof marked !== 'undefined') {
                 marked.setOptions({ breaks: true, gfm: true, sanitize: false, headerIds: false, mangle: false });
                 pv.innerHTML = marked.parse(ta.value || '');
+                if (typeof typesetMath === 'function') typesetMath(pv);
             } else {
                 pv.textContent = ta.value || '';
             }
@@ -342,6 +343,7 @@ export async function renderTicketEdit(env: Env, req: Request, path: string) {
             if (typeof marked !== 'undefined') {
                 marked.setOptions({ breaks: true, gfm: true, sanitize: false, headerIds: false, mangle: false });
                 pv.innerHTML = marked.parse(ta.value || '');
+                if (typeof typesetMath === 'function') typesetMath(pv);
             } else {
                 pv.textContent = ta.value || '';
             }

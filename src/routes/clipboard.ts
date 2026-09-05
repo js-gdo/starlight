@@ -58,6 +58,7 @@ export async function renderClipboard(env: Env, req: Request) {
                     if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
                         marked.setOptions({ breaks: true, gfm: true, sanitize: false, headerIds: false, mangle: false });
                         clipPreview.innerHTML = marked.parse(text);
+                        if (typeof typesetMath === 'function') typesetMath(clipPreview);
                     } else {
                         clipPreview.innerHTML = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
                     }
