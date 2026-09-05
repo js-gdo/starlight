@@ -485,7 +485,9 @@ export async function getLayout(
 
     function typesetMath(root) {
       if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
-        window.MathJax.typesetPromise(root ? [root] : undefined).catch(function(error) {
+        var roots = Array.isArray(root) ? root : [root];
+        if (!root || roots.length === 0) return;
+        window.MathJax.typesetPromise(roots).catch(function(error) {
           console.warn('MathJax typeset error:', error);
         });
       }
@@ -493,11 +495,13 @@ export async function getLayout(
     window.typesetMath = typesetMath;
 
     document.addEventListener('DOMContentLoaded', function() {
+      var markdownNodes = [];
       document.querySelectorAll('.markdown-content').forEach(function(el) {
         var text = el.textContent;
         el.innerHTML = renderMarkdown(text);
+        markdownNodes.push(el);
       });
-      typesetMath();
+      typesetMath(markdownNodes);
     });
 
     function toggleMobileMenu() {
