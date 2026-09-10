@@ -40,9 +40,6 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
             } else if (permission === 'speak') {
                 const newValue = action === 'grant' ? 1 : 0;
                 await db.prepare('UPDATE users SET speak = ? WHERE id = ?').bind(newValue, id).run();
-                if (action === 'revoke') {
-                    await db.prepare('UPDATE users SET violation_count = COALESCE(violation_count, 0) + 1 WHERE id = ?').bind(id).run();
-                }
             } else if (permission === 'admin') {
                 if (user.id !== 1) return jsonRes({ error: t('apiOnlySuperAdminCanSetAdmin') }, 403);
                 const newValue = action === 'grant' ? 1 : 0;
@@ -162,6 +159,21 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     if (bannerDeleteMatch && method === 'POST') {
         const id = parseInt(bannerDeleteMatch[1]);
         await db.prepare('DELETE FROM banners WHERE id = ?').bind(id).run();
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    if (path === '/api/admin/announcement/add' && method === 'POST') {
+        const form = await request.formData();
+        const content = String(form.get('content') || '').trim();
+        const sortOrder = parseInt(String(form.get('sort_order') || '0')) || 0;
+        if (!content) return jsonRes({ error: '公告内容不能为空' }, 400);
+        await db.prepare('INSERT INTO announcements (content, sort_order) VALUES (?, ?)').bind(content, sortOrder).run();
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    const announcementDeleteMatch = path.match(/^\/api\/admin\/announcement\/(\d+)\/delete$/);
+    if (announcementDeleteMatch && method === 'POST') {
+        await db.prepare('DELETE FROM announcements WHERE id = ?').bind(parseInt(announcementDeleteMatch[1])).run();
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 

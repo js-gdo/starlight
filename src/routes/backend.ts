@@ -16,6 +16,7 @@ export async function renderBackend(env: Env, req: Request) {
     const articles = await db.prepare('SELECT * FROM articles ORDER BY id DESC').all();
     const tickets = await db.prepare('SELECT * FROM tickets ORDER BY id DESC').all();
     const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
+    const announcements = await db.prepare('SELECT * FROM announcements ORDER BY sort_order ASC, id DESC').all();
     const statsNow = new Date();
     const statsEnd = new Date(statsNow);
     statsEnd.setUTCMinutes(0, 0, 0);
@@ -264,7 +265,6 @@ export async function renderBackend(env: Env, req: Request) {
                         <th>${t('userPermissions')}</th>
                         <th>${t('userColor')}</th>
                         <th>${t('userTag')}</th>
-                        <th>${t('violationCount')}</th>
                         <th>${t('recentLogin')}</th>
                         <th>${t('execute')}</th>
                     </tr>
@@ -280,7 +280,6 @@ export async function renderBackend(env: Env, req: Request) {
                                 ${colorNames[u.color] || u.color}
                             </td>
                             <td>${u.tag || t('noTag')}</td>
-                            <td><span style="color:${u.violation_count > 0 ? '#e74c3c' : '#999'};font-weight:600;">${u.violation_count || 0}</span></td>
                             <td style="font-size:12px;color:#666;line-height:1.5;">
                                 ${u.last_ip ? `<div><i class="fas fa-network-wired" style="color:#8E44AD;"></i> ${htmlEscape(u.last_ip)}</div>` : `<div style="color:#bbb;">${t('noRecord')}</div>`}
                                 ${u.last_login_at ? `<div style="color:#999;">${formatTimeToChina(u.last_login_at)}</div>` : ''}
@@ -404,6 +403,24 @@ export async function renderBackend(env: Env, req: Request) {
                 </div>
                 <form action="/api/admin/banner/${b.id}/delete" method="POST">
                     <button type="submit" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> ${t('delete')}</button>
+                </form>
+            </div>
+        `).join('')}
+    </div>
+
+    <div class="card">
+        <div class="section-title"><i class="fas fa-bullhorn"></i> 公告管理</div>
+        <form action="/api/admin/announcement/add" method="POST" class="add-banner-form">
+            <input type="text" name="content" placeholder="公告内容" required>
+            <input type="number" name="sort_order" placeholder="排序" value="0" style="width:80px;">
+            <button type="submit"><i class="fas fa-plus"></i> 添加公告</button>
+        </form>
+        ${announcements.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无公告</div>` : ''}
+        ${announcements.results.map((announcement: any) => `
+            <div class="banner-item">
+                <div class="banner-info"><div class="url">${htmlEscape(announcement.content)}</div><div class="meta">排序：${announcement.sort_order}</div></div>
+                <form action="/api/admin/announcement/${announcement.id}/delete" method="POST">
+                    <button type="submit" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> 删除</button>
                 </form>
             </div>
         `).join('')}

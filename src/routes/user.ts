@@ -27,7 +27,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
             <div class="card">
                 ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
-                <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0} · ${t('violationCount')}: <span style="color:${user.violation_count > 0 ? '#e74c3c' : '#999'};font-weight:600;">${user.violation_count || 0}</span></p>
+                <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
                 ${currentUser && currentUser.id == user.id ? `
                     <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;">
                         <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-pen"></i> ${t('bio')}</h4>
