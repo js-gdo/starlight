@@ -113,6 +113,11 @@ export async function initDB(env: Env) {
       link_url TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
+    )`,
+        `CREATE TABLE IF NOT EXISTS online_hourly_stats (
+      hour_start TEXT PRIMARY KEY,
+      peak_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`
     ];
 
