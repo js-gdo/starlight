@@ -15,10 +15,21 @@ export async function handleUser(request: Request, env: Env, path: string) {
 
         const form = await request.formData();
         const bio = form.get('bio') || '';
+        const avatarUrl = String(form.get('avatar_url') || '').trim();
+        if (avatarUrl) {
+            try {
+                const parsed = new URL(avatarUrl);
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                    return jsonRes({ error: '头像链接必须使用 HTTP 或 HTTPS' }, 400);
+                }
+            } catch {
+                return jsonRes({ error: '头像链接无效' }, 400);
+            }
+        }
         const violation = await checkViolation(bio);
         if (violation.violated) return violationErrorPage(violation, t);
 
-        await db.prepare('UPDATE users SET bio = ? WHERE id = ?').bind(bio.trim(), user.id).run();
+        await db.prepare('UPDATE users SET bio = ?, avatar_url = ? WHERE id = ?').bind(String(bio).trim(), avatarUrl, user.id).run();
         return new Response(null, { status: 302, headers: { Location: `/user/${user.id}` } });
     }
 

@@ -298,7 +298,7 @@ export async function renderBackend(env: Env, req: Request) {
         ${articles.results.map((a: any) => `
             <div class="article-item">
                 <div>
-                    <span class="title">${htmlEscape(a.title)}</span>
+                        <a class="title" href="/articles/${encodeURIComponent(a.hex_id)}">${htmlEscape(a.title)}</a>
                     <span class="meta">· ${formatTimeToChina(a.created_at)}</span>
                 </div>
                 <div class="action-group">
@@ -324,7 +324,7 @@ export async function renderBackend(env: Env, req: Request) {
             return `
                 <div class="ticket-item">
                     <div>
-                        <span class="title">#${ticket.id} ${htmlEscape(ticket.title)}</span>
+                        <a class="title" href="/ticket/${ticket.id}">#${ticket.id} ${htmlEscape(ticket.title)}</a>
                         <span class="meta">
                             <i class="fas ${statusInfo.icon}"></i> ${statusInfo.label} · ${formatTimeToChina(ticket.created_at)}
                         </span>

@@ -1,7 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { renderUsernameLink, htmlEscape } from '../utils/html';
-import { getUserColorTextStyle, getUserTagStyle } from '../utils/constants';
+import { renderAvatar, renderUsernameLink, htmlEscape } from '../utils/html';
+import { getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -22,7 +22,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
     const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
 
     const content = `
-        <div class="page-header"><h1 style="${getUserColorTextStyle(user.color)}"><i class="fas fa-user-circle"></i> ${htmlEscape(user.username)}</h1></div>
+        <div class="page-header" style="display:flex;align-items:center;gap:10px;"><h1 style="display:flex;align-items:center;gap:10px;">${renderAvatar(user, 48)} ${renderUsernameLink(user.username, user.color, '', user.id)}</h1></div>
         <div style="display:grid;gap:16px;">
             <div class="card">
                 ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
@@ -33,6 +33,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
                         <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-pen"></i> ${t('bio')}</h4>
                         <form action="/api/user/bio" method="POST" style="display:flex;gap:6px;flex-wrap:wrap;">
                             <input type="text" name="bio" placeholder="${t('bioPlaceholder')}" value="${htmlEscape(user.bio || '')}" style="flex:1;min-width:180px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                            <input type="url" name="avatar_url" placeholder="头像外链 URL" value="${htmlEscape(user.avatar_url || '')}" style="flex:1;min-width:180px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
                             <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 16px;border:none;border-radius:4px;cursor:pointer;">${t('updateBio')}</button>
                         </form>
                     </div>
