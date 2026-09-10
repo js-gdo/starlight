@@ -182,6 +182,22 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
     const isAuthor = user && user.id === ticket.author_id;
     const isAdmin = user && user.admin;
     const statusInfo = getTicketStatus(ticket.status);
+    const permissionNames: Record<string, string> = {
+        use: '进入主站',
+        speak: '自由发言',
+        admin: '管理员权限',
+    };
+    const permissionActionNames: Record<string, string> = {
+        grant: '授予',
+        revoke: '撤销',
+    };
+    const permissionInfo = ticket.permission ? `
+        <div style="margin:8px 0;padding:8px 10px;background:#f5f9ff;border:1px solid #dbeafe;border-radius:4px;color:#345;font-size:13px;">
+            <i class="fas fa-key"></i>
+            申请权限：<strong>${permissionNames[ticket.permission] || htmlEscape(ticket.permission)}</strong>
+            · 申请动作：<strong>${permissionActionNames[ticket.permission_action] || htmlEscape(ticket.permission_action)}</strong>
+            · 审批状态：<strong>${ticket.permission_status === 'approve' ? '已允许' : ticket.permission_status === 'reject' ? '已拒绝' : '待审批'}</strong>
+        </div>` : '';
     const permissionApproval = isAdmin && ticket.permission && !ticket.permission_status ? `
         <form action="/api/tickets/${ticket.id}/permission" method="POST" style="display:inline;">
             <button name="decision" value="approve" type="submit" style="background:#27ae60;color:#fff;padding:4px 14px;border:none;border-radius:4px;cursor:pointer;">允许</button>
@@ -274,6 +290,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
             ${assigneeText}
             · ${formatTimeToChina(ticket.created_at)}
         </div>
+        ${permissionInfo}
         <div class="markdown-body markdown-content" style="margin-top:10px;">${htmlEscape(ticket.content)}</div>
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
             ${editLink}
