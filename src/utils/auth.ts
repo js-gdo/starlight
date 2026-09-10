@@ -26,6 +26,7 @@ export async function getSessionUser(env: Env, req: Request): Promise<any | null
                     .bind(now.toISOString(), user.id).run();
                 user.last_active_at = now.toISOString();
             }
+            await recordOnlinePeak(env, now);
         }
         return user;
     } catch {
@@ -95,4 +96,26 @@ export async function getLocationInfo(
         // 忽略错误，返回备用值
     }
     return { region, city };
+}
+
+async function recordOnlinePeak(env: Env, now: Date): Promise<void> {
+    try {
+        const activeSince = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+        const activeUsers = await env.DB.prepare(
+            'SELECT COUNT(*) AS count FROM users WHERE use = 1 AND last_active_at > ?'
+        ).bind(activeSince).first();
+        const peakCount = Number(activeUsers?.count || 0);
+        const hourStart = new Date(now);
+        hourStart.setUTCMinutes(0, 0, 0);
+        const hourKey = hourStart.toISOString();
+        await env.DB.prepare(
+            `INSERT INTO online_hourly_stats (hour_start, peak_count, updated_at)
+             VALUES (?, ?, ?)
+             ON CONFLICT(hour_start) DO UPDATE SET
+               peak_count = MAX(online_hourly_stats.peak_count, excluded.peak_count),
+               updated_at = excluded.updated_at`
+        ).bind(hourKey, peakCount, now.toISOString()).run();
+    } catch {
+        // 在线统计不应影响正常请求
+    }
 }
