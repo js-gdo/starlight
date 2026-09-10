@@ -9,7 +9,7 @@ export type MentionUser = {
 
 export function htmlEscape(text: string): string {
     if (!text) return '';
-    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export function validateAtMentionSpacing(text: string): string[] {
@@ -122,4 +122,13 @@ export function renderUsernameLink(username: string, color: string, tag: string,
     if (!username) return '';
     const tagHtml = tag ? `<span style="${getUserTagStyle(color)}">${htmlEscape(tag)}</span>` : '';
     return `<a href="/user/${uid}" style="${getUserColorTextStyle(color)}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
+}
+
+export function renderAvatar(user: { id?: number; username?: string; avatar_url?: string }, size = 42): string {
+    const initial = htmlEscape(String(user.username || '?').charAt(0).toUpperCase());
+    const fallback = `this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';`;
+    const image = user.avatar_url
+        ? `<img src="${htmlEscape(String(user.avatar_url))}" alt="${initial}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="${fallback}">`
+        : '';
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;background:#8E44AD;color:#fff;font-weight:700;flex-shrink:0;">${image}<span style="display:${user.avatar_url ? 'none' : 'flex'};align-items:center;justify-content:center;width:100%;height:100%;">${initial}</span></span>`;
 }

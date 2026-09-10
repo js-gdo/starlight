@@ -20,6 +20,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
                 admin: user.admin,
                 color: user.color,
                 tag: user.tag,
+                avatar_url: user.avatar_url,
             },
         });
     }
@@ -50,7 +51,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
 
         return new Response(JSON.stringify({
             message: t('apiLoginSuccess'),
-            user: { id: dbUser.id, username: dbUser.username, admin: dbUser.admin, color: dbUser.color }
+            user: { id: dbUser.id, username: dbUser.username, admin: dbUser.admin, color: dbUser.color, avatar_url: dbUser.avatar_url }
         }), {
             status: 200,
             headers: {

@@ -1,8 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { formatTimeToChina } from '../utils/time';
-import { htmlEscape, renderUsernameLink } from '../utils/html';
-import { getUserColor } from '../utils/constants';
+import { htmlEscape, renderAvatar, renderUsernameLink } from '../utils/html';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -32,7 +31,7 @@ export async function renderHome(env: Env, req: Request) {
     const onlineResult = await db.prepare('SELECT COUNT(*) as cnt FROM users WHERE last_active_at > ?').bind(fiveMinAgo).first();
     const onlineCount = onlineResult ? onlineResult.cnt : 0;
     const onlineUsers = await db.prepare(
-        `SELECT id, username, color, tag, last_active_at
+        `SELECT id, username, color, tag, avatar_url, last_active_at
          FROM users
          WHERE last_active_at > ?
          ORDER BY last_active_at DESC
@@ -277,7 +276,7 @@ export async function renderHome(env: Env, req: Request) {
               ${onlineUsers.results.length > 0 ? onlineUsers.results.map((u: any) => `
                 <div class="online-user-item">
                   <span class="online-status-dot"></span>
-                  <div class="online-avatar" style="background:${getUserColor(u.color)}">${htmlEscape(u.username).charAt(0).toUpperCase()}</div>
+                  <div class="online-avatar">${renderAvatar(u, 30)}</div>
                   <div class="online-user-meta">
                     <div class="online-user-name">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</div>
                     <div class="online-user-time">${u.last_active_at ? t('activeAt') + ' ' + formatTimeToChina(u.last_active_at) : t('justNow')}</div>

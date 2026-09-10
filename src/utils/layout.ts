@@ -1,5 +1,4 @@
-import { getUserColor } from './constants';
-import { htmlEscape, renderUsernameLink } from './html';
+import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
@@ -73,7 +72,7 @@ export async function getLayout(
     let userSection = '';
     if (user) {
         userSection = `
-      <div class="avatar" style="background:${getUserColor(user.color)}">${user.username.charAt(0).toUpperCase()}</div>
+      <div class="avatar">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
       <form action="/logout" method="GET">
         <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
