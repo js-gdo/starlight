@@ -48,6 +48,11 @@ export async function initDB(env: Env) {
       author_id INTEGER,
       assignee_id INTEGER DEFAULT 0,
       status TEXT DEFAULT 'pending',
+      is_private INTEGER DEFAULT 0,
+      permission TEXT DEFAULT '',
+      permission_action TEXT DEFAULT '',
+      permission_status TEXT DEFAULT '',
+      permission_admin_id INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
@@ -118,6 +123,13 @@ export async function initDB(env: Env) {
       hour_start TEXT PRIMARY KEY,
       peak_count INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+        `CREATE TABLE IF NOT EXISTS announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      enabled INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
     )`
     ];
 
@@ -162,8 +174,12 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN last_city TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_login_at TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_active_at TEXT DEFAULT ""',
-        'ALTER TABLE users ADD COLUMN violation_count INTEGER DEFAULT 0',
         'ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ""',
+        'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
+        'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
+        'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
+        'ALTER TABLE tickets ADD COLUMN permission_status TEXT DEFAULT ""',
+        'ALTER TABLE tickets ADD COLUMN permission_admin_id INTEGER DEFAULT 0',
         'ALTER TABLE articles ADD COLUMN article_type TEXT DEFAULT "normal"',
         'ALTER TABLE articles ADD COLUMN problem_id TEXT DEFAULT ""',
         'ALTER TABLE articles ADD COLUMN is_pinned INTEGER DEFAULT 0',

@@ -23,8 +23,9 @@ export async function renderTicketList(env: Env, req: Request) {
          FROM tickets t
          JOIN users u ON t.author_id = u.id
          LEFT JOIN users a ON t.assignee_id = a.id
+         WHERE t.is_private = 0 OR t.author_id = ? OR ? = 1
          ORDER BY t.created_at DESC`
-    ).all();
+    ).bind(user?.id || 0, user?.admin ? 1 : 0).all();
 
     // 预翻译字符串
     const ticketListLabel = t('ticketList');
@@ -59,6 +60,7 @@ export async function renderTicketList(env: Env, req: Request) {
     const content = `
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div><h1><i class="fas fa-ticket-alt"></i> ${ticketListLabel}</h1></div>
+        ${user ? `<a href="/ticket/new?permission=1" style="background:#3498db;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-key"></i> 用户权限申请</a>` : ''}
         <a href="/ticket/new" style="background:#8E44AD;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:14px;"><i class="fas fa-plus"></i> ${newTicketLabel}</a>
     </div>
     <div class="card">
@@ -95,6 +97,12 @@ export async function renderTicketNew(env: Env, req: Request) {
     <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${pageTitle}</h1></div>
     <div class="card" style="max-width:800px;">
         <form action="/api/tickets" method="POST">
+            ${new URL(req.url).searchParams.get('permission') === '1' ? `
+            <input type="hidden" name="ticket_type" value="permission">
+            <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                <select name="permission" required style="padding:8px;border:1px solid #ddd;border-radius:4px;"><option value="">申请权限</option><option value="use">进入主站</option><option value="speak">自由发言</option><option value="admin">管理员权限</option></select>
+                <select name="permission_action" required style="padding:8px;border:1px solid #ddd;border-radius:4px;"><option value="">申请动作</option><option value="grant">授予</option><option value="revoke">撤销</option></select>
+            </div>` : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">${ticketTitleLabel}</label>
                 <input name="title" placeholder="${ticketTitleLabel}" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
@@ -161,8 +169,8 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
         `SELECT t.*, u.username, u.color, u.tag, a.username as assignee_name
          FROM tickets t JOIN users u ON t.author_id = u.id
          LEFT JOIN users a ON t.assignee_id = a.id
-         WHERE t.id = ?`
-    ).bind(id).first();
+            WHERE t.id = ? AND (t.is_private = 0 OR t.author_id = ? OR ? = 1)`
+        ).bind(id, user?.id || 0, user?.admin ? 1 : 0).first();
     if (!ticket) return t('ticketNotFound');
 
     const replies = await db.prepare(
@@ -174,6 +182,11 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
     const isAuthor = user && user.id === ticket.author_id;
     const isAdmin = user && user.admin;
     const statusInfo = getTicketStatus(ticket.status);
+    const permissionApproval = isAdmin && ticket.permission && !ticket.permission_status ? `
+        <form action="/api/tickets/${ticket.id}/permission" method="POST" style="display:inline;">
+            <button name="decision" value="approve" type="submit" style="background:#27ae60;color:#fff;padding:4px 14px;border:none;border-radius:4px;cursor:pointer;">允许</button>
+            <button name="decision" value="reject" type="submit" style="background:#e74c3c;color:#fff;padding:4px 14px;border:none;border-radius:4px;cursor:pointer;">拒绝</button>
+        </form>` : '';
 
     // 预翻译
     const pageTitle = t('ticketDetail');
@@ -265,6 +278,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
             ${editLink}
             ${assignForm}
+            ${permissionApproval}
         </div>
     </div>
     <div class="card">

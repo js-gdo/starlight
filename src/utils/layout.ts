@@ -23,6 +23,9 @@ export async function getLayout(
     }
     const chinaTime = getChinaTime();
     const hitokoto = await getHitokoto();
+    const announcements = env?.DB
+      ? await env.DB.prepare('SELECT id, content FROM announcements WHERE enabled = 1 ORDER BY sort_order ASC, id DESC').all()
+      : { results: [] };
 
     let mentionUserMap = { byId: {}, byName: {} } as { byId: Record<string, { uid: number; username: string }>; byName: Record<string, { uid: number; username: string }> };
     if (env?.DB) {
@@ -131,6 +134,14 @@ export async function getLayout(
     </script>
   `;
 
+    const announcementHtml = announcements.results.length > 0 ? `
+    <div class="site-announcements" aria-label="公告">
+      <div class="site-announcements-track" id="announcementTrack">
+        ${announcements.results.map((item: any) => `<span class="site-announcement-item"><i class="fas fa-bullhorn"></i> ${htmlEscape(item.content)}</span>`).join('')}
+      </div>
+    </div>
+    ` : '';
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -167,6 +178,11 @@ export async function getLayout(
       min-height: calc(100vh - 24px);
       align-items: stretch;
     }
+    .site-announcements { max-width:1360px; margin:0 auto 10px; overflow:hidden; background:#fff8e8; border:1px solid #f5d58b; border-radius:6px; color:#8a5a00; white-space:nowrap; }
+    .site-announcements-track { display:flex; width:max-content; animation: announcement-scroll 24s linear infinite; }
+    .site-announcement-item { display:inline-block; padding:7px 38px; }
+    .site-announcement-item i { margin-right:5px; }
+    @keyframes announcement-scroll { from { transform:translateX(100vw); } to { transform:translateX(-100%); } }
     .sidebar-left {
       background: #34495e;
       border-radius: 8px;
@@ -542,6 +558,7 @@ export async function getLayout(
 </head>
 <body>
   ${langSwitcherHtml}
+  ${announcementHtml}
 
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
