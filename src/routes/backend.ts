@@ -450,21 +450,17 @@ export async function renderBackend(env: Env, req: Request) {
         function drawOnlineStats(rangeDays) {
             if (!onlineStatsChartDom || typeof echarts === 'undefined') return;
             const points = onlineStatsData.slice(rangeDays === 1 ? -24 : 0);
-            const values = points.map(point => point.legacy ? 0 : (point.value ?? null)).filter(value => value !== null);
+            const chartPoints = points.map(point => ({
+                hour: point.hour,
+                legacy: !!point.legacy,
+                value: point.legacy || point.value === null || point.value === undefined ? 0 : Number(point.value),
+                isMissing: point.legacy || point.value === null || point.value === undefined,
+            }));
+            const values = chartPoints.map(point => point.value);
             const maxValue = Math.max(1, ...(values.length ? values : [1]));
-            const xLabels = points.map(point => {
-                const date = new Date(point.hour);
-                return date.toLocaleString('zh-CN', {
-                    timeZone: 'Asia/Shanghai',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                });
-            });
-            const validSeries = points.map(point => point.legacy ? null : (point.value ?? null));
-            const legacySeries = points.map(point => point.legacy ? 0 : null);
+            const xLabels = chartPoints.map(point => point.hour);
+            const validSeries = chartPoints.map(point => point.value);
+            const legacySeries = chartPoints.map(point => (point.isMissing ? 0 : 0));
 
             onlineStatsChart = onlineStatsChart || echarts.init(onlineStatsChartDom);
             onlineStatsChart.setOption({
@@ -485,7 +481,8 @@ export async function renderBackend(env: Env, req: Request) {
                     formatter: params => {
                         const info = params[0];
                         if (!info) return '';
-                        const date = new Date(info.axisValueLabel || info.data?.hour || Date.now());
+                        const point = chartPoints[info.dataIndex] || chartPoints[0];
+                        const date = new Date(point.hour);
                         const formatted = date.toLocaleString('zh-CN', {
                             timeZone: 'Asia/Shanghai',
                             year: 'numeric',
@@ -495,8 +492,7 @@ export async function renderBackend(env: Env, req: Request) {
                             minute: '2-digit',
                             hour12: false,
                         });
-                        const value = info.value;
-                        const note = value === null || value === undefined ? 'NaN' : String(Number(value)) + ' 人';
+                        const note = point.isMissing ? 'NaN' : String(Number(point.value)) + ' 人';
                         return formatted + '<br/>峰值：' + note;
                     },
                 },
@@ -509,6 +505,17 @@ export async function renderBackend(env: Env, req: Request) {
                         fontSize: 11,
                         rotate: 0,
                         interval: Math.max(0, Math.ceil(xLabels.length / 8) - 1),
+                        formatter: value => {
+                            const date = new Date(value);
+                            return date.toLocaleString('zh-CN', {
+                                timeZone: 'Asia/Shanghai',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false,
+                            });
+                        },
                     },
                     axisLine: { lineStyle: { color: '#e5e7eb' } },
                     splitLine: { show: false },
