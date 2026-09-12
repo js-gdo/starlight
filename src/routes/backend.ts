@@ -432,6 +432,23 @@ export async function renderBackend(env: Env, req: Request) {
         const onlineStatsDates = document.getElementById('onlineStatsDates');
         const onlineStatsContext = onlineStatsCanvas.getContext('2d');
 
+        function getLineSegments(items, predicate) {
+            const segments = [];
+            let start = null;
+            items.forEach((item, index) => {
+                if (predicate(item)) {
+                    if (start === null) start = index;
+                    return;
+                }
+                if (start !== null) {
+                    segments.push([start, index - 1]);
+                    start = null;
+                }
+            });
+            if (start !== null) segments.push([start, items.length - 1]);
+            return segments;
+        }
+
         function drawOnlineStats(rangeDays) {
             const points = onlineStatsData.slice(rangeDays === 1 ? -24 : 0);
             const width = onlineStatsCanvas.clientWidth || 680;
@@ -467,25 +484,31 @@ export async function renderBackend(env: Env, req: Request) {
                 onlineStatsContext.fillText(String(tickValue), left - 6, tickY + 4);
             }
 
-            function drawSegment(predicate, color, dashed) {
+            const legacySegments = getLineSegments(points, point => point.legacy === true);
+            const validSegments = getLineSegments(points, point => !point.legacy && point.value !== null);
+
+            legacySegments.forEach(([start, end]) => {
                 onlineStatsContext.beginPath();
-                onlineStatsContext.strokeStyle = color;
+                onlineStatsContext.strokeStyle = '#e74c3c';
                 onlineStatsContext.lineWidth = 2;
-                onlineStatsContext.setLineDash(dashed ? [5, 4] : []);
-                let drawing = false;
-                points.forEach((point, index) => {
-                    if (!predicate(point)) { drawing = false; return; }
-                    const pointY = point.legacy ? top + plotHeight : y(point.value);
-                    if (!drawing) onlineStatsContext.moveTo(x(index), pointY);
-                    else onlineStatsContext.lineTo(x(index), pointY);
-                    drawing = true;
-                });
+                onlineStatsContext.setLineDash([5, 4]);
+                onlineStatsContext.moveTo(x(start), top + plotHeight);
+                onlineStatsContext.lineTo(x(end), top + plotHeight);
                 onlineStatsContext.stroke();
                 onlineStatsContext.setLineDash([]);
-            }
+            });
 
-            drawSegment(point => point.legacy, '#e74c3c', true);
-            drawSegment(point => !point.legacy && point.value !== null, '#8E44AD', false);
+            validSegments.forEach(([start, end]) => {
+                onlineStatsContext.beginPath();
+                onlineStatsContext.strokeStyle = '#8E44AD';
+                onlineStatsContext.lineWidth = 2;
+                onlineStatsContext.moveTo(x(start), y(points[start].value));
+                for (let index = start + 1; index <= end; index++) {
+                    onlineStatsContext.lineTo(x(index), y(points[index].value));
+                }
+                onlineStatsContext.stroke();
+            });
+
             points.forEach((point, index) => {
                 if (point.value === null && !point.legacy) return;
                 onlineStatsContext.beginPath();

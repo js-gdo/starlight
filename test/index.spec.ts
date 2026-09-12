@@ -7,6 +7,7 @@ import {
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
 import { renderUsernameLink } from "../src/utils/html";
+import { getOnlineStatLineSegments } from "../src/utils/chart";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
 
 // For now, you'll need to do something like this to get a correctly-typed
@@ -45,5 +46,25 @@ describe("problem article formatting", () => {
 		const content = buildProblemArticleContent("Original content", "1001");
 		expect(content).toContain("Original content");
 		expect(content).toContain("https://oj.lin114514.top/1001");
+	});
+});
+
+describe("online stats line segmentation", () => {
+	it("breaks the line when values are missing or pre-feature legacy data exists", () => {
+		const points = [
+			{ value: 10, legacy: false },
+			{ value: 12, legacy: false },
+			{ value: null, legacy: false },
+			{ value: 9, legacy: false },
+			{ value: null, legacy: true },
+			{ value: null, legacy: true },
+			{ value: 14, legacy: false },
+		];
+
+		expect(getOnlineStatLineSegments(points)).toEqual([
+			[0, 1],
+			[3],
+			[6],
+		]);
 	});
 });
