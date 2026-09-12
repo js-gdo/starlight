@@ -37,6 +37,28 @@ export async function renderBackend(env: Env, req: Request) {
         });
     }
 
+    const totalUsers = await db.prepare('SELECT COUNT(*) as total FROM users').first();
+    const totalArticlesCount = await db.prepare('SELECT COUNT(*) as total FROM articles').first();
+    const totalTicketsCount = await db.prepare('SELECT COUNT(*) as total FROM tickets').first();
+    const totalActiveUsers = await db.prepare("SELECT COUNT(*) as total FROM users WHERE last_active_at >= datetime('now', '-5 minutes')").first();
+    const todayLogins = await db.prepare("SELECT COUNT(*) as total FROM users WHERE date(last_login_at) = date('now')").first();
+    const todayNewUsers = await db.prepare("SELECT COUNT(*) as total FROM users WHERE date(created_at) = date('now')").first();
+    const todayTickets = await db.prepare("SELECT COUNT(*) as total FROM tickets WHERE date(created_at) = date('now')").first();
+
+    const activityTrendStart = new Date(statsEnd.getTime() - 29 * 24 * 60 * 60 * 1000);
+    const activityTrendRows = await db.prepare(
+        "SELECT date(last_active_at) AS day, COUNT(DISTINCT id) AS total FROM users WHERE last_active_at IS NOT NULL AND last_active_at >= ? AND last_active_at <= ? GROUP BY date(last_active_at) ORDER BY day"
+    ).bind(activityTrendStart.toISOString(), statsEnd.toISOString()).all();
+    const activityTrendMap = new Map(activityTrendRows.results.map((row: any) => [String(row.day), Number(row.total)]));
+    const userActivityData: Array<{ day: string; value: number }> = [];
+    for (let cursor = new Date(activityTrendStart); cursor <= statsEnd; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+        const day = cursor.toISOString().slice(0, 10);
+        userActivityData.push({
+            day,
+            value: activityTrendMap.get(day) ?? 0,
+        });
+    }
+
     // 颜色名称映射
     const colorNames: Record<string, string> = {
         purple: t('colorPurple'),
@@ -232,12 +254,77 @@ export async function renderBackend(env: Env, req: Request) {
         .online-chart-buttons button.active { background:#8E44AD; border-color:#8E44AD; color:#fff; }
         .online-chart-wrap { width:100%; overflow-x:auto; }
         #onlineStatsChart { width:100%; min-width:680px; height:260px; }
+        #userActivityChart { width:100%; min-width:680px; height:260px; }
         .online-chart-dates { display:flex; justify-content:space-between; gap:8px; min-width:680px; color:#777; font-size:11px; }
         .online-chart-dates .legacy { color:#e74c3c; }
         .online-chart-note { margin-top:8px; color:#999; font-size:12px; }
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .overview-card {
+            background: linear-gradient(135deg, #faf5ff 0%, #ffffff 100%);
+            border: 1px solid #f0e7f9;
+            border-radius: 10px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 3px rgba(142,68,173,0.04);
+        }
+        .overview-label {
+            font-size: 12px;
+            color: #7f6f90;
+            margin-bottom: 8px;
+        }
+        .overview-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c1f3d;
+            line-height: 1.1;
+        }
+        .overview-sub {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #8d7a9f;
+        }
     </style>
 
     <div class="page-header"><h1><i class="fas fa-cog"></i> ${t('adminPanel')}</h1></div>
+
+    <div class="card">
+        <div class="overview-grid">
+            <div class="overview-card">
+                <div class="overview-label">总用户数</div>
+                <div class="overview-value">${Number(totalUsers?.total || 0)}</div>
+                <div class="overview-sub">当前注册用户总量</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">当前在线</div>
+                <div class="overview-value">${Number(totalActiveUsers?.total || 0)}</div>
+                <div class="overview-sub">近 5 分钟活跃用户</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">今日登录</div>
+                <div class="overview-value">${Number(todayLogins?.total || 0)}</div>
+                <div class="overview-sub">按最近登录统计</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">今日新增</div>
+                <div class="overview-value">${Number(todayNewUsers?.total || 0)}</div>
+                <div class="overview-sub">本日注册用户数</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">帖子数</div>
+                <div class="overview-value">${Number(totalArticlesCount?.total || 0)}</div>
+                <div class="overview-sub">文章总数量</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">工单数</div>
+                <div class="overview-value">${Number(totalTicketsCount?.total || 0)}</div>
+                <div class="overview-sub">今日新工单：${Number(todayTickets?.total || 0)}</div>
+            </div>
+        </div>
+    </div>
 
     <div class="card">
         <div class="online-chart-toolbar">
@@ -252,6 +339,16 @@ export async function renderBackend(env: Env, req: Request) {
             <div id="onlineStatsDates" class="online-chart-dates"></div>
         </div>
         <div class="online-chart-note"><span style="color:#e74c3c;">红色 NaN</span>：功能上线前没有历史数据；空白点表示该小时尚未采集到数据。</div>
+    </div>
+
+    <div class="card">
+        <div class="online-chart-toolbar">
+            <div class="section-title" style="margin-bottom:0;"><i class="fas fa-user-check"></i> 用户活跃趋势</div>
+        </div>
+        <div class="online-chart-wrap">
+            <div id="userActivityChart" style="height:260px;"></div>
+        </div>
+        <div class="online-chart-note">按最近 30 天的活跃用户数统计，展示日活跃趋势变化。</div>
     </div>
 
     <div class="card">
@@ -429,9 +526,12 @@ export async function renderBackend(env: Env, req: Request) {
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <script>
         const onlineStatsData = ${JSON.stringify(onlineStatsPoints)};
+        const userActivityData = ${JSON.stringify(userActivityData)};
         const onlineStatsChartDom = document.getElementById('onlineStatsChart');
+        const userActivityChartDom = document.getElementById('userActivityChart');
         const onlineStatsDates = document.getElementById('onlineStatsDates');
         let onlineStatsChart = null;
+        let userActivityChart = null;
 
         function buildDateGroups(points) {
             const dateGroups = [];
@@ -561,6 +661,55 @@ export async function renderBackend(env: Env, req: Request) {
                 .join('');
         }
 
+        function drawUserActivity() {
+            if (!userActivityChartDom || typeof echarts === 'undefined') return;
+            const labels = userActivityData.map(item => item.day);
+            const values = userActivityData.map(item => item.value);
+            userActivityChart = userActivityChart || echarts.init(userActivityChartDom);
+            userActivityChart.setOption({
+                animation: false,
+                grid: { left: 36, right: 12, top: 16, bottom: 42, containLabel: true },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'line', animation: false },
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: '#ddd',
+                    textStyle: { color: '#333' },
+                },
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    boundaryGap: false,
+                    axisLabel: {
+                        color: '#777',
+                        fontSize: 11,
+                        interval: Math.max(0, Math.ceil(labels.length / 10) - 1),
+                        formatter: value => {
+                            const date = new Date(value + 'T00:00:00.000Z');
+                            return date.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit' });
+                        },
+                    },
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    axisLabel: { color: '#777', fontSize: 11 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } },
+                },
+                series: [{
+                    name: '活跃用户',
+                    type: 'line',
+                    data: values,
+                    smooth: false,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { color: '#4f8ef7', width: 2 },
+                    itemStyle: { color: '#4f8ef7' },
+                    areaStyle: { color: 'rgba(79, 142, 247, 0.12)' },
+                }],
+            }, true);
+        }
+
         document.querySelectorAll('.online-chart-buttons button').forEach(button => {
             button.addEventListener('click', () => {
                 document.querySelectorAll('.online-chart-buttons button').forEach(item => item.classList.remove('active'));
@@ -569,8 +718,10 @@ export async function renderBackend(env: Env, req: Request) {
             });
         });
         drawOnlineStats(1);
+        drawUserActivity();
         window.addEventListener('resize', () => {
             if (onlineStatsChart) onlineStatsChart.resize();
+            if (userActivityChart) userActivityChart.resize();
         });
 
         function toggleFields(select) {
