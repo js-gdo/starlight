@@ -231,7 +231,7 @@ export async function renderBackend(env: Env, req: Request) {
         .online-chart-buttons button { padding:5px 10px; border:1px solid #ddd; border-radius:4px; background:#fff; color:#666; cursor:pointer; font-size:12px; }
         .online-chart-buttons button.active { background:#8E44AD; border-color:#8E44AD; color:#fff; }
         .online-chart-wrap { width:100%; overflow-x:auto; }
-        #onlineStatsCanvas { display:block; width:100%; min-width:680px; height:260px; }
+        #onlineStatsChart { width:100%; min-width:680px; height:260px; }
         .online-chart-dates { display:flex; justify-content:space-between; gap:8px; min-width:680px; color:#777; font-size:11px; }
         .online-chart-dates .legacy { color:#e74c3c; }
         .online-chart-note { margin-top:8px; color:#999; font-size:12px; }
@@ -248,7 +248,7 @@ export async function renderBackend(env: Env, req: Request) {
             </div>
         </div>
         <div class="online-chart-wrap">
-            <canvas id="onlineStatsCanvas" height="260"></canvas>
+            <div id="onlineStatsChart" style="height:260px;"></div>
             <div id="onlineStatsDates" class="online-chart-dates"></div>
         </div>
         <div class="online-chart-note"><span style="color:#e74c3c;">红色 NaN</span>：功能上线前没有历史数据；空白点表示该小时尚未采集到数据。</div>
@@ -426,82 +426,132 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <script>
         const onlineStatsData = ${JSON.stringify(onlineStatsPoints)};
-        const onlineStatsCanvas = document.getElementById('onlineStatsCanvas');
+        const onlineStatsChartDom = document.getElementById('onlineStatsChart');
         const onlineStatsDates = document.getElementById('onlineStatsDates');
-        const onlineStatsContext = onlineStatsCanvas.getContext('2d');
+        let onlineStatsChart = null;
 
-        function drawOnlineStats(rangeDays) {
-            const points = onlineStatsData.slice(rangeDays === 1 ? -24 : 0);
-            const width = onlineStatsCanvas.clientWidth || 680;
-            const height = 260;
-            const ratio = window.devicePixelRatio || 1;
-            onlineStatsCanvas.width = width * ratio;
-            onlineStatsCanvas.height = height * ratio;
-            onlineStatsContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-            onlineStatsContext.clearRect(0, 0, width, height);
-
-            const left = 36;
-            const right = 12;
-            const top = 16;
-            const bottom = 32;
-            const plotWidth = Math.max(1, width - left - right);
-            const plotHeight = height - top - bottom;
-            const values = points.map(point => point.value).filter(value => value !== null);
-            const maxValue = Math.max(1, ...(values.length ? values : [1]));
-            const x = index => left + (points.length <= 1 ? 0 : index * plotWidth / (points.length - 1));
-            const y = value => top + plotHeight - (value / maxValue) * plotHeight;
-
-            onlineStatsContext.font = '11px sans-serif';
-            onlineStatsContext.textAlign = 'right';
-            onlineStatsContext.strokeStyle = '#eee';
-            onlineStatsContext.fillStyle = '#999';
-            for (let tick = 0; tick <= 4; tick++) {
-                const tickValue = Math.round(maxValue * tick / 4);
-                const tickY = top + plotHeight - plotHeight * tick / 4;
-                onlineStatsContext.beginPath();
-                onlineStatsContext.moveTo(left, tickY);
-                onlineStatsContext.lineTo(width - right, tickY);
-                onlineStatsContext.stroke();
-                onlineStatsContext.fillText(String(tickValue), left - 6, tickY + 4);
-            }
-
-            function drawSegment(predicate, color, dashed) {
-                onlineStatsContext.beginPath();
-                onlineStatsContext.strokeStyle = color;
-                onlineStatsContext.lineWidth = 2;
-                onlineStatsContext.setLineDash(dashed ? [5, 4] : []);
-                let drawing = false;
-                points.forEach((point, index) => {
-                    if (!predicate(point)) { drawing = false; return; }
-                    const pointY = point.legacy ? top + plotHeight : y(point.value);
-                    if (!drawing) onlineStatsContext.moveTo(x(index), pointY);
-                    else onlineStatsContext.lineTo(x(index), pointY);
-                    drawing = true;
-                });
-                onlineStatsContext.stroke();
-                onlineStatsContext.setLineDash([]);
-            }
-
-            drawSegment(point => point.legacy, '#e74c3c', true);
-            drawSegment(point => !point.legacy && point.value !== null, '#8E44AD', false);
-            points.forEach((point, index) => {
-                if (point.value === null && !point.legacy) return;
-                onlineStatsContext.beginPath();
-                onlineStatsContext.fillStyle = point.legacy ? '#e74c3c' : '#8E44AD';
-                onlineStatsContext.arc(x(index), point.legacy ? top + plotHeight : y(point.value), 3, 0, Math.PI * 2);
-                onlineStatsContext.fill();
-            });
-
+        function buildDateGroups(points) {
             const dateGroups = [];
             points.forEach(point => {
                 const date = new Date(point.hour).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit' });
                 const last = dateGroups[dateGroups.length - 1];
-                if (!last || last.date !== date) dateGroups.push({ date, legacy: point.legacy });
-                else last.legacy = last.legacy && point.legacy;
+                if (!last || last.date !== date) {
+                    dateGroups.push({ date, legacy: point.legacy });
+                } else {
+                    last.legacy = last.legacy && point.legacy;
+                }
             });
-            onlineStatsDates.innerHTML = dateGroups.map(group => '<span class="' + (group.legacy ? 'legacy' : '') + '">' + group.date + (group.legacy ? ' NaN' : '') + '</span>').join('');
+            return dateGroups;
+        }
+
+        function drawOnlineStats(rangeDays) {
+            if (!onlineStatsChartDom || typeof echarts === 'undefined') return;
+            const points = onlineStatsData.slice(rangeDays === 1 ? -24 : 0);
+            const values = points.map(point => point.legacy ? 0 : (point.value ?? null)).filter(value => value !== null);
+            const maxValue = Math.max(1, ...(values.length ? values : [1]));
+            const xLabels = points.map(point => {
+                const date = new Date(point.hour);
+                return date.toLocaleString('zh-CN', {
+                    timeZone: 'Asia/Shanghai',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                });
+            });
+            const validSeries = points.map(point => point.legacy ? null : (point.value ?? null));
+            const legacySeries = points.map(point => point.legacy ? 0 : null);
+
+            onlineStatsChart = onlineStatsChart || echarts.init(onlineStatsChartDom);
+            onlineStatsChart.setOption({
+                animation: false,
+                grid: {
+                    left: 36,
+                    right: 12,
+                    top: 16,
+                    bottom: 42,
+                    containLabel: true,
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'line', animation: false },
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: '#ddd',
+                    textStyle: { color: '#333' },
+                    formatter: params => {
+                        const info = params[0];
+                        if (!info) return '';
+                        const date = new Date(info.axisValueLabel || info.data?.hour || Date.now());
+                        const formatted = date.toLocaleString('zh-CN', {
+                            timeZone: 'Asia/Shanghai',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                        });
+                        const value = info.value;
+                        const note = value === null || value === undefined ? 'NaN' : String(Number(value)) + ' 人';
+                        return formatted + '<br/>峰值：' + note;
+                    },
+                },
+                xAxis: {
+                    type: 'category',
+                    data: xLabels,
+                    boundaryGap: false,
+                    axisLabel: {
+                        color: '#777',
+                        fontSize: 11,
+                        rotate: 0,
+                        interval: Math.max(0, Math.ceil(xLabels.length / 8) - 1),
+                    },
+                    axisLine: { lineStyle: { color: '#e5e7eb' } },
+                    splitLine: { show: false },
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: maxValue > 0 ? Math.ceil(maxValue * 1.15) : 1,
+                    axisLabel: { color: '#777', fontSize: 11 },
+                    splitLine: { lineStyle: { color: '#f0f0f0' } },
+                },
+                series: [
+                    {
+                        name: 'NaN',
+                        type: 'line',
+                        data: legacySeries,
+                        smooth: false,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { color: '#e74c3c', width: 2, type: 'dashed' },
+                        itemStyle: { color: '#e74c3c' },
+                        emphasis: { focus: 'series' },
+                        connectNulls: false,
+                    },
+                    {
+                        name: '在线人数',
+                        type: 'line',
+                        data: validSeries,
+                        smooth: false,
+                        symbol: 'circle',
+                        symbolSize: 4,
+                        lineStyle: { color: '#8E44AD', width: 2 },
+                        itemStyle: { color: '#8E44AD' },
+                        areaStyle: { color: 'rgba(142, 68, 173, 0.08)' },
+                        emphasis: { focus: 'series' },
+                        connectNulls: false,
+                    },
+                ],
+            }, true);
+
+            onlineStatsDates.innerHTML = buildDateGroups(points)
+                .map(group => '<span class="' + (group.legacy ? 'legacy' : '') + '">' + group.date + (group.legacy ? ' NaN' : '') + '</span>')
+                .join('');
         }
 
         document.querySelectorAll('.online-chart-buttons button').forEach(button => {
@@ -513,8 +563,7 @@ export async function renderBackend(env: Env, req: Request) {
         });
         drawOnlineStats(1);
         window.addEventListener('resize', () => {
-            const activeButton = document.querySelector('.online-chart-buttons button.active');
-            drawOnlineStats(Number(activeButton?.dataset.range || 1));
+            if (onlineStatsChart) onlineStatsChart.resize();
         });
 
         function toggleFields(select) {
