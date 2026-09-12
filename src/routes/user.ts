@@ -47,7 +47,10 @@ export async function renderUser(env: Env, req: Request, path: string) {
                     </div>
                 ` : ''}
                 ${currentUser && currentUser.id != user.id ? `
-                    <button onclick="follow(${user.id})" style="margin-top:10px;background:#8E44AD;color:#fff;padding:5px 14px;border:none;border-radius:4px;cursor:pointer;">${isFollowing ? t('unfollow') : t('follow')}</button>
+                    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+                        <button onclick="follow(${user.id})" style="background:#8E44AD;color:#fff;padding:5px 14px;border:none;border-radius:4px;cursor:pointer;">${isFollowing ? t('unfollow') : t('follow')}</button>
+                        <button onclick="reportUser(${user.id})" style="background:#fff;color:#c0392b;padding:5px 14px;border:1px solid #e6b0aa;border-radius:4px;cursor:pointer;"><i class="fas fa-flag"></i> 举报资料</button>
+                    </div>
                 ` : ''}
             </div>
             <div class="card">
@@ -65,6 +68,15 @@ export async function renderUser(env: Env, req: Request, path: string) {
                 const data = await res.json();
                 toast(data.message);
                 location.reload();
+            }
+            async function reportUser(uid) {
+                const reason = prompt('举报原因：sexual / gambling / spam / abuse / other', 'other');
+                if (!reason) return;
+                const form = new FormData();
+                form.set('target_type', 'avatar'); form.set('target_id', String(uid)); form.set('reason', reason);
+                const response = await fetch('/api/reports', { method: 'POST', body: form });
+                const data = await response.json();
+                toast(data.error || '举报已提交', data.error ? 'error' : 'success');
             }
         </script>
     `;

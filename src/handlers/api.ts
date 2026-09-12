@@ -8,6 +8,7 @@ import { handleMessages } from './messages';
 import { handlePm } from './pm';
 import { handleAdmin } from './admin';
 import { handleUser } from './user';
+import { handleReports } from './reports';
 import { jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 
@@ -39,6 +40,9 @@ export async function handleApi(request: Request, env: Env, path: string) {
     }
     if (path.startsWith('/api/admin')) {
         return handleAdmin(request, env, path);
+    }
+    if (path.startsWith('/api/reports')) {
+        return handleReports(request, env, path);
     }
     if (path.startsWith('/api/user')) {
         // /api/user/find 已在 pm.ts 中处理，但这里也捕获以防未处理
