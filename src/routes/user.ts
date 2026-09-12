@@ -26,15 +26,23 @@ export async function renderUser(env: Env, req: Request, path: string) {
         <div style="display:grid;gap:16px;">
             <div class="card">
                 ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;">
+                    ${user.real_name ? `<span style="font-size:14px;color:#444;"><i class="fas fa-user"></i> ${htmlEscape(user.real_name)}</span>` : ''}
+                    ${user.location ? `<span style="font-size:14px;color:#666;"><i class="fas fa-map-marker-alt"></i> ${htmlEscape(user.location)}</span>` : ''}
+                    ${user.profile_link ? `<a href="${htmlEscape(user.profile_link)}" target="_blank" rel="noopener noreferrer" style="font-size:14px;color:#8E44AD;text-decoration:none;"><i class="fas fa-link"></i> 主页</a>` : ''}
+                </div>
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
                 ${currentUser && currentUser.id == user.id ? `
                     <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;">
                         <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-pen"></i> ${t('bio')}</h4>
-                        <form action="/api/user/bio" method="POST" style="display:flex;gap:6px;flex-wrap:wrap;">
-                            <input type="text" name="bio" placeholder="${t('bioPlaceholder')}" value="${htmlEscape(user.bio || '')}" style="flex:1;min-width:180px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <input type="url" name="avatar_url" placeholder="头像外链 URL" value="${htmlEscape(user.avatar_url || '')}" style="flex:1;min-width:180px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 16px;border:none;border-radius:4px;cursor:pointer;">${t('updateBio')}</button>
+                        <form action="/api/user/bio" method="POST" style="display:flex;flex-direction:column;gap:8px;">
+                            <input type="text" name="real_name" value="${htmlEscape(user.real_name || '')}" placeholder="真实姓名 / 昵称" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                            <input type="text" name="location" value="${htmlEscape(user.location || '')}" placeholder="所在地" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                            <input type="url" name="profile_link" value="${htmlEscape(user.profile_link || '')}" placeholder="个人主页链接" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                            <textarea name="bio" rows="3" placeholder="${t('bioPlaceholder')}" style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;resize:vertical;">${htmlEscape(user.bio || '')}</textarea>
+                            <input type="url" name="avatar_url" placeholder="头像外链 URL" value="${htmlEscape(user.avatar_url || '')}" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                            <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 16px;border:none;border-radius:4px;cursor:pointer;max-width:140px;">${t('updateBio')}</button>
                         </form>
                     </div>
                 ` : ''}
