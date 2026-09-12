@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import worker from "../src/index";
 import { renderUsernameLink } from "../src/utils/html";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
+import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl } from "../src/utils/profile";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -45,5 +46,23 @@ describe("problem article formatting", () => {
 		const content = buildProblemArticleContent("Original content", "1001");
 		expect(content).toContain("Original content");
 		expect(content).toContain("https://oj.lin114514.top/1001");
+	});
+});
+
+describe("profile field normalization", () => {
+	it("trims and validates personal profile fields", () => {
+		const fields = normalizeProfileFields({
+			bio: "  hello world  ",
+			avatar_url: "https://example.com/avatar.png",
+			location: "  Beijing  ",
+			profile_link: "https://example.com/profile",
+		});
+		expect(fields.bio).toBe("hello world");
+		expect(fields.location).toBe("Beijing");
+		expect(fields.avatar_url).toBe("https://example.com/avatar.png");
+		expect(validateAvatarUrl("https://example.com/avatar.png")).toBe(true);
+		expect(validateAvatarUrl("ftp://example.com/avatar.png")).toBe(false);
+		expect(validateProfileUrl("https://example.com/profile")).toBe(true);
+		expect(validateProfileUrl("javascript:alert(1)")).toBe(false);
 	});
 });
