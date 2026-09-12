@@ -424,6 +424,11 @@ export async function renderBackend(env: Env, req: Request) {
                                 <button type="button" class="btn-sm btn-danger" style="font-size:13px; color:#fff; margin-top:4px;" onclick="confirmDelete(${u.id}, '${htmlEscape(u.username)}')">
                                     <i class="fas fa-trash-alt"></i> ${t('deleteUser')}
                                 </button>
+                                <form action="/api/admin/user/${u.id}/avatar/delete" method="POST" style="display:inline; margin-top:4px;" onsubmit="return confirm('确认清除此用户头像？');">
+                                    <button type="submit" class="btn-sm btn-warning" style="font-size:13px; color:#fff;">
+                                        <i class="fas fa-image"></i> 清除头像
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     `).join('')}

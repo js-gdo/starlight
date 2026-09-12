@@ -97,6 +97,14 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
+    const avatarDeleteMatch = path.match(/^\/api\/admin\/user\/(\d+)\/avatar\/delete$/);
+    if (avatarDeleteMatch && method === 'POST') {
+        const id = parseInt(avatarDeleteMatch[1]);
+        if (id === 1 && user.id !== 1) return jsonRes({ error: t('apiCannotModifySuperAdmin') }, 403);
+        await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').bind('', id).run();
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
     const articleDeleteMatch = path.match(/^\/api\/admin\/article\/(\d+)\/delete$/);
     if (articleDeleteMatch && method === 'POST') {
         const id = parseInt(articleDeleteMatch[1]);
