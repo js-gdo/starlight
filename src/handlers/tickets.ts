@@ -57,6 +57,10 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             if (column === 'admin' && user.id !== 1) return jsonRes({ error: t('apiOnlySuperAdminCanSetAdmin') }, 403);
             await db.prepare(`UPDATE users SET ${column} = ? WHERE id = ?`).bind(value, ticket.author_id).run();
         }
+        await db.prepare(
+            `INSERT INTO permission_ticket_logs (ticket_id, admin_id, decision, permission, permission_action, reason)
+             VALUES (?, ?, ?, ?, ?, ?)`
+        ).bind(id, user.id, decision, ticket.permission, ticket.permission_action, decision === 'approve' ? '管理员已批准申请' : '管理员已拒绝申请').run();
         await db.prepare('UPDATE tickets SET permission_status = ?, permission_admin_id = ? WHERE id = ?')
             .bind(decision, user.id, id).run();
         await db.prepare('UPDATE tickets SET status = ? WHERE id = ?')

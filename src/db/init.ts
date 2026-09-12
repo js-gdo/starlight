@@ -129,7 +129,26 @@ export async function initDB(env: Env) {
       content TEXT NOT NULL,
       sort_order INTEGER DEFAULT 0,
       enabled INTEGER DEFAULT 1,
+      announcement_type TEXT DEFAULT 'notice',
+      display_scope TEXT DEFAULT 'all',
+      scroll_speed INTEGER DEFAULT 24,
       created_at TEXT DEFAULT (datetime('now'))
+    )`,
+        `CREATE TABLE IF NOT EXISTS permission_ticket_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id INTEGER NOT NULL,
+      admin_id INTEGER NOT NULL,
+      decision TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      permission_action TEXT NOT NULL,
+      reason TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+      FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS site_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT NOT NULL DEFAULT ''
     )`
     ];
 
@@ -183,6 +202,9 @@ export async function initDB(env: Env) {
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_status TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_admin_id INTEGER DEFAULT 0',
+        'ALTER TABLE announcements ADD COLUMN announcement_type TEXT DEFAULT "notice"',
+        'ALTER TABLE announcements ADD COLUMN display_scope TEXT DEFAULT "all"',
+        'ALTER TABLE announcements ADD COLUMN scroll_speed INTEGER DEFAULT 24',
         'ALTER TABLE articles ADD COLUMN article_type TEXT DEFAULT "normal"',
         'ALTER TABLE articles ADD COLUMN problem_id TEXT DEFAULT ""',
         'ALTER TABLE articles ADD COLUMN is_pinned INTEGER DEFAULT 0',
@@ -191,4 +213,6 @@ export async function initDB(env: Env) {
     for (const sql of alterColumns) {
         try { await db.prepare(sql).run(); } catch { }
     }
+
+    await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }

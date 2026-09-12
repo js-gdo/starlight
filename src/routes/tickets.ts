@@ -176,6 +176,9 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
     const replies = await db.prepare(
         `SELECT r.*, u.username, u.color, u.tag FROM ticket_replies r JOIN users u ON r.author_id = u.id WHERE r.ticket_id = ? ORDER BY r.created_at ASC`
     ).bind(id).all();
+    const permissionLogs = ticket.permission
+        ? await db.prepare(`SELECT l.*, u.username FROM permission_ticket_logs l JOIN users u ON l.admin_id = u.id WHERE l.ticket_id = ? ORDER BY l.created_at DESC`).bind(id).all()
+        : { results: [] };
 
     const admins = await db.prepare('SELECT * FROM users WHERE admin = 1').all();
 
@@ -203,6 +206,11 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
             <button name="decision" value="approve" type="submit" style="background:#27ae60;color:#fff;padding:4px 14px;border:none;border-radius:4px;cursor:pointer;">允许</button>
             <button name="decision" value="reject" type="submit" style="background:#e74c3c;color:#fff;padding:4px 14px;border:none;border-radius:4px;cursor:pointer;">拒绝</button>
         </form>` : '';
+    const permissionHistory = permissionLogs.results.length > 0 ? `
+        <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:4px;font-size:13px;">
+            <strong><i class="fas fa-clock-rotate-left"></i> 审批历史</strong>
+            ${permissionLogs.results.map((log: any) => `<div style="margin-top:6px;color:#666;">${htmlEscape(log.username)} · ${log.decision === 'approve' ? '已允许' : '已拒绝'} · ${formatTimeToChina(log.created_at)} · ${htmlEscape(log.reason || '')}</div>`).join('')}
+        </div>` : '';
 
     // 预翻译
     const pageTitle = t('ticketDetail');
@@ -291,6 +299,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
             · ${formatTimeToChina(ticket.created_at)}
         </div>
         ${permissionInfo}
+        ${permissionHistory}
         <div class="markdown-body markdown-content" style="margin-top:10px;">${htmlEscape(ticket.content)}</div>
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
             ${editLink}

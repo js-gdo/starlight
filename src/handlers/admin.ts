@@ -174,8 +174,19 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const content = String(form.get('content') || '').trim();
         const sortOrder = parseInt(String(form.get('sort_order') || '0')) || 0;
+        const announcementType = ['notice', 'warning', 'urgent'].includes(String(form.get('announcement_type'))) ? String(form.get('announcement_type')) : 'notice';
+        const displayScope = ['all', 'home', 'backend'].includes(String(form.get('display_scope'))) ? String(form.get('display_scope')) : 'all';
+        const scrollSpeed = Math.min(120, Math.max(5, parseInt(String(form.get('scroll_speed') || '24')) || 24));
         if (!content) return jsonRes({ error: '公告内容不能为空' }, 400);
-        await db.prepare('INSERT INTO announcements (content, sort_order) VALUES (?, ?)').bind(content, sortOrder).run();
+        await db.prepare('INSERT INTO announcements (content, sort_order, announcement_type, display_scope, scroll_speed) VALUES (?, ?, ?, ?, ?)')
+            .bind(content, sortOrder, announcementType, displayScope, scrollSpeed).run();
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    if (path === '/api/admin/site-status' && method === 'POST') {
+        const form = await request.formData();
+        const status = ['normal', 'maintenance', 'limited'].includes(String(form.get('status'))) ? String(form.get('status')) : 'normal';
+        await db.prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('site_status', ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value").bind(status).run();
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
