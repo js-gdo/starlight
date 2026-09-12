@@ -17,6 +17,8 @@ export async function renderBackend(env: Env, req: Request) {
     const tickets = await db.prepare('SELECT * FROM tickets ORDER BY id DESC').all();
     const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
     const announcements = await db.prepare('SELECT * FROM announcements ORDER BY sort_order ASC, id DESC').all();
+    const siteStatusRow = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first();
+    const siteStatus = String(siteStatusRow?.setting_value || 'normal');
     const statsNow = new Date();
     const statsEnd = new Date(statsNow);
     statsEnd.setUTCMinutes(0, 0, 0);
@@ -352,6 +354,18 @@ export async function renderBackend(env: Env, req: Request) {
     </div>
 
     <div class="card">
+        <div class="section-title"><i class="fas fa-satellite-dish"></i> 站点状态</div>
+        <form action="/api/admin/site-status" method="POST" class="add-banner-form">
+            <select name="status" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
+                <option value="normal" ${siteStatus === 'normal' ? 'selected' : ''}>正常运行</option>
+                <option value="limited" ${siteStatus === 'limited' ? 'selected' : ''}>限流提示</option>
+                <option value="maintenance" ${siteStatus === 'maintenance' ? 'selected' : ''}>维护中</option>
+            </select>
+            <button type="submit"><i class="fas fa-save"></i> 保存站点状态</button>
+        </form>
+    </div>
+
+    <div class="card">
         <div class="section-title"><i class="fas fa-users"></i> ${t('userManagement')}</div>
         <div class="table-wrap">
             <table class="admin-table">
@@ -515,12 +529,15 @@ export async function renderBackend(env: Env, req: Request) {
         <form action="/api/admin/announcement/add" method="POST" class="add-banner-form">
             <input type="text" name="content" placeholder="公告内容" required>
             <input type="number" name="sort_order" placeholder="排序" value="0" style="width:80px;">
+            <select name="announcement_type" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;"><option value="notice">通知</option><option value="warning">警告</option><option value="urgent">紧急</option></select>
+            <select name="display_scope" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;"><option value="all">全站</option><option value="home">仅首页</option><option value="backend">仅后台</option></select>
+            <input type="number" name="scroll_speed" min="5" max="120" value="24" title="滚动周期（秒）" style="width:100px;">
             <button type="submit"><i class="fas fa-plus"></i> 添加公告</button>
         </form>
         ${announcements.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无公告</div>` : ''}
         ${announcements.results.map((announcement: any) => `
             <div class="banner-item">
-                <div class="banner-info"><div class="url">${htmlEscape(announcement.content)}</div><div class="meta">排序：${announcement.sort_order}</div></div>
+                <div class="banner-info"><div class="url">${htmlEscape(announcement.content)}</div><div class="meta">排序：${announcement.sort_order} · 类型：${announcement.announcement_type || 'notice'} · 范围：${announcement.display_scope || 'all'} · 速度：${announcement.scroll_speed || 24}s</div></div>
                 <form action="/api/admin/announcement/${announcement.id}/delete" method="POST">
                     <button type="submit" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> 删除</button>
                 </form>

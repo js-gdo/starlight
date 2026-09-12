@@ -23,9 +23,15 @@ export async function getLayout(
     }
     const chinaTime = getChinaTime();
     const hitokoto = await getHitokoto();
+    const currentPath = request ? new URL(request.url).pathname : '/';
+    const announcementScope = currentPath === '/backend' ? 'backend' : currentPath === '/' ? 'home' : 'all';
     const announcements = env?.DB
-      ? await env.DB.prepare('SELECT id, content FROM announcements WHERE enabled = 1 ORDER BY sort_order ASC, id DESC').all()
+      ? await env.DB.prepare("SELECT id, content, announcement_type, scroll_speed FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) ORDER BY sort_order ASC, id DESC").bind(announcementScope).all()
       : { results: [] };
+    const siteStatusRow = env?.DB
+      ? await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first()
+      : null;
+    const siteStatus = String(siteStatusRow?.setting_value || 'normal');
 
     let mentionUserMap = { byId: {}, byName: {} } as { byId: Record<string, { uid: number; username: string }>; byName: Record<string, { uid: number; username: string }> };
     if (env?.DB) {
@@ -136,11 +142,12 @@ export async function getLayout(
 
     const announcementHtml = announcements.results.length > 0 ? `
     <div class="site-announcements" aria-label="公告">
-      <div class="site-announcements-track" id="announcementTrack">
-        ${announcements.results.map((item: any) => `<span class="site-announcement-item"><i class="fas fa-bullhorn"></i> ${htmlEscape(item.content)}</span>`).join('')}
+      <div class="site-announcements-track" id="announcementTrack" style="animation-duration:${Math.max(5, Number(announcements.results[0]?.scroll_speed || 24))}s;">
+        ${announcements.results.map((item: any) => `<span class="site-announcement-item announcement-${htmlEscape(item.announcement_type || 'notice')}"><i class="fas fa-${item.announcement_type === 'urgent' ? 'triangle-exclamation' : item.announcement_type === 'warning' ? 'circle-exclamation' : 'bullhorn'}"></i> ${htmlEscape(item.content)}</span>`).join('')}
       </div>
     </div>
     ` : '';
+    const siteStatusHtml = siteStatus !== 'normal' ? `<div style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '站点维护中，部分功能暂不可用' : '站点当前处于限流状态，请稍后重试'}</div>` : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -559,6 +566,7 @@ export async function getLayout(
 <body>
   ${langSwitcherHtml}
   ${announcementHtml}
+  ${siteStatusHtml}
 
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
