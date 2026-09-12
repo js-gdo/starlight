@@ -26,7 +26,7 @@ export async function getLayout(
     const currentPath = request ? new URL(request.url).pathname : '/';
     const announcementScope = currentPath === '/backend' ? 'backend' : currentPath === '/' ? 'home' : 'all';
     const announcements = env?.DB
-      ? await env.DB.prepare("SELECT id, content, announcement_type, scroll_speed FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) ORDER BY sort_order ASC, id DESC").bind(announcementScope).all()
+      ? await env.DB.prepare("SELECT id, content, announcement_type, scroll_speed, is_pinned FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) AND (starts_at = '' OR starts_at <= datetime('now')) AND (ends_at = '' OR ends_at >= datetime('now')) ORDER BY is_pinned DESC, sort_order ASC, id DESC").bind(announcementScope).all()
       : { results: [] };
     const siteStatusRow = env?.DB
       ? await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first()

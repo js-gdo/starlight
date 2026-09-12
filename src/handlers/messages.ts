@@ -48,6 +48,12 @@ export async function handleMessages(request: Request, env: Env, path: string) {
         return jsonRes({ message: t('apiMarkedAsRead') });
     }
 
+    if (path === '/api/messages/read-all' && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        await db.prepare("UPDATE messages SET is_read = 1 WHERE to_user_id = ? AND type != 'pm_chat'").bind(user.id).run();
+        return jsonRes({ ok: true });
+    }
+
     if (path === '/api/messages/unread' && method === 'GET') {
         if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
         const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')

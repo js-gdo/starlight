@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes, getPermissionName } from '../utils/auth';
 import { sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
+import { writeAudit } from '../utils/audit';
 
 export async function handleAdmin(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -48,6 +49,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         }
 
         await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
+        await writeAudit(env, user.id, '修改用户资料或权限', 'user', id, permission && action ? `${permission}:${action}` : `color:${color}`);
 
         if (permission && action) {
             const finalReason = reason || (action === 'grant' ? t('apiActionGrant') : t('apiActionRevoke'));
@@ -102,6 +104,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const id = parseInt(avatarDeleteMatch[1]);
         if (id === 1 && user.id !== 1) return jsonRes({ error: t('apiCannotModifySuperAdmin') }, 403);
         await db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').bind('', id).run();
+        await writeAudit(env, user.id, '清除违规头像', 'avatar', id, '管理员手动清除头像');
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
@@ -121,6 +124,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         }
         await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
         await db.prepare('DELETE FROM articles WHERE id = ?').bind(id).run();
+        await writeAudit(env, user.id, '删除帖子', 'article', id, String(article?.title || ''));
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
@@ -149,6 +153,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const id = parseInt(ticketDeleteMatch[1]);
         await db.prepare('DELETE FROM ticket_replies WHERE ticket_id = ?').bind(id).run();
         await db.prepare('DELETE FROM tickets WHERE id = ?').bind(id).run();
+        await writeAudit(env, user.id, '删除工单', 'ticket', id);
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
@@ -177,9 +182,13 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const announcementType = ['notice', 'warning', 'urgent'].includes(String(form.get('announcement_type'))) ? String(form.get('announcement_type')) : 'notice';
         const displayScope = ['all', 'home', 'backend'].includes(String(form.get('display_scope'))) ? String(form.get('display_scope')) : 'all';
         const scrollSpeed = Math.min(120, Math.max(5, parseInt(String(form.get('scroll_speed') || '24')) || 24));
+        const startsAt = String(form.get('starts_at') || '').trim();
+        const endsAt = String(form.get('ends_at') || '').trim();
+        const isPinned = form.get('is_pinned') === '1' ? 1 : 0;
         if (!content) return jsonRes({ error: '公告内容不能为空' }, 400);
-        await db.prepare('INSERT INTO announcements (content, sort_order, announcement_type, display_scope, scroll_speed) VALUES (?, ?, ?, ?, ?)')
-            .bind(content, sortOrder, announcementType, displayScope, scrollSpeed).run();
+        await db.prepare('INSERT INTO announcements (content, sort_order, announcement_type, display_scope, scroll_speed, starts_at, ends_at, is_pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(content, sortOrder, announcementType, displayScope, scrollSpeed, startsAt, endsAt, isPinned).run();
+        await writeAudit(env, user.id, '新增公告', 'announcement', 0, content);
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
@@ -187,7 +196,27 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const status = ['normal', 'maintenance', 'limited'].includes(String(form.get('status'))) ? String(form.get('status')) : 'normal';
         await db.prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('site_status', ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value").bind(status).run();
+        await writeAudit(env, user.id, '修改站点状态', 'site', 0, status);
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    const exportMatch = path.match(/^\/api\/admin\/export\/(users|tickets|audit|reports)$/);
+    if (exportMatch && method === 'GET') {
+        const type = exportMatch[1];
+        const queries: Record<string, string> = {
+            users: 'SELECT id, username, admin, use, speak, color, tag, avatar_url, created_at, last_login_at, last_active_at FROM users ORDER BY id',
+            tickets: 'SELECT id, title, author_id, status, is_private, permission, permission_action, permission_status, created_at FROM tickets ORDER BY id DESC',
+            audit: 'SELECT a.*, u.username AS admin_username FROM audit_logs a LEFT JOIN users u ON a.admin_id = u.id ORDER BY a.id DESC',
+            reports: 'SELECT r.*, u.username AS reporter_username FROM reports r LEFT JOIN users u ON r.reporter_id = u.id ORDER BY r.id DESC',
+        };
+        const rows = await db.prepare(queries[type]).all();
+        await writeAudit(env, user.id, `导出${type}数据`, 'export', 0, type);
+        const wantsCsv = new URL(request.url).searchParams.get('format') === 'csv';
+        if (!wantsCsv) return jsonRes({ type, rows: rows.results });
+        const records = rows.results as Record<string, unknown>[];
+        const headers = records.length ? Object.keys(records[0]) : [];
+        const csv = [headers.join(','), ...records.map(row => headers.map(key => `"${String(row[key] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+        return new Response(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="starlight-${type}.csv"` } });
     }
 
     const announcementDeleteMatch = path.match(/^\/api\/admin\/announcement\/(\d+)\/delete$/);

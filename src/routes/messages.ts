@@ -11,13 +11,15 @@ export async function renderMessages(env: Env, req: Request) {
     if (!user) return t('loginRequired');
 
     const db = env.DB;
-    const messages = await db.prepare(
+        const messageType = new URL(req.url).searchParams.get('type');
+        const typeFilter = messageType ? ' AND m.type = ?' : '';
+        const messages = await db.prepare(
         `SELECT m.*, u.username as from_name, u.color as from_color, u.tag as from_tag
          FROM messages m
          LEFT JOIN users u ON m.from_user_id = u.id
-         WHERE m.to_user_id = ? AND m.type != 'pm_chat'
+            WHERE m.to_user_id = ? AND m.type != 'pm_chat'${typeFilter}
          ORDER BY m.created_at DESC`
-    ).bind(user.id).all();
+        ).bind(...(messageType ? [user.id, messageType] : [user.id])).all();
 
     const mentionTokens = Array.from(new Set(messages.results.flatMap((m: any) => extractAtMentionTokens(m.content || ''))));
     const mentionMap = new Map<string, any>();
@@ -41,7 +43,7 @@ export async function renderMessages(env: Env, req: Request) {
         .bind(user.id).run();
 
     const content = `
-        <div class="page-header"><h1><i class="fas fa-bell"></i> ${t('notifications')}</h1><p style="margin-top:4px;">${t('notificationType')}</p></div>
+        <div class="page-header"><h1><i class="fas fa-bell"></i> ${t('notifications')}</h1><p style="margin-top:4px;">${t('notificationType')}</p><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><a href="/messages" style="color:#8E44AD;">全部</a><a href="/messages?type=report" style="color:#8E44AD;">举报</a><a href="/messages?type=permission_change" style="color:#8E44AD;">权限</a><a href="/messages?type=report_result" style="color:#8E44AD;">举报结果</a><button onclick="markAllRead()" style="border:1px solid #ddd;background:#fff;padding:3px 8px;border-radius:4px;cursor:pointer;">全部已读</button></div></div>
         <div class="card">
             ${messages.results.length === 0 ? `<div style="color:#999;padding:20px 0;text-align:center;">${t('noNotifications')}</div>` : ''}
             ${messages.results.map((m: any) => `
@@ -61,6 +63,12 @@ export async function renderMessages(env: Env, req: Request) {
                 </div>
             `).join('')}
         </div>
+        <script>
+            async function markAllRead() {
+                await fetch('/api/messages/read-all', { method: 'POST' });
+                location.reload();
+            }
+        </script>
     `;
     return await getLayout(env, user, t('notifications'), content, '', req);
 }

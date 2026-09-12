@@ -17,6 +17,8 @@ export async function renderBackend(env: Env, req: Request) {
     const tickets = await db.prepare('SELECT * FROM tickets ORDER BY id DESC').all();
     const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
     const announcements = await db.prepare('SELECT * FROM announcements ORDER BY sort_order ASC, id DESC').all();
+    const reports = await db.prepare("SELECT r.*, u.username AS reporter_name FROM reports r LEFT JOIN users u ON r.reporter_id = u.id WHERE r.status = 'pending' ORDER BY r.id DESC LIMIT 50").all();
+    const auditLogs = await db.prepare('SELECT a.*, u.username AS admin_name FROM audit_logs a LEFT JOIN users u ON a.admin_id = u.id ORDER BY a.id DESC LIMIT 50').all();
     const siteStatusRow = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first();
     const siteStatus = String(siteStatusRow?.setting_value || 'normal');
     const statsNow = new Date();
@@ -366,6 +368,30 @@ export async function renderBackend(env: Env, req: Request) {
     </div>
 
     <div class="card">
+        <div class="section-title"><i class="fas fa-shield-halved"></i> 内容安全中心</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv"><i class="fas fa-download"></i> 导出举报</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv"><i class="fas fa-file-shield"></i> 导出审计</a>
+        </div>
+        ${reports.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无待处理举报</div>` : reports.results.map((report: any) => `
+            <div class="ticket-item">
+                <div><strong>#${report.id} ${htmlEscape(report.target_type)}</strong><span class="meta"> · 目标 ${report.target_id} · 举报人 ${htmlEscape(report.reporter_name || '未知')} · ${htmlEscape(report.reason)}</span><div class="meta">${htmlEscape(report.evidence || '')}</div></div>
+                <div class="action-group">
+                    <form action="/api/reports/${report.id}/decision" method="POST"><input type="hidden" name="status" value="resolved"><button class="btn-sm btn-danger" type="submit">确认违规</button></form>
+                    <form action="/api/reports/${report.id}/decision" method="POST"><input type="hidden" name="status" value="dismissed"><button class="btn-sm btn-outline" type="submit">驳回</button></form>
+                </div>
+            </div>
+        `).join('')}
+    </div>
+
+    <div class="card">
+        <div class="section-title"><i class="fas fa-file-shield"></i> 管理员操作审计</div>
+        ${auditLogs.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无审计记录</div>` : auditLogs.results.map((log: any) => `
+            <div class="ticket-item"><div><strong>${htmlEscape(log.action)}</strong><span class="meta"> · ${htmlEscape(log.admin_name || '未知')} · ${formatTimeToChina(log.created_at)}</span></div><span class="meta">${htmlEscape(log.details || '')}</span></div>
+        `).join('')}
+    </div>
+
+    <div class="card">
         <div class="section-title"><i class="fas fa-users"></i> ${t('userManagement')}</div>
         <div class="table-wrap">
             <table class="admin-table">
@@ -532,6 +558,9 @@ export async function renderBackend(env: Env, req: Request) {
             <select name="announcement_type" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;"><option value="notice">通知</option><option value="warning">警告</option><option value="urgent">紧急</option></select>
             <select name="display_scope" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;"><option value="all">全站</option><option value="home">仅首页</option><option value="backend">仅后台</option></select>
             <input type="number" name="scroll_speed" min="5" max="120" value="24" title="滚动周期（秒）" style="width:100px;">
+            <input type="datetime-local" name="starts_at" title="开始时间">
+            <input type="datetime-local" name="ends_at" title="结束时间">
+            <label style="font-size:12px;"><input type="checkbox" name="is_pinned" value="1"> 置顶</label>
             <button type="submit"><i class="fas fa-plus"></i> 添加公告</button>
         </form>
         ${announcements.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无公告</div>` : ''}
@@ -543,6 +572,16 @@ export async function renderBackend(env: Env, req: Request) {
                 </form>
             </div>
         `).join('')}
+    </div>
+
+    <div class="card">
+        <div class="section-title"><i class="fas fa-database"></i> 数据导出</div>
+        <div class="action-group">
+            <a class="btn-sm btn-outline" href="/api/admin/export/users?format=csv">用户 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/tickets?format=csv">工单 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv">举报 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv">审计 CSV</a>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
