@@ -75,6 +75,7 @@ export async function renderBackend(env: Env, req: Request) {
         rainbow: t('colorRainbow'),
         gray: t('colorGray'),
     };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
 
     const content = `
     <style>
@@ -486,6 +487,12 @@ export async function renderBackend(env: Env, req: Request) {
                     <span class="meta">· ${formatTimeToChina(a.created_at)}</span>
                 </div>
                 <div class="action-group">
+                    <form action="/api/admin/article/${a.id}/category" method="POST" style="display:flex;gap:4px;align-items:center;">
+                        <select name="category" style="font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;">
+                            ${Object.entries(categoryNames).map(([value, label]) => `<option value="${value}" ${String(a.category || 'other') === value ? 'selected' : ''}>${label}</option>`).join('')}
+                        </select>
+                        <button type="submit" class="btn-sm btn-outline">分类</button>
+                    </form>
                     <form action="/api/admin/article/${a.id}/delete" method="POST" style="display:inline;">
                         <button type="submit" class="btn-sm btn-danger">${t('delete')}</button>
                     </form>
