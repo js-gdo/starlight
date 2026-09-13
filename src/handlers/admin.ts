@@ -131,9 +131,31 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     const articleCategoryMatch = path.match(/^\/api\/admin\/article\/(\d+)\/category$/);
     if (articleCategoryMatch && method === 'POST') {
         const category = String((await request.formData()).get('category') || 'other');
-        if (!['leisure', 'culture', 'technology', 'programming', 'life', 'other'].includes(category)) return jsonRes({ error: '分类无效' }, 400);
+        if (!['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'].includes(category)) return jsonRes({ error: '分类无效' }, 400);
         await db.prepare('UPDATE articles SET category = ? WHERE id = ?').bind(category, Number(articleCategoryMatch[1])).run();
         await writeAudit(env, user.id, '切换帖子分类', 'article', Number(articleCategoryMatch[1]), category);
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    if (path === '/api/admin/articles/bulk' && method === 'POST') {
+        const form = await request.formData();
+        const articleIds = form.getAll('article_id').map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0);
+        const action = String(form.get('action') || '');
+        const category = String(form.get('category') || 'other');
+        if (!articleIds.length) return jsonRes({ error: '请选择至少一个帖子' }, 400);
+        if (action === 'category' && !['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'].includes(category)) return jsonRes({ error: '分类无效' }, 400);
+        if (!['category', 'pin', 'unpin', 'lock', 'unlock', 'delete'].includes(action)) return jsonRes({ error: '批量操作无效' }, 400);
+        const placeholders = articleIds.map(() => '?').join(',');
+        if (action === 'category') await db.prepare(`UPDATE articles SET category = ? WHERE id IN (${placeholders})`).bind(category, ...articleIds).run();
+        if (action === 'pin') await db.prepare(`UPDATE articles SET is_pinned = 1 WHERE id IN (${placeholders})`).bind(...articleIds).run();
+        if (action === 'unpin') await db.prepare(`UPDATE articles SET is_pinned = 0 WHERE id IN (${placeholders})`).bind(...articleIds).run();
+        if (action === 'lock') await db.prepare(`UPDATE articles SET is_locked = 1 WHERE id IN (${placeholders})`).bind(...articleIds).run();
+        if (action === 'unlock') await db.prepare(`UPDATE articles SET is_locked = 0 WHERE id IN (${placeholders})`).bind(...articleIds).run();
+        if (action === 'delete') {
+            await db.prepare(`DELETE FROM comments WHERE article_id IN (${placeholders})`).bind(...articleIds).run();
+            await db.prepare(`DELETE FROM articles WHERE id IN (${placeholders})`).bind(...articleIds).run();
+        }
+        await writeAudit(env, user.id, `批量管理帖子：${action}`, 'article', 0, articleIds.join(','));
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 

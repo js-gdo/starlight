@@ -13,7 +13,7 @@ export async function renderArticleList(env: Env, req: Request) {
     const typeParam = url.searchParams.get('type') || 'all';
     const problemIdParam = url.searchParams.get('id') || '';
     const categoryParam = url.searchParams.get('category') || 'all';
-    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     let unreadCount = 0;
     if (user) {
@@ -120,7 +120,7 @@ export async function renderArticleNew(env: Env, req: Request) {
     const url = new URL(req.url);
     const isProblemMode = url.searchParams.get('problem') === 'true';
     const problemOptions = await (await import('../utils/problem')).fetchProblemList();
-    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     const content = `
     <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${isProblemMode ? '发布题目讨论帖' : t('newArticle')}</h1></div>
@@ -214,7 +214,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
     ).bind(article.id).all();
     const likeCount = await db.prepare('SELECT COUNT(*) AS total FROM article_likes WHERE article_id = ?').bind(article.id).first();
     const liked = user ? await db.prepare('SELECT article_id FROM article_likes WHERE article_id = ? AND user_id = ?').bind(article.id, user.id).first() : null;
-    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     const isAuthor = user && user.id === article.author_id;
     const isAdmin = user && user.admin;
@@ -319,7 +319,7 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
 
     const problemOptions = await (await import('../utils/problem')).fetchProblemList();
     const isProblemPost = article.article_type === 'problem' || article.problem_id;
-    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     const content = `
     <div class="page-header"><h1><i class="fas fa-edit"></i> ${t('editArticle')}</h1></div>

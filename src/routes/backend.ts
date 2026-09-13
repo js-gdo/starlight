@@ -75,7 +75,7 @@ export async function renderBackend(env: Env, req: Request) {
         rainbow: t('colorRainbow'),
         gray: t('colorGray'),
     };
-    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     const content = `
     <style>
@@ -480,9 +480,18 @@ export async function renderBackend(env: Env, req: Request) {
 
     <div class="card">
         <div class="section-title"><i class="fas fa-file-alt"></i> ${t('articleManagement')}</div>
+        <form id="bulkArticleForm" action="/api/admin/articles/bulk" method="POST" class="add-banner-form" onsubmit="return confirmBulkArticleAction();">
+            <select name="action" id="bulkArticleAction" onchange="toggleBulkCategory()" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
+                <option value="category">批量切换分类</option><option value="pin">批量置顶</option><option value="unpin">批量取消置顶</option><option value="lock">批量锁定</option><option value="unlock">批量解锁</option><option value="delete">批量删除</option>
+            </select>
+            <select name="category" id="bulkArticleCategory" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">${Object.entries(categoryNames).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select>
+            <button type="button" class="btn-sm btn-outline" onclick="toggleAllArticles()">全选/取消</button>
+            <button type="submit" class="btn-sm btn-primary">执行批量操作</button>
+        </form>
         ${articles.results.map((a: any) => `
             <div class="article-item">
                 <div>
+                        <label style="margin-right:8px;"><input type="checkbox" class="article-select" name="article_id" value="${a.id}" form="bulkArticleForm"> </label>
                         <a class="title" href="/articles/${encodeURIComponent(a.hex_id)}">${htmlEscape(a.title)}</a>
                     <span class="meta">· ${formatTimeToChina(a.created_at)}</span>
                 </div>
@@ -804,6 +813,29 @@ export async function renderBackend(env: Env, req: Request) {
                 permissionGroup.classList.remove('hidden');
             }
         }
+
+        function toggleAllArticles() {
+            const boxes = document.querySelectorAll('.article-select');
+            const shouldCheck = Array.from(boxes).some(box => !box.checked);
+            boxes.forEach(box => { box.checked = shouldCheck; });
+        }
+
+        function toggleBulkCategory() {
+            const action = document.getElementById('bulkArticleAction');
+            const category = document.getElementById('bulkArticleCategory');
+            category.disabled = action.value !== 'category';
+        }
+
+        function confirmBulkArticleAction() {
+            const selected = document.querySelectorAll('.article-select:checked');
+            if (selected.length === 0) {
+                alert('请至少选择一个帖子');
+                return false;
+            }
+            const action = document.getElementById('bulkArticleAction').value;
+            return action !== 'delete' || confirm('确定删除选中的帖子及其评论吗？');
+        }
+        toggleBulkCategory();
 
         function confirmDelete(userId, username) {
             if (typeof Swal === 'undefined') {
