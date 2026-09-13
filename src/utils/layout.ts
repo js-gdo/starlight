@@ -164,23 +164,36 @@ export async function getLayout(
     </script>
     <script>
     (function(){
-      const defaultCss = '';
-      const geekCss = ':root{ --bg:#ffffff; --text:#111; --card-bg:#f7f7f8; --sidebar-bg:#1f2933; --primary:#0e7490; }\n/* Geek theme additional tweaks */\n.sidebar-left { background: #1f2933 !important; }\nbody { font-family: Consolas, "Courier New", monospace; }';
-      const modernCss = ':root{ --bg:#0f1724; --text:#e6eef8; --card-bg:#071029; --sidebar-bg:#071029; --primary:#06b6d4; }\n/* Modern theme tweaks */\nbody { font-smoothing:antialiased; -webkit-font-smoothing:antialiased; }\n.sidebar-left { background: #071029 !important; }\n.main-content .card, .sidebar-right .card { border-radius: 12px; box-shadow: 0 6px 20px rgba(2,6,23,0.6); }';
-      function setThemeStyle(css){
-        let el = document.getElementById('theme-style');
-        if(!el){ el = document.createElement('style'); el.id='theme-style'; document.head.appendChild(el); }
-        el.innerHTML = css || '';
-      }
-      window.applyTheme = function(theme){
-        if(!theme || theme === 'default') setThemeStyle(defaultCss);
-        else if(theme === 'geek') setThemeStyle(geekCss);
-        else if(theme === 'modern') setThemeStyle(modernCss);
-        const sel = document.getElementById('theme-select'); if(sel) sel.value = theme || 'default';
-      };
-      document.addEventListener('DOMContentLoaded', function(){ window.applyTheme(getCookie('theme') || 'default'); });
-    })();
-    </script>
+    const themeCache = {};
+    function setThemeStyle(css){
+      let el = document.getElementById('theme-style');
+      if(!el){ el = document.createElement('style'); el.id='theme-style'; document.head.appendChild(el); }
+      el.innerHTML = css || '';
+    }
+    async function loadThemeFile(theme){
+      if(!theme || theme === 'default') { setThemeStyle(''); return; }
+      if(themeCache[theme]) { setThemeStyle(themeCache[theme]); return; }
+      try {
+        const res = await fetch('/themes/' + theme + '.css', { cache: 'no-cache' });
+        if(!res.ok) { console.warn('Failed to load theme', theme, res.status); setThemeStyle(''); return; }
+        const css = await res.text();
+        themeCache[theme] = css;
+        setThemeStyle(css);
+      } catch (e) { console.warn('Theme fetch error', e); setThemeStyle(''); }
+    }
+    window.applyTheme = function(theme){
+      // semantic classes
+      document.body.classList.remove('theme-default','theme-geek','theme-modern');
+      if (!theme || theme === 'default') document.body.classList.add('theme-default');
+      else if (theme === 'geek') document.body.classList.add('theme-geek');
+      else if (theme === 'modern') document.body.classList.add('theme-modern');
+      const sel = document.getElementById('theme-select'); if (sel) sel.value = theme || 'default';
+      // load external css
+      loadThemeFile(theme);
+    };
+    document.addEventListener('DOMContentLoaded', function(){ window.applyTheme(getCookie('theme') || 'default'); });
+  })();
+  </script>
   `;
 
     const announcementHtml = announcements.results.length > 0 ? `
