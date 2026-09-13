@@ -21,7 +21,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         let content = String(form.get('content') ?? '').trim();
         const isProblem = form.get('problem') === 'true' || form.get('problem') === '1';
         const problemId = String(form.get('problem_id') ?? '').trim();
-        const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'other'];
+        const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'];
         const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : 'other';
 
         if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
@@ -80,7 +80,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             let content = String(form.get('content') ?? '').trim();
             const isProblem = String(form.get('problem') ?? '').trim() === 'true' || String(form.get('problem') ?? '').trim() === '1' || article.article_type === 'problem';
             const problemId = String(form.get('problem_id') ?? article.problem_id ?? '').trim();
-            const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'other'];
+            const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'];
             const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : String(article.category || 'other');
             if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
 
