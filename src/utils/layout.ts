@@ -162,6 +162,25 @@ export async function getLayout(
     }
     document.addEventListener('DOMContentLoaded', function(){ applyTheme(getCookie('theme') || 'default'); });
     </script>
+    <script>
+    (function(){
+      const defaultCss = '';
+      const geekCss = ':root{ --bg:#ffffff; --text:#111; --card-bg:#f7f7f8; --sidebar-bg:#1f2933; --primary:#0e7490; }\n/* Geek theme additional tweaks */\n.sidebar-left { background: #1f2933 !important; }\nbody { font-family: Consolas, "Courier New", monospace; }';
+      const modernCss = ':root{ --bg:#0f1724; --text:#e6eef8; --card-bg:#071029; --sidebar-bg:#071029; --primary:#06b6d4; }\n/* Modern theme tweaks */\nbody { font-smoothing:antialiased; -webkit-font-smoothing:antialiased; }\n.sidebar-left { background: #071029 !important; }\n.main-content .card, .sidebar-right .card { border-radius: 12px; box-shadow: 0 6px 20px rgba(2,6,23,0.6); }';
+      function setThemeStyle(css){
+        let el = document.getElementById('theme-style');
+        if(!el){ el = document.createElement('style'); el.id='theme-style'; document.head.appendChild(el); }
+        el.innerHTML = css || '';
+      }
+      window.applyTheme = function(theme){
+        if(!theme || theme === 'default') setThemeStyle(defaultCss);
+        else if(theme === 'geek') setThemeStyle(geekCss);
+        else if(theme === 'modern') setThemeStyle(modernCss);
+        const sel = document.getElementById('theme-select'); if(sel) sel.value = theme || 'default';
+      };
+      document.addEventListener('DOMContentLoaded', function(){ window.applyTheme(getCookie('theme') || 'default'); });
+    })();
+    </script>
   `;
 
     const announcementHtml = announcements.results.length > 0 ? `
@@ -508,11 +527,6 @@ export async function getLayout(
     }
     body.spa-loading #spa-page-progress { width: 72%; opacity: 1; }
     body.spa-ready #spa-page-progress { width: 100%; opacity: 0; }
-    /* Theme overrides */
-    body.theme-geek { --bg:#ffffff; --text:#111; --card-bg:#f7f7f8; --sidebar-bg:#1f2933; --primary:#0e7490; }
-    body.theme-modern { --bg:#0f1724; --text:#e6eef8; --card-bg:#071029; --sidebar-bg:#071029; --primary:#06b6d4; }
-    a, .quick-link i { color: var(--primary) !important; }
-
     ${extraStyles}
   </style>
   <script>
