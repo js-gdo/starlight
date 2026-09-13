@@ -128,6 +128,15 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
 
+    const articleCategoryMatch = path.match(/^\/api\/admin\/article\/(\d+)\/category$/);
+    if (articleCategoryMatch && method === 'POST') {
+        const category = String((await request.formData()).get('category') || 'other');
+        if (!['leisure', 'culture', 'technology', 'programming', 'life', 'other'].includes(category)) return jsonRes({ error: '分类无效' }, 400);
+        await db.prepare('UPDATE articles SET category = ? WHERE id = ?').bind(category, Number(articleCategoryMatch[1])).run();
+        await writeAudit(env, user.id, '切换帖子分类', 'article', Number(articleCategoryMatch[1]), category);
+        return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
     const pinMatch = path.match(/^\/api\/admin\/article\/(\d+)\/pin$/);
     if (pinMatch && method === 'POST') {
         const id = parseInt(pinMatch[1]);

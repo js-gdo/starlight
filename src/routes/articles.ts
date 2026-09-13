@@ -12,6 +12,8 @@ export async function renderArticleList(env: Env, req: Request) {
     const url = new URL(req.url);
     const typeParam = url.searchParams.get('type') || 'all';
     const problemIdParam = url.searchParams.get('id') || '';
+    const categoryParam = url.searchParams.get('category') || 'all';
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
 
     let unreadCount = 0;
     if (user) {
@@ -33,6 +35,10 @@ export async function renderArticleList(env: Env, req: Request) {
             sql += ` AND a.problem_id = ?`;
             bindValues.push(problemIdParam);
         }
+    }
+    if (categoryParam !== 'all' && categoryNames[categoryParam]) {
+      sql += bindValues.length ? ` AND a.category = ?` : ` WHERE a.category = ?`;
+      bindValues.push(categoryParam);
     }
     sql += ` ORDER BY a.is_pinned DESC, a.created_at DESC`;
 
@@ -60,6 +66,9 @@ export async function renderArticleList(env: Env, req: Request) {
             return `<a href="${href}" style="padding:6px 12px;border-radius:999px;text-decoration:none;font-size:13px;border:1px solid ${selected ? '#8E44AD' : '#ddd'};background:${selected ? '#8E44AD' : '#fff'};color:${selected ? '#fff' : '#333'};">${item.label}</a>`;
         }).join('')}
       </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+        ${[['all', '全部分类'], ...Object.entries(categoryNames)].map(([value, label]) => `<a href="/articles/list?category=${value}" style="padding:5px 10px;border-radius:999px;text-decoration:none;font-size:12px;border:1px solid ${categoryParam === value ? '#3498db' : '#ddd'};background:${categoryParam === value ? '#3498db' : '#fff'};color:${categoryParam === value ? '#fff' : '#555'};">${label}</a>`).join('')}
+      </div>
       ${typeParam === 'problem' ? `
         <form method="GET" action="/articles/list" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="hidden" name="type" value="problem">
@@ -79,6 +88,7 @@ export async function renderArticleList(env: Env, req: Request) {
       ${articles.results.map((a: any) => `
         <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
           <a href="/articles/${a.hex_id}" style="font-size:16px;font-weight:500;color:#333;text-decoration:none;">${htmlEscape(a.title)}</a>
+          <span style="background:#eef5ff;color:#3578c5;font-size:10px;padding:2px 8px;border-radius:999px;margin-left:5px;">${categoryNames[a.category] || categoryNames.other}</span>
           ${a.article_type === 'problem' ? `<span style="background:#2c7be5;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">题目讨论帖</span>` : ''}
           ${a.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;">${t('articlePinned')}</span>` : ''}
           ${a.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:10px;padding:1px 8px;border-radius:3px;margin-left:4px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}
@@ -110,12 +120,14 @@ export async function renderArticleNew(env: Env, req: Request) {
     const url = new URL(req.url);
     const isProblemMode = url.searchParams.get('problem') === 'true';
     const problemOptions = await (await import('../utils/problem')).fetchProblemList();
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
 
     const content = `
     <div class="page-header"><h1><i class="fas fa-plus-circle"></i> ${isProblemMode ? '发布题目讨论帖' : t('newArticle')}</h1></div>
     <div class="card" style="max-width:800px;">
       <form action="/api/articles" method="POST">
         ${isProblemMode ? '<input type="hidden" name="problem" value="true">' : ''}
+        ${!isProblemMode ? `<div style="margin-bottom:14px;"><label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">帖子分类</label><select name="category" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">${Object.entries(categoryNames).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>` : ''}
         ${isProblemMode ? `
           <div style="margin-bottom:14px;">
             <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">选择题目</label>
@@ -200,12 +212,15 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
          FROM comments c JOIN users u ON c.author_id = u.id
          WHERE c.article_id = ? ORDER BY c.created_at ASC`
     ).bind(article.id).all();
+    const likeCount = await db.prepare('SELECT COUNT(*) AS total FROM article_likes WHERE article_id = ?').bind(article.id).first();
+    const liked = user ? await db.prepare('SELECT article_id FROM article_likes WHERE article_id = ? AND user_id = ?').bind(article.id, user.id).first() : null;
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
 
     const isAuthor = user && user.id === article.author_id;
     const isAdmin = user && user.admin;
 
     const content = `
-    <div class="page-header"><h1>${htmlEscape(article.title)} ${article.article_type === 'problem' ? `<span style="background:#2c7be5;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">题目讨论帖</span>` : ''} ${article.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">${t('articlePinned')}</span>` : ''} ${article.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}</h1></div>
+    <div class="page-header"><h1>${htmlEscape(article.title)} <span style="background:#eef5ff;color:#3578c5;font-size:12px;padding:3px 10px;border-radius:999px;margin-left:6px;">${categoryNames[article.category] || categoryNames.other}</span> ${article.article_type === 'problem' ? `<span style="background:#2c7be5;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">题目讨论帖</span>` : ''} ${article.is_pinned ? `<span style="background:#f39c12;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;">${t('articlePinned')}</span>` : ''} ${article.is_locked ? `<span style="background:#e74c3c;color:#fff;font-size:12px;padding:1px 10px;border-radius:3px;margin-left:6px;"><i class="fas fa-lock"></i> ${t('articleLocked')}</span>` : ''}</h1></div>
     <div class="card">
       <div style="color:#999;margin-bottom:12px;font-size:14px;">
         ${renderUsernameLink(article.username, article.color, article.tag, article.author_id)}
@@ -214,6 +229,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
       </div>
       <div class="markdown-body markdown-content">${htmlEscape(article.content)}</div>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        ${user ? `<button id="likeButton" onclick="toggleLike()" style="background:${liked ? '#e74c3c' : '#fff'};color:${liked ? '#fff' : '#e74c3c'};padding:7px 16px;border:1px solid #e74c3c;border-radius:999px;cursor:pointer;"><i class="fas fa-heart"></i> <span id="likeText">${liked ? '已点赞' : '点赞'}</span> <span id="likeCount">${Number(likeCount?.total || 0)}</span></button>` : `<span style="color:#999;font-size:13px;">登录后可以点赞</span>`}
         ${(isAuthor || isAdmin) ? `
           <a href="/articles/${hexId}/edit" style="background:#3498db;color:#fff;padding:4px 14px;border-radius:4px;text-decoration:none;font-size:13px;"><i class="fas fa-edit"></i> ${t('edit')}</a>
         ` : ''}
@@ -257,6 +273,16 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
           </form>
         </div>
         <script>
+          async function toggleLike() {
+            const response = await fetch('/api/articles/${article.id}/like', { method: 'POST' });
+            const data = await response.json();
+            if (!response.ok) return toast(data.error || '操作失败', 'error');
+            document.getElementById('likeText').textContent = data.liked ? '已点赞' : '点赞';
+            document.getElementById('likeCount').textContent = data.count;
+            const button = document.getElementById('likeButton');
+            button.style.background = data.liked ? '#e74c3c' : '#fff';
+            button.style.color = data.liked ? '#fff' : '#e74c3c';
+          }
           function replyTo(id) {
             document.getElementById('reply-parent-id').value = id;
             document.getElementById('reply-box').style.display = 'block';
@@ -293,6 +319,7 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
 
     const problemOptions = await (await import('../utils/problem')).fetchProblemList();
     const isProblemPost = article.article_type === 'problem' || article.problem_id;
+    const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', other: '其他' };
 
     const content = `
     <div class="page-header"><h1><i class="fas fa-edit"></i> ${t('editArticle')}</h1></div>
@@ -300,6 +327,7 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
       <form action="/api/articles/${article.id}" method="POST">
         <input type="hidden" name="_method" value="PUT">
         ${isProblemPost ? '<input type="hidden" name="problem" value="true">' : ''}
+        ${!isProblemPost ? `<div style="margin-bottom:14px;"><label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">帖子分类</label><select name="category" required style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;">${Object.entries(categoryNames).map(([value, label]) => `<option value="${value}" ${String(article.category || 'other') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>` : ''}
         ${isProblemPost ? `
           <div style="margin-bottom:14px;">
             <label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">选择题目</label>

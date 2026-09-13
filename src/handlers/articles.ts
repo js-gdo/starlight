@@ -21,6 +21,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         let content = String(form.get('content') ?? '').trim();
         const isProblem = form.get('problem') === 'true' || form.get('problem') === '1';
         const problemId = String(form.get('problem_id') ?? '').trim();
+        const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'other'];
+        const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : 'other';
 
         if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
 
@@ -40,9 +42,25 @@ export async function handleArticles(request: Request, env: Env, path: string) {
 
         const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         const hex = generateHex();
-        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id, article_type, problem_id) VALUES (?, ?, ?, ?, ?, ?)')
-            .bind(hex, title, normalizedContent, user.id, isProblem ? 'problem' : 'normal', isProblem ? problemId : '').run();
+        await db.prepare('INSERT INTO articles (hex_id, title, content, author_id, article_type, problem_id, category) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .bind(hex, title, normalizedContent, user.id, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', category).run();
         return new Response(null, { status: 302, headers: { Location: `/articles/${hex}` } });
+    }
+
+    const likeMatch = path.match(/^\/api\/articles\/(\d+)\/like$/);
+    if (likeMatch && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const articleId = Number(likeMatch[1]);
+        const article = await db.prepare('SELECT id FROM articles WHERE id = ?').bind(articleId).first();
+        if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
+        const existing = await db.prepare('SELECT article_id FROM article_likes WHERE article_id = ? AND user_id = ?').bind(articleId, user.id).first();
+        if (existing) {
+            await db.prepare('DELETE FROM article_likes WHERE article_id = ? AND user_id = ?').bind(articleId, user.id).run();
+        } else {
+            await db.prepare('INSERT INTO article_likes (article_id, user_id) VALUES (?, ?)').bind(articleId, user.id).run();
+        }
+        const count = await db.prepare('SELECT COUNT(*) AS total FROM article_likes WHERE article_id = ?').bind(articleId).first();
+        return jsonRes({ liked: !existing, count: Number(count?.total || 0) });
     }
 
     const articleMatch = path.match(/^\/api\/articles\/(\d+)$/);
@@ -62,6 +80,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             let content = String(form.get('content') ?? '').trim();
             const isProblem = String(form.get('problem') ?? '').trim() === 'true' || String(form.get('problem') ?? '').trim() === '1' || article.article_type === 'problem';
             const problemId = String(form.get('problem_id') ?? article.problem_id ?? '').trim();
+            const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'other'];
+            const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : String(article.category || 'other');
             if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
 
             if (isProblem) {
@@ -79,8 +99,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (violation.violated) return violationErrorPage(violation, t);
 
             const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
-            await db.prepare('UPDATE articles SET title = ?, content = ?, article_type = ?, problem_id = ? WHERE id = ?')
-                .bind(title, normalizedContent, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', id).run();
+            await db.prepare('UPDATE articles SET title = ?, content = ?, article_type = ?, problem_id = ?, category = ? WHERE id = ?')
+                .bind(title, normalizedContent, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', category, id).run();
             return new Response(null, { status: 302, headers: { Location: `/articles/${article.hex_id}` } });
         } else if (methodOverride === 'DELETE') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);

@@ -19,7 +19,9 @@ export async function renderTicketList(env: Env, req: Request) {
     }
 
     const tickets = await db.prepare(
-        `SELECT t.*, u.username, u.color, u.tag, a.username as assignee_name
+        `SELECT t.*, u.username, u.color, u.tag, a.username as assignee_name,
+            (SELECT COUNT(*) FROM ticket_votes v WHERE v.ticket_id = t.id AND v.vote = 1) AS upvote_count,
+            (SELECT COUNT(*) FROM ticket_votes v WHERE v.ticket_id = t.id AND v.vote = -1) AS downvote_count
          FROM tickets t
          JOIN users u ON t.author_id = u.id
          LEFT JOIN users a ON t.assignee_id = a.id
@@ -48,6 +50,8 @@ export async function renderTicketList(env: Env, req: Request) {
                     ${renderUsernameLink(ticket.username, ticket.color, ticket.tag, ticket.author_id)}
                     ${assigneeText}
                     · ${formatTimeToChina(ticket.created_at)}
+                    · <span style="color:#27ae60;"><i class="fas fa-thumbs-up"></i> ${Number(ticket.upvote_count || 0)}</span>
+                    <span style="color:#c0392b;"><i class="fas fa-thumbs-down"></i> ${Number(ticket.downvote_count || 0)}</span>
                 </div>
             </div>
         `;
@@ -179,6 +183,9 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
     const permissionLogs = ticket.permission
         ? await db.prepare(`SELECT l.*, u.username FROM permission_ticket_logs l JOIN users u ON l.admin_id = u.id WHERE l.ticket_id = ? ORDER BY l.created_at DESC`).bind(id).all()
         : { results: [] };
+    const upvoteCount = await db.prepare('SELECT COUNT(*) AS total FROM ticket_votes WHERE ticket_id = ? AND vote = 1').bind(id).first();
+    const downvoteCount = await db.prepare('SELECT COUNT(*) AS total FROM ticket_votes WHERE ticket_id = ? AND vote = -1').bind(id).first();
+    const currentVote = user ? await db.prepare('SELECT vote FROM ticket_votes WHERE ticket_id = ? AND user_id = ?').bind(id, user.id).first<any>() : null;
 
     const admins = await db.prepare('SELECT * FROM users WHERE admin = 1').all();
 
@@ -298,6 +305,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
             ${assigneeText}
             · ${formatTimeToChina(ticket.created_at)}
         </div>
+        ${!ticket.is_private && user ? `<div style="margin-top:12px;display:flex;gap:6px;align-items:center;"><form action="/api/tickets/${id}/vote" method="POST"><input type="hidden" name="vote" value="1"><button type="submit" style="background:${currentVote?.vote === 1 ? '#27ae60' : '#fff'};color:${currentVote?.vote === 1 ? '#fff' : '#27ae60'};border:1px solid #27ae60;border-radius:999px;padding:5px 12px;cursor:pointer;"><i class="fas fa-thumbs-up"></i> 赞成 ${Number(upvoteCount?.total || 0)}</button></form><form action="/api/tickets/${id}/vote" method="POST"><input type="hidden" name="vote" value="-1"><button type="submit" style="background:${currentVote?.vote === -1 ? '#c0392b' : '#fff'};color:${currentVote?.vote === -1 ? '#fff' : '#c0392b'};border:1px solid #c0392b;border-radius:999px;padding:5px 12px;cursor:pointer;"><i class="fas fa-thumbs-down"></i> 反对 ${Number(downvoteCount?.total || 0)}</button></form></div>` : ''}
         ${permissionInfo}
         ${permissionHistory}
         <div class="markdown-body markdown-content" style="margin-top:10px;">${htmlEscape(ticket.content)}</div>

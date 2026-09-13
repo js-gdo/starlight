@@ -68,6 +68,23 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         return new Response(null, { status: 302, headers: { Location: `/ticket/${id}` } });
     }
 
+    const voteMatch = path.match(/^\/api\/tickets\/(\d+)\/vote$/);
+    if (voteMatch && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const ticketId = Number(voteMatch[1]);
+        const ticket = await db.prepare('SELECT id FROM tickets WHERE id = ? AND is_private = 0').bind(ticketId).first();
+        if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
+        const vote = Number((await request.formData()).get('vote'));
+        if (![1, -1].includes(vote)) return jsonRes({ error: '投票值无效' }, 400);
+        const existing = await db.prepare('SELECT vote FROM ticket_votes WHERE ticket_id = ? AND user_id = ?').bind(ticketId, user.id).first<any>();
+        if (existing?.vote === vote) {
+            await db.prepare('DELETE FROM ticket_votes WHERE ticket_id = ? AND user_id = ?').bind(ticketId, user.id).run();
+        } else {
+            await db.prepare('INSERT INTO ticket_votes (ticket_id, user_id, vote) VALUES (?, ?, ?) ON CONFLICT(ticket_id, user_id) DO UPDATE SET vote = excluded.vote').bind(ticketId, user.id, vote).run();
+        }
+        return new Response(null, { status: 302, headers: { Location: `/ticket/${ticketId}` } });
+    }
+
     // 更新工单或指派
     const ticketMatch = path.match(/^\/api\/tickets\/(\d+)$/);
     if (ticketMatch && method === 'POST') {

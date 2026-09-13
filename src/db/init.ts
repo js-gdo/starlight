@@ -25,6 +25,7 @@ export async function initDB(env: Env) {
       content TEXT,
       author_id INTEGER,
       article_type TEXT DEFAULT 'normal',
+      category TEXT DEFAULT 'other',
       problem_id TEXT DEFAULT '',
       is_pinned INTEGER DEFAULT 0,
       is_locked INTEGER DEFAULT 0,
@@ -53,8 +54,27 @@ export async function initDB(env: Env) {
       permission_action TEXT DEFAULT '',
       permission_status TEXT DEFAULT '',
       permission_admin_id INTEGER DEFAULT 0,
+      upvotes INTEGER DEFAULT 0,
+      downvotes INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS article_likes (
+      article_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(article_id, user_id),
+      FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS ticket_votes (
+      ticket_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      vote INTEGER NOT NULL CHECK (vote IN (-1, 1)),
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(ticket_id, user_id),
+      FOREIGN KEY(ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
         `CREATE TABLE IF NOT EXISTS ticket_replies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -236,6 +256,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE announcements ADD COLUMN ends_at TEXT DEFAULT ""',
         'ALTER TABLE announcements ADD COLUMN is_pinned INTEGER DEFAULT 0',
         'ALTER TABLE articles ADD COLUMN article_type TEXT DEFAULT "normal"',
+        'ALTER TABLE articles ADD COLUMN category TEXT DEFAULT "other"',
         'ALTER TABLE articles ADD COLUMN problem_id TEXT DEFAULT ""',
         'ALTER TABLE articles ADD COLUMN is_pinned INTEGER DEFAULT 0',
         'ALTER TABLE articles ADD COLUMN is_locked INTEGER DEFAULT 0'
