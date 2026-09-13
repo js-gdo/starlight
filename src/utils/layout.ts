@@ -109,7 +109,7 @@ export async function getLayout(
 
     // 语言切换下拉框 HTML（固定定位在右上角）
     const langSwitcherHtml = `
-    <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px; display:flex; gap:8px; align-items:center;">
+    <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px;">
       <select id="lang-select" onchange="switchLanguage(this.value)" style="
         padding:4px 8px;
         border-radius:4px;
@@ -131,36 +131,12 @@ export async function getLayout(
         <option value="fr" ${lang === 'fr' ? 'selected' : ''}>Français</option>
         <option value="es" ${lang === 'es' ? 'selected' : ''}>Español</option>
       </select>
-      <select id="theme-select" onchange="switchTheme(this.value)" style="
-        padding:4px 8px; border-radius:4px; border:1px solid rgba(255,255,255,0.3); background:rgba(52,73,94,0.85); color:#fff; font-size:12px; cursor:pointer; outline:none;">
-        <option value="default">默认主题</option>
-        <option value="geek">极客主题（简约）</option>
-        <option value="modern">现代主题（现代 UI）</option>
-      </select>
     </div>
     <script>
     function switchLanguage(lang) {
       document.cookie = 'lang=' + lang + '; path=/; max-age=31536000';
       window.location.reload();
     }
-    function switchTheme(theme) {
-      document.cookie = 'theme=' + theme + '; path=/; max-age=31536000';
-      applyTheme(theme);
-    }
-    function getCookie(name) {
-      const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-      return v ? v.pop() : '';
-    }
-    function applyTheme(theme) {
-      document.body.classList.remove('theme-default','theme-geek','theme-modern');
-      if (!theme || theme === 'default') document.body.classList.add('theme-default');
-      else if (theme === 'geek') document.body.classList.add('theme-geek');
-      else if (theme === 'modern') document.body.classList.add('theme-modern');
-      // update select value if present
-      const sel = document.getElementById('theme-select');
-      if (sel) sel.value = theme || 'default';
-    }
-    document.addEventListener('DOMContentLoaded', function(){ applyTheme(getCookie('theme') || 'default'); });
     </script>
     <script>
     (function(){
@@ -224,19 +200,11 @@ export async function getLayout(
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.3/sweetalert2.all.min.js" defer></script>
   <style>
-    :root{
-      --bg: #f0f2f5;
-      --text: #333;
-      --card-bg: #ffffff;
-      --sidebar-bg: #34495e;
-      --primary: #8E44AD;
-      --muted: #999;
-    }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: #f0f2f5;
+      color: #333;
       min-height: 100vh;
       padding: 12px;
     }
@@ -255,7 +223,7 @@ export async function getLayout(
     .site-announcement-item i { margin-right:5px; }
     @keyframes announcement-scroll { from { transform:translateX(100vw); } to { transform:translateX(-100%); } }
     .sidebar-left {
-      background: var(--sidebar-bg);
+      background: #34495e;
       border-radius: 8px;
       padding: 8px 0;
       display: flex;
@@ -372,7 +340,7 @@ export async function getLayout(
       gap: 16px;
     }
     .main-content .card {
-      background: var(--card-bg);
+      background: #fff;
       border-radius: 8px;
       padding: 16px 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -394,7 +362,7 @@ export async function getLayout(
       gap: 16px;
     }
     .sidebar-right .card {
-      background: var(--card-bg);
+      background: #fff;
       border-radius: 8px;
       padding: 16px 18px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -476,7 +444,7 @@ export async function getLayout(
       font-family: 'SF Mono', Monaco, 'Courier New', monospace;
     }
     .markdown-body pre code { background: transparent; padding: 0; font-size: 13px; }
-    .markdown-body a { color: var(--primary); text-decoration: none; }
+    .markdown-body a { color: #8E44AD; text-decoration: none; }
     .markdown-body a:hover { text-decoration: underline; }
     .markdown-body img { max-width: 100%; border-radius: 6px; }
     .markdown-body hr { border: none; border-top: 1px solid #eee; margin: 16px 0; }
