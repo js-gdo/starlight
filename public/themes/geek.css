@@ -1,8 +1,0 @@
-﻿:root{ --bg:#ffffff; --text:#0b1020; --card-bg:#fafbfd; --sidebar-bg:#0f1720; --primary:#06b6d4; --muted:#6b7280; }
-body { background: var(--bg); color: var(--text); font-family: "Fira Code", Consolas, monospace; }
-.sidebar-left { background: #0f1720 !important; color: #cbd5e1; }
-.main-content .card, .sidebar-right .card { background: var(--card-bg); border:1px solid #e6eef8; box-shadow:none; border-radius:6px; }
-a, .quick-link i { color: var(--primary) !important; }
-.header, .page-header h1 { letter-spacing: -0.5px; }
-/* Strong contrast for geek theme */
-.footer-note { color:#6b7280; }
