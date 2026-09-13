@@ -463,6 +463,19 @@ export async function getLayout(
       z-index: 100;
       border-radius: 0 8px 8px 0;
     }
+    #spa-page-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10000;
+      width: 0;
+      height: 3px;
+      background: #8E44AD;
+      opacity: 0;
+      transition: width 0.2s ease, opacity 0.2s ease;
+    }
+    body.spa-loading #spa-page-progress { width: 72%; opacity: 1; }
+    body.spa-ready #spa-page-progress { width: 100%; opacity: 0; }
     ${extraStyles}
   </style>
   <script>
@@ -561,6 +574,104 @@ export async function getLayout(
         }
       });
     }
+
+    (function initializeProgressiveSpa() {
+      const cachePrefix = 'starlight:spa:';
+      const cacheTtl = 30000;
+      const cacheablePaths = new Set(['/','/index.html','/benben','/articles/list','/ticket/list','/judgement','/clipboard']);
+      const privatePaths = ['/messages', '/pm', '/backend', '/login', '/register', '/user/', '/ticket/new', '/ticket/'];
+      const mainSelector = '#spa-main-content';
+
+      function isCacheable(url) {
+        if (document.cookie.indexOf('uid=') !== -1) return false;
+        if (url.origin !== window.location.origin) return false;
+        if (privatePaths.some(path => url.pathname === path || url.pathname.startsWith(path))) return false;
+        return cacheablePaths.has(url.pathname);
+      }
+
+      function getCached(url) {
+        try {
+          const item = JSON.parse(sessionStorage.getItem(cachePrefix + url.href) || 'null');
+          return item && Date.now() - item.createdAt < cacheTtl ? item.html : null;
+        } catch (_) { return null; }
+      }
+
+      function setCached(url, html) {
+        try {
+          sessionStorage.setItem(cachePrefix + url.href, JSON.stringify({ createdAt: Date.now(), html }));
+          const keys = Object.keys(sessionStorage).filter(key => key.startsWith(cachePrefix));
+          if (keys.length > 8) sessionStorage.removeItem(keys[0]);
+        } catch (_) { /* Storage may be disabled or full. */ }
+      }
+
+      function executePageScripts(root) {
+        root.querySelectorAll('script').forEach(oldScript => {
+          const script = document.createElement('script');
+          Array.from(oldScript.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+          script.textContent = oldScript.textContent;
+          oldScript.replaceWith(script);
+        });
+      }
+
+      function updateActiveNavigation(pathname) {
+        document.querySelectorAll('.sidebar-left a').forEach(link => {
+          const href = link.getAttribute('href');
+          if (!href || href === '#') return;
+          link.classList.toggle('active', href === pathname || (href !== '/' && pathname.startsWith(href)));
+        });
+      }
+
+      function replaceMain(html, url, pushState) {
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        const nextMain = parsed.querySelector(mainSelector);
+        const currentMain = document.querySelector(mainSelector);
+        if (!nextMain || !currentMain) return false;
+        currentMain.innerHTML = nextMain.innerHTML;
+        document.title = parsed.title;
+        updateActiveNavigation(url.pathname);
+        executePageScripts(currentMain);
+        if (pushState) history.pushState({ spa: true }, '', url.href);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.body.classList.remove('spa-loading');
+        document.body.classList.add('spa-ready');
+        window.setTimeout(() => document.body.classList.remove('spa-ready'), 250);
+        return true;
+      }
+
+      async function navigate(url, pushState = true) {
+        if (!isCacheable(url)) {
+          window.location.href = url.href;
+          return;
+        }
+        const cached = getCached(url);
+        if (cached && replaceMain(cached, url, pushState)) return;
+        document.body.classList.add('spa-loading');
+        try {
+          const response = await fetch(url.href, { headers: { 'X-Starlight-SPA': '1' }, credentials: 'same-origin' });
+          if (!response.ok) throw new Error('SPA navigation failed');
+          const html = await response.text();
+          if (isCacheable(url)) setCached(url, html);
+          if (!replaceMain(html, url, pushState)) throw new Error('SPA content missing');
+        } catch (_) {
+          window.location.href = url.href;
+        } finally {
+          document.body.classList.remove('spa-loading');
+        }
+      }
+
+      document.addEventListener('click', event => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+        if (!link || link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('href').startsWith('#') || link.dataset.noSpa !== undefined) return;
+        const url = new URL(link.href, window.location.href);
+        if (!isCacheable(url)) return;
+        event.preventDefault();
+        navigate(url);
+      });
+
+      window.addEventListener('popstate', () => navigate(new URL(window.location.href), false));
+      window.starlightSpa = { navigate, clearCache: () => Object.keys(sessionStorage).filter(key => key.startsWith(cachePrefix)).forEach(key => sessionStorage.removeItem(key)) };
+    })();
   </script>
 </head>
 <body>
@@ -580,7 +691,7 @@ export async function getLayout(
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" id="spa-main-content">
       ${content}
     </main>
 
@@ -608,6 +719,7 @@ export async function getLayout(
       </div>
     </aside>
   </div>
+  <div id="spa-page-progress" aria-hidden="true"></div>
 </body>
 </html>`;
 }
