@@ -84,6 +84,21 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     if (userDeleteMatch && method === 'POST') {
         const id = parseInt(userDeleteMatch[1]);
         if (id === 1) return jsonRes({ error: t('apiCannotModifySuperAdmin') });
+
+        const form = await request.formData();
+        const deleteReason = String(form.get('reason') || '管理员直接删除用户').trim().slice(0, 500);
+        const targetUser = await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<any>();
+        const originalAvatarUrl = String(targetUser?.avatar_url || '');
+
+        await writeAudit(
+            env,
+            user.id,
+            '删除用户',
+            'user',
+            id,
+            `删除理由: ${deleteReason || '管理员直接删除用户'} | 原头像URL: ${originalAvatarUrl || '无'}`
+        );
+
         await db.prepare('DELETE FROM comments WHERE article_id IN (SELECT id FROM articles WHERE author_id = ?)').bind(id).run();
         await db.prepare('DELETE FROM comments WHERE author_id = ?').bind(id).run();
         await db.prepare('DELETE FROM articles WHERE author_id = ?').bind(id).run();

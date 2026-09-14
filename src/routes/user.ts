@@ -70,10 +70,14 @@ export async function renderUser(env: Env, req: Request, path: string) {
                 location.reload();
             }
             async function reportUser(uid) {
-                const reason = prompt('举报原因：sexual / gambling / spam / abuse / other', 'other');
-                if (!reason) return;
+                const reason = prompt('举报原因：请输入具体违规说明（如违规内容、诈骗链接、恶意冒充等）', '');
+                if (!reason || !reason.trim()) return;
+                const evidence = prompt('补充证据（可选，如链接/截图说明，留空则不填）', '');
                 const form = new FormData();
-                form.set('target_type', 'avatar'); form.set('target_id', String(uid)); form.set('reason', reason);
+                form.set('target_type', 'avatar');
+                form.set('target_id', String(uid));
+                form.set('reason', reason.trim());
+                form.set('evidence', evidence ? evidence.trim() : '');
                 const response = await fetch('/api/reports', { method: 'POST', body: form });
                 const data = await response.json();
                 toast(data.error || '举报已提交', data.error ? 'error' : 'success');

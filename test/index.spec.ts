@@ -9,6 +9,7 @@ import worker from "../src/index";
 import { renderUsernameLink } from "../src/utils/html";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl } from "../src/utils/profile";
+import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -64,5 +65,21 @@ describe("profile field normalization", () => {
 		expect(validateAvatarUrl("ftp://example.com/avatar.png")).toBe(false);
 		expect(validateProfileUrl("https://example.com/profile")).toBe(true);
 		expect(validateProfileUrl("javascript:alert(1)")).toBe(false);
+	});
+});
+
+describe("report processing metadata", () => {
+	it("accepts free-form user feedback and records admin reasoning traceably", () => {
+		const reason = normalizeReportReason("用户发广告，且带诈骗链接，影响社区体验");
+		expect(reason).toContain("诈骗链接");
+		const auditText = buildReportAuditText({
+			reason,
+			evidence: "https://example.com/ scam",
+			target_type: "user",
+			target_id: 42,
+		}, "resolved", "已确认违规，删除该用户内容并通知其整改");
+		expect(auditText).toContain("用户反馈");
+		expect(auditText).toContain("管理员处理理由");
+		expect(auditText).toContain("已确认违规");
 	});
 });

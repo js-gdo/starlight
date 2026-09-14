@@ -375,12 +375,26 @@ export async function renderBackend(env: Env, req: Request) {
             <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv"><i class="fas fa-file-shield"></i> 导出审计</a>
         </div>
         ${reports.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无待处理举报</div>` : reports.results.map((report: any) => `
-            <div class="ticket-item">
-                <div><strong>#${report.id} ${htmlEscape(report.target_type)}</strong><span class="meta"> · 目标 ${report.target_id} · 举报人 ${htmlEscape(report.reporter_name || '未知')} · ${htmlEscape(report.reason)}</span><div class="meta">${htmlEscape(report.evidence || '')}</div></div>
-                <div class="action-group">
-                    <form action="/api/reports/${report.id}/decision" method="POST"><input type="hidden" name="status" value="resolved"><button class="btn-sm btn-danger" type="submit">确认违规</button></form>
-                    <form action="/api/reports/${report.id}/decision" method="POST"><input type="hidden" name="status" value="dismissed"><button class="btn-sm btn-outline" type="submit">驳回</button></form>
+            <div class="ticket-item" style="display:block; padding:12px 0;">
+                <div style="margin-bottom:8px;">
+                    <strong>#${report.id} ${htmlEscape(report.target_type)}</strong>
+                    <span class="meta"> · 目标 ${report.target_id} · 举报人 ${htmlEscape(report.reporter_name || '未知')}</span>
                 </div>
+                <div class="meta" style="margin-bottom:6px;"><strong>用户反馈：</strong> ${htmlEscape(report.reason || '未填写反馈')}</div>
+                <div class="meta" style="margin-bottom:10px;"><strong>证据：</strong> ${htmlEscape(report.evidence || '无')}</div>
+                <form action="/api/reports/${report.id}/decision" method="POST" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                    <input type="hidden" name="status" value="resolved">
+                    <label style="font-size:12px; color:#666; font-weight:600;">管理员处理理由（必须写清楚用户反馈与结论）</label>
+                    <textarea name="resolution" rows="3" required placeholder="示例：用户反馈称该用户发布诈骗链接，管理员核实后确认违规，已删除相关内容并通知其整改。" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; resize:vertical; font-size:13px;"></textarea>
+                    <div class="action-group">
+                        <button class="btn-sm btn-danger" type="submit">确认违规</button>
+                    </div>
+                </form>
+                <form action="/api/reports/${report.id}/decision" method="POST" style="margin-top:8px;">
+                    <input type="hidden" name="status" value="dismissed">
+                    <input type="hidden" name="resolution" value="用户反馈不成立，核实后驳回举报。">
+                    <button class="btn-sm btn-outline" type="submit">驳回</button>
+                </form>
             </div>
         `).join('')}
     </div>
