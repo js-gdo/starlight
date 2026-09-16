@@ -37,14 +37,18 @@ export function getChinaTime() {
 }
 
 export async function getHitokoto() {
+    const fallback = { sentence: '向着天星的歌者，早已隐没在人群中。', from: '星辰的怀念' };
     try {
-        const response = await fetch('https://v1.hitokoto.cn');
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 1500);
+        const response = await fetch('https://v1.hitokoto.cn', { signal: ctrl.signal });
+        clearTimeout(timer);
         if (response.ok) {
             const data = await response.json() as { hitokoto: string; from: string };
             return { sentence: data.hitokoto || '', from: data.from || '未知来源' };
         }
-        return { sentence: '向着天星的歌者，早已隐没在人群中。', from: '星辰的怀念' };
+        return fallback;
     } catch {
-        return { sentence: '向着天星的歌者，早已隐没在人群中。', from: '星辰的怀念' };
+        return fallback;
     }
 }

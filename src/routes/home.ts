@@ -10,33 +10,38 @@ export async function renderHome(env: Env, req: Request) {
     const user = await getSessionUser(env, req);
     const db = env.DB;
 
-    const articles = await db.prepare(
-        `SELECT a.*, u.username, u.color, u.tag
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+    const [articles, benben, articleCount, ticketCount, banners, onlineResult, onlineUsers] = await Promise.all([
+        db.prepare(
+            `SELECT a.*, u.username, u.color, u.tag
      FROM articles a JOIN users u ON a.author_id = u.id
      ORDER BY a.is_pinned DESC, a.created_at DESC LIMIT 10`
-    ).all();
+        ).all(),
 
-    const benben = await db.prepare(
-        `SELECT b.*, u.username, u.color, u.tag
+        db.prepare(
+            `SELECT b.*, u.username, u.color, u.tag
      FROM benben b JOIN users u ON b.author_id = u.id
      WHERE u.use = 1
      ORDER BY b.created_at DESC LIMIT 5`
-    ).all();
+        ).all(),
 
-    const articleCount = await db.prepare('SELECT COUNT(*) as count FROM articles').first();
-    const ticketCount = await db.prepare('SELECT COUNT(*) as count FROM tickets').first();
-    const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
+        db.prepare('SELECT COUNT(*) as count FROM articles').first(),
+        db.prepare('SELECT COUNT(*) as count FROM tickets').first(),
+        db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all(),
 
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const onlineResult = await db.prepare('SELECT COUNT(*) as cnt FROM users WHERE last_active_at > ?').bind(fiveMinAgo).first();
-    const onlineCount = onlineResult ? onlineResult.cnt : 0;
-    const onlineUsers = await db.prepare(
-        `SELECT id, username, color, tag, avatar_url, last_active_at
+        db.prepare('SELECT COUNT(*) as cnt FROM users WHERE last_active_at > ?').bind(fiveMinAgo).first(),
+
+        db.prepare(
+            `SELECT id, username, color, tag, avatar_url, last_active_at
          FROM users
          WHERE last_active_at > ?
          ORDER BY last_active_at DESC
          LIMIT 12`
-    ).bind(fiveMinAgo).all();
+        ).bind(fiveMinAgo).all(),
+    ]);
+
+    const onlineCount = onlineResult ? onlineResult.cnt : 0;
 
     const today = new Date().toISOString().split('T')[0];
     let isCheckedIn = false;

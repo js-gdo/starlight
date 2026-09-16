@@ -137,13 +137,8 @@ export async function renderTicketNew(env: Env, req: Request) {
             pv.style.display = 'block';
             editBtn.style.background = '#fff'; editBtn.style.color = '#666'; editBtn.style.borderColor = '#ddd';
             previewBtn.style.background = '#8E44AD'; previewBtn.style.color = '#fff'; previewBtn.style.borderColor = '#8E44AD';
-            if (typeof marked !== 'undefined') {
-                marked.setOptions({ breaks: true, gfm: true, sanitize: false, headerIds: false, mangle: false });
-                pv.innerHTML = marked.parse(ta.value || '');
-                if (typeof typesetMath === 'function') typesetMath(pv);
-            } else {
-                pv.textContent = ta.value || '';
-            }
+            pv.innerHTML = window.renderMarkdownHtml(ta.value || '') || '';
+            if (typeof typesetMath === 'function') typesetMath(pv);
         } else {
             ta.style.display = 'block';
             pv.style.display = 'none';
@@ -388,13 +383,8 @@ export async function renderTicketEdit(env: Env, req: Request, path: string) {
             pv.style.display = 'block';
             editBtn.style.background = '#fff'; editBtn.style.color = '#666'; editBtn.style.borderColor = '#ddd';
             previewBtn.style.background = '#8E44AD'; previewBtn.style.color = '#fff'; previewBtn.style.borderColor = '#8E44AD';
-            if (typeof marked !== 'undefined') {
-                marked.setOptions({ breaks: true, gfm: true, sanitize: false, headerIds: false, mangle: false });
-                pv.innerHTML = marked.parse(ta.value || '');
-                if (typeof typesetMath === 'function') typesetMath(pv);
-            } else {
-                pv.textContent = ta.value || '';
-            }
+            pv.innerHTML = window.renderMarkdownHtml(ta.value || '') || '';
+            if (typeof typesetMath === 'function') typesetMath(pv);
         } else {
             ta.style.display = 'block';
             pv.style.display = 'none';

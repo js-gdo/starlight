@@ -1,4 +1,4 @@
-import { initDB } from './db/init';
+import { ensureDB } from './db/init';
 import { renderHome } from './routes/home';
 import { renderLogin, renderRegister } from './routes/auth';
 import { renderBenben } from './routes/benben';
@@ -29,7 +29,7 @@ export default {
             const url = new URL(request.url);
             const path = url.pathname;
 
-            await initDB(env);
+            await ensureDB(env);
 
             // ============ 页面路由 ============
             if (path === '/' || path === '/index.html') {
@@ -165,7 +165,7 @@ export default {
             return new Response('Not Found', { status: 404 });
         } catch (e: any) {
             console.error('Worker error:', e);
-            return new Response(`Error: ${e.message}`, { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     },
 } satisfies ExportedHandler<Env>;
