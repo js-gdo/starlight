@@ -15,20 +15,51 @@ import { buildReportAuditText, normalizeReportReason } from "../src/handlers/rep
 // `Request` to pass to `worker.fetch()`.
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
-describe("Hello World worker", () => {
-	it("responds with Hello World! (unit style)", async () => {
-		const request = new IncomingRequest("http://example.com");
+describe("worker routing", () => {
+	it("renders the home page as HTML (unit style)", async () => {
+		const request = new IncomingRequest("http://example.com/");
 		// Create an empty context to pass to `worker.fetch()`.
 		const ctx = createExecutionContext();
 		const response = await worker.fetch(request, env, ctx);
 		// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
 		await waitOnExecutionContext(ctx);
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toContain("text/html");
+		expect(await response.text()).toContain("StarLight");
 	});
 
-	it("responds with Hello World! (integration style)", async () => {
+	it("renders the home page as HTML (integration style)", async () => {
 		const response = await SELF.fetch("https://example.com");
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+		expect(response.status).toBe(200);
+		expect(await response.text()).toContain("StarLight");
+	});
+
+	it("does not dump the full user list into ordinary pages", async () => {
+		const response = await SELF.fetch("https://example.com");
+		const html = await response.text();
+		expect(html).toContain('"byId":{}');
+	});
+
+	it("returns 404 for unknown pages", async () => {
+		const response = await SELF.fetch("https://example.com/definitely-not-a-page");
+		expect(response.status).toBe(404);
+		expect(await response.text()).toBe("Not Found");
+	});
+
+	it("returns 404 JSON for unknown API paths", async () => {
+		const response = await SELF.fetch("https://example.com/api/nope");
+		expect(response.status).toBe(404);
+		expect(await response.json()).toEqual({ error: "API not found" });
+	});
+
+	it("does not leak internal error details", async () => {
+		const request = new IncomingRequest("http://example.com/");
+		const brokenEnv = { ...env, DB: undefined } as unknown as typeof env;
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, brokenEnv, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(500);
+		expect(await response.text()).toBe("Internal Server Error");
 	});
 });
 

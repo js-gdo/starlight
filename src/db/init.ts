@@ -265,5 +265,48 @@ export async function initDB(env: Env) {
         try { await db.prepare(sql).run(); } catch { }
     }
 
+    const indexes = [
+        'CREATE INDEX IF NOT EXISTS idx_articles_pinned_created ON articles (is_pinned, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_articles_author ON articles (author_id)',
+        'CREATE INDEX IF NOT EXISTS idx_articles_category ON articles (category, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_comments_article ON comments (article_id)',
+        'CREATE INDEX IF NOT EXISTS idx_comments_author ON comments (author_id)',
+        'CREATE INDEX IF NOT EXISTS idx_benben_created ON benben (created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_users_last_active ON users (last_active_at)',
+        'CREATE INDEX IF NOT EXISTS idx_tickets_author ON tickets (author_id)',
+        'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets (status, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket ON ticket_replies (ticket_id)',
+        'CREATE INDEX IF NOT EXISTS idx_messages_to_read ON messages (to_user_id, is_read, type)',
+        'CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages (from_user_id, to_user_id, id)',
+        'CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows (follower_id)',
+        'CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows (followee_id)',
+        'CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_id, status)',
+        'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)'
+    ];
+    for (const sql of indexes) {
+        try { await db.prepare(sql).run(); } catch { }
+    }
+
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
+}
+
+let schemaReady = false;
+
+export async function ensureDB(env: Env) {
+    if (schemaReady) return;
+    try {
+        const marker = await env.DB.prepare(
+            "SELECT setting_value FROM site_settings WHERE setting_key = 'schema_version'"
+        ).first();
+        if (marker) {
+            schemaReady = true;
+            return;
+        }
+    } catch { }
+    await initDB(env);
+    await env.DB.prepare(
+        "INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('schema_version', '1')"
+    ).run();
+    schemaReady = true;
 }

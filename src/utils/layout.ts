@@ -10,31 +10,38 @@ export async function getLayout(
     title: string,
     content: string,
     extraStyles = '',
-    request?: Request
+    request?: Request,
+    includeMentionMap = false
 ) {
     const t = getTranslator(request);
     const lang = getLanguage(request);
 
-    let systemUnread = 0;
-    let pmUnread = 0;
-    if (user && env?.DB) {
-        systemUnread = await getSystemUnreadCount(env.DB, user.id);
-        pmUnread = await getPmUnreadCount(env.DB, user.id);
-    }
     const chinaTime = getChinaTime();
-    const hitokoto = await getHitokoto();
     const currentPath = request ? new URL(request.url).pathname : '/';
     const announcementScope = currentPath === '/backend' ? 'backend' : currentPath === '/' ? 'home' : 'all';
-    const announcements = env?.DB
-      ? await env.DB.prepare("SELECT id, content, announcement_type, scroll_speed, is_pinned FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) AND (starts_at = '' OR starts_at <= datetime('now')) AND (ends_at = '' OR ends_at >= datetime('now')) ORDER BY is_pinned DESC, sort_order ASC, id DESC").bind(announcementScope).all()
-      : { results: [] };
-    const siteStatusRow = env?.DB
-      ? await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first()
-      : null;
-    const siteStatus = String(siteStatusRow?.setting_value || 'normal');
+
+    const [unreadCounts, hitokoto, announcements, siteStatusRow] = await Promise.all([
+      (user && env?.DB)
+        ? Promise.all([getSystemUnreadCount(env.DB, user.id), getPmUnreadCount(env.DB, user.id)])
+        : Promise.resolve([0, 0]),
+
+      getHitokoto(),
+
+      env?.DB
+        ? env.DB.prepare("SELECT id, content, announcement_type, scroll_speed, is_pinned FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) AND (starts_at = '' OR starts_at <= datetime('now')) AND (ends_at = '' OR ends_at >= datetime('now')) ORDER BY is_pinned DESC, sort_order ASC, id DESC").bind(announcementScope).all()
+        : Promise.resolve({ results: [] }),
+
+      env?.DB
+        ? env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first()
+        : Promise.resolve(null),
+    ]);
+
+    const systemUnread = unreadCounts[0];
+    const pmUnread = unreadCounts[1];
+    const siteStatus = String((siteStatusRow as any)?.setting_value || 'normal');
 
     let mentionUserMap = { byId: {}, byName: {} } as { byId: Record<string, { uid: number; username: string }>; byName: Record<string, { uid: number; username: string }> };
-    if (env?.DB) {
+    if (includeMentionMap && env?.DB) {
       const userRows = await env.DB.prepare('SELECT id, username FROM users ORDER BY id ASC').all();
       for (const row of userRows.results || []) {
         const uid = Number(row.id);
@@ -198,6 +205,7 @@ export async function getLayout(
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.15/purify.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.3/sweetalert2.all.min.js" defer></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -530,25 +538,38 @@ export async function getLayout(
       });
     }
 
+    function sanitizeHtml(html) {
+      if (typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function') {
+        return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+      }
+      return String(html).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function escapeAngleBrackets(text) {
+      return String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function renderMarkdown(text) {
       const resolvedText = resolveMentionMarkdown(text);
       if (!resolvedText) return '';
+      const canPurify = typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function';
+      const source = canPurify ? resolvedText : escapeAngleBrackets(resolvedText);
+      let parsed = '';
       try {
         if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
           marked.setOptions({
             breaks: true,
-            gfm: true,
-            sanitize: false,
-            headerIds: false,
-            mangle: false
+            gfm: true
           });
-          return marked.parse(resolvedText);
+          parsed = marked.parse(source);
         }
       } catch(e) {
         console.warn('Markdown parse error:', e);
       }
-      return String(resolvedText).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\\n/g, '<br>');
+      if (!parsed) parsed = String(source).replace(/\\n/g, '<br>');
+      return canPurify ? sanitizeHtml(parsed) : parsed;
     }
+    window.renderMarkdownHtml = renderMarkdown;
 
     function typesetMath(root) {
       if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {

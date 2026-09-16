@@ -239,5 +239,5 @@ export async function renderPmChat(env: Env, req: Request, path: string) {
             });
         </script>
     `;
-    return await getLayout(env, user, t('privateMessage'), content, '', req);
+    return await getLayout(env, user, t('privateMessage'), content, '', req, true);
 }

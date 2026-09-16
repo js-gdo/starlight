@@ -35,7 +35,7 @@ export async function handleApi(request: Request, env: Env, path: string) {
     if (path.startsWith('/api/messages')) {
         return handleMessages(request, env, path);
     }
-    if (path.startsWith('/api/pm')) {
+    if (path.startsWith('/api/pm') || path === '/api/user/find') {
         return handlePm(request, env, path);
     }
     if (path.startsWith('/api/admin')) {
@@ -45,11 +45,6 @@ export async function handleApi(request: Request, env: Env, path: string) {
         return handleReports(request, env, path);
     }
     if (path.startsWith('/api/user')) {
-        // /api/user/find 已在 pm.ts 中处理，但这里也捕获以防未处理
-        // 实际 pm.ts 已处理 /api/user/find，但为了不遗漏，我们也可以再次检查
-        // 由于 handlePm 已经包含了 /api/user/find，所以这里可以留空或转发
-        // 但为了清晰，我们可以让 user.ts 处理 /api/user/bio，而 /api/user/find 已在 pm.ts 中
-        // 所以这里调用 handleUser
         return handleUser(request, env, path);
     }
 
