@@ -259,6 +259,10 @@ export async function renderBackend(env: Env, req: Request) {
         .online-chart-buttons button.active { background:#8E44AD; border-color:#8E44AD; color:#fff; }
         .online-chart-wrap { width:100%; overflow-x:auto; }
         #onlineStatsChart { width:100%; min-width:680px; height:260px; }
+        .backend-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 16px; }
+        .backend-tab { border:1px solid #ddd; background:#fff; color:#555; padding:7px 14px; border-radius:5px; cursor:pointer; }
+        .backend-tab.active { background:#8E44AD; color:#fff; border-color:#8E44AD; }
+        [data-admin-panel].is-hidden { display:none; }
         #userActivityChart { width:100%; min-width:680px; height:260px; }
         .online-chart-dates { display:flex; justify-content:space-between; gap:8px; min-width:680px; color:#777; font-size:11px; }
         .online-chart-dates .legacy { color:#e74c3c; }
@@ -296,7 +300,15 @@ export async function renderBackend(env: Env, req: Request) {
 
     <div class="page-header"><h1><i class="fas fa-cog"></i> ${t('adminPanel')}</h1></div>
 
-    <div class="card">
+    <div class="backend-tabs" role="tablist">
+        <button class="backend-tab active" type="button" data-admin-tab="overview">概览</button>
+        <button class="backend-tab" type="button" data-admin-tab="security">内容安全</button>
+        <button class="backend-tab" type="button" data-admin-tab="users">用户</button>
+        <button class="backend-tab" type="button" data-admin-tab="content">内容管理</button>
+        <button class="backend-tab" type="button" data-admin-tab="site">站点与导出</button>
+    </div>
+
+    <div class="card" data-admin-panel="overview">
         <div class="overview-grid">
             <div class="overview-card">
                 <div class="overview-label">总用户数</div>
@@ -331,7 +343,7 @@ export async function renderBackend(env: Env, req: Request) {
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="overview">
         <div class="online-chart-toolbar">
             <div class="section-title" style="margin-bottom:0;"><i class="fas fa-chart-line"></i> 在线人数小时峰值</div>
             <div class="online-chart-buttons">
@@ -346,7 +358,7 @@ export async function renderBackend(env: Env, req: Request) {
         <div class="online-chart-note"><span style="color:#e74c3c;">红色 NaN</span>：功能上线前没有历史数据；空白点表示该小时尚未采集到数据。</div>
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="overview">
         <div class="online-chart-toolbar">
             <div class="section-title" style="margin-bottom:0;"><i class="fas fa-user-check"></i> 用户活跃趋势</div>
         </div>
@@ -356,7 +368,7 @@ export async function renderBackend(env: Env, req: Request) {
         <div class="online-chart-note">按最近 30 天的活跃用户数统计，展示日活跃趋势变化。</div>
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-satellite-dish"></i> 站点状态</div>
         <form action="/api/admin/site-status" method="POST" class="add-banner-form">
             <select name="status" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -368,7 +380,7 @@ export async function renderBackend(env: Env, req: Request) {
         </form>
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-shield-halved"></i> 内容安全中心</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv"><i class="fas fa-download"></i> 导出举报</a>
@@ -399,14 +411,14 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-file-shield"></i> 管理员操作审计</div>
         ${auditLogs.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无审计记录</div>` : auditLogs.results.map((log: any) => `
             <div class="ticket-item"><div><strong>${htmlEscape(log.action)}</strong><span class="meta"> · ${htmlEscape(log.admin_name || '未知')} · ${formatTimeToChina(log.created_at)}</span></div><span class="meta">${htmlEscape(log.details || '')}</span></div>
         `).join('')}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="users">
         <div class="section-title"><i class="fas fa-users"></i> ${t('userManagement')}</div>
         <div class="table-wrap">
             <table class="admin-table">
@@ -492,7 +504,7 @@ export async function renderBackend(env: Env, req: Request) {
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="content">
         <div class="section-title"><i class="fas fa-file-alt"></i> ${t('articleManagement')}</div>
         <form id="bulkArticleForm" action="/api/admin/articles/bulk" method="POST" class="add-banner-form" onsubmit="return confirmBulkArticleAction();">
             <select name="action" id="bulkArticleAction" onchange="toggleBulkCategory()" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -531,7 +543,7 @@ export async function renderBackend(env: Env, req: Request) {
         ${articles.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">${t('noArticles')}</div>` : ''}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="content">
         <div class="section-title"><i class="fas fa-ticket-alt"></i> ${t('ticketManagement')}</div>
         ${tickets.results.map((ticket: any) => {
             const statusInfo = getTicketStatus(ticket.status);
@@ -554,7 +566,7 @@ export async function renderBackend(env: Env, req: Request) {
         ${tickets.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">${t('noTickets')}</div>` : ''}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-images"></i> ${t('bannerManagement')}</div>
         <form action="/api/admin/banner/add" method="POST" class="add-banner-form">
             <input type="url" name="image_url" placeholder="${t('imageUrl')}" required>
@@ -580,7 +592,7 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-bullhorn"></i> 公告管理</div>
         <form action="/api/admin/announcement/add" method="POST" class="add-banner-form">
             <input type="text" name="content" placeholder="公告内容" required>
@@ -604,7 +616,7 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card">
+    <div class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-database"></i> 数据导出</div>
         <div class="action-group">
             <a class="btn-sm btn-outline" href="/api/admin/export/users?format=csv">用户 CSV</a>
@@ -623,6 +635,18 @@ export async function renderBackend(env: Env, req: Request) {
         const onlineStatsDates = document.getElementById('onlineStatsDates');
         let onlineStatsChart = null;
         let userActivityChart = null;
+
+        document.querySelectorAll('[data-admin-tab]').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const selected = tab.dataset.adminTab;
+                document.querySelectorAll('[data-admin-tab]').forEach(item => item.classList.toggle('active', item === tab));
+                document.querySelectorAll('[data-admin-panel]').forEach(panel => panel.classList.toggle('is-hidden', panel.dataset.adminPanel !== selected));
+                if (selected === 'overview') {
+                    if (onlineStatsChart) onlineStatsChart.resize();
+                    if (userActivityChart) userActivityChart.resize();
+                }
+            });
+        });
 
         function buildDateGroups(points) {
             const dateGroups = [];

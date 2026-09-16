@@ -15,7 +15,7 @@ export async function handleBenben(request: Request, env: Env, path: string) {
         if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('benben') }) }, 403);
 
         const form = await request.formData();
-        const content = form.get('content');
+        const content = String(form.get('content') || '');
         if (!content || content.trim() === '') return jsonRes({ error: t('apiBenbenContentEmpty') }, 400);
 
         const invalidMentions = validateAtMentionSpacing(content);
@@ -33,7 +33,7 @@ export async function handleBenben(request: Request, env: Env, path: string) {
     if (match && method === 'POST') {
         if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
         const id = parseInt(match[1]);
-        const benben = await db.prepare('SELECT * FROM benben WHERE id = ?').bind(id).first();
+        const benben = await db.prepare('SELECT * FROM benben WHERE id = ?').bind(id).first<any>();
         if (!benben) return jsonRes({ error: t('apiBenbenNotFound') });
         if (user.id !== benben.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
         await db.prepare('DELETE FROM benben WHERE id = ?').bind(id).run();

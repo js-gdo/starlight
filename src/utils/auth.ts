@@ -17,7 +17,7 @@ export async function getSessionUser(env: Env, req: Request): Promise<any | null
     const uid = getCookie(req, 'uid');
     if (!uid) return null;
     try {
-        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(parseInt(uid)).first();
+        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(parseInt(uid)).first<Record<string, any>>();
         if (user) {
             const now = new Date();
             const lastActive = user.last_active_at ? new Date(user.last_active_at) : null;
@@ -80,7 +80,7 @@ export async function getLocationInfo(
         const ipRes = await fetch(`https://v2.xxapi.cn/api/ip?ip=${encodeURIComponent(ip)}`, { signal: ctrl.signal });
         clearTimeout(timer);
         if (ipRes.ok) {
-            const ipData = await ipRes.json();
+            const ipData = await ipRes.json() as { code?: number; data?: { address?: string } };
             if (ipData.code === 200 && ipData.data && ipData.data.address) {
                 const addr = ipData.data.address.replace(/^中国/, '');
                 const m = addr.match(/^(.+?(?:省|市|自治区|特别行政区))(.*)$/);

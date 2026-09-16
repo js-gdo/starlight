@@ -12,7 +12,7 @@ const supportedLanguages = ['zh', 'en', 'tw', 'lzh', 'ko', 'ru', 'fr', 'es'] as 
 type Language = typeof supportedLanguages[number];
 type TranslationKeys = keyof typeof zh;
 
-const locales = { zh, en, tw, lzh, ko, ru, fr, es } as Record<Language, Record<TranslationKeys, string>>;
+const locales = { zh, en, tw, lzh, ko, ru, fr, es } as unknown as Record<Language, Record<TranslationKeys, string>>;
 
 function isSupportedLanguage(value: string | null | undefined): value is Language {
     return !!value && supportedLanguages.includes(value as Language);
@@ -33,8 +33,8 @@ export function getLanguage(request?: Request): Language {
 }
 
 // 翻译函数，支持变量替换如 {name}
-export function t(key: TranslationKeys, lang: Language = 'zh', vars?: Record<string, string | number>): string {
-    let text = locales[lang]?.[key] ?? locales['zh'][key] ?? key;
+export function t(key: string, lang: Language = 'zh', vars?: Record<string, string | number>): string {
+    let text = locales[lang]?.[key as TranslationKeys] ?? locales['zh'][key as TranslationKeys] ?? key;
     if (vars) {
         for (const [k, v] of Object.entries(vars)) {
             text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
@@ -44,9 +44,9 @@ export function t(key: TranslationKeys, lang: Language = 'zh', vars?: Record<str
 }
 
 // 获取当前请求的语言，并返回翻译函数
-export function getTranslator(request?: Request): (key: TranslationKeys, vars?: Record<string, string | number>) => string {
+export function getTranslator(request?: Request): (key: string, vars?: Record<string, string | number>) => string {
     const lang = getLanguage(request);
-    return (key: TranslationKeys, vars?: Record<string, string | number>) => t(key, lang, vars);
+    return (key: string, vars?: Record<string, string | number>) => t(key, lang, vars);
 }
 
 // 导出类型以便在组件中使用

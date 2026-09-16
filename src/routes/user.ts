@@ -11,14 +11,14 @@ export async function renderUser(env: Env, req: Request, path: string) {
     if (!uid) return t('invalidUserId');
 
     const db = env.DB;
-    const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first();
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first<any>();
     if (!user) return t('userNotFound');
     if (!user.use) return t('userDisabled');
 
     const currentUser = await getSessionUser(env, req);
 
-    const followers = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followee_id = ?').bind(uid).all();
-    const followees = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.followee_id = u.id WHERE f.follower_id = ?').bind(uid).all();
+    const followers = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followee_id = ?').bind(uid).all<any>();
+    const followees = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.followee_id = u.id WHERE f.follower_id = ?').bind(uid).all<any>();
     const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
 
     const content = `
@@ -33,19 +33,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
                 </div>
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
-                ${currentUser && currentUser.id == user.id ? `
-                    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;">
-                        <h4 style="font-size:14px;margin-bottom:6px;"><i class="fas fa-pen"></i> ${t('bio')}</h4>
-                        <form action="/api/user/bio" method="POST" style="display:flex;flex-direction:column;gap:8px;">
-                            <input type="text" name="real_name" value="${htmlEscape(user.real_name || '')}" placeholder="真实姓名 / 昵称" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <input type="text" name="location" value="${htmlEscape(user.location || '')}" placeholder="所在地" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <input type="url" name="profile_link" value="${htmlEscape(user.profile_link || '')}" placeholder="个人主页链接" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <textarea name="bio" rows="3" placeholder="${t('bioPlaceholder')}" style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;resize:vertical;">${htmlEscape(user.bio || '')}</textarea>
-                            <input type="url" name="avatar_url" placeholder="头像外链 URL" value="${htmlEscape(user.avatar_url || '')}" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
-                            <button type="submit" style="background:#8E44AD;color:#fff;padding:6px 16px;border:none;border-radius:4px;cursor:pointer;max-width:140px;">${t('updateBio')}</button>
-                        </form>
-                    </div>
-                ` : ''}
+                ${currentUser && currentUser.id == user.id ? `<a href="/settings" style="display:inline-block;margin-top:12px;color:#8E44AD;text-decoration:none;"><i class="fas fa-user-cog"></i> 用户设置</a>` : ''}
                 ${currentUser && currentUser.id != user.id ? `
                     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
                         <button onclick="follow(${user.id})" style="background:#8E44AD;color:#fff;padding:5px 14px;border:none;border-radius:4px;cursor:pointer;">${isFollowing ? t('unfollow') : t('follow')}</button>
@@ -85,4 +73,26 @@ export async function renderUser(env: Env, req: Request, path: string) {
         </script>
     `;
     return await getLayout(env, currentUser, t('userProfile'), content, '', req);
+}
+
+export async function renderUserSettings(env: Env, req: Request) {
+    const t = getTranslator(req);
+    const user = await getSessionUser(env, req);
+    if (!user) return t('apiNotLoggedIn');
+
+    const content = `
+        <div class="page-header"><h1><i class="fas fa-user-cog"></i> 用户设置</h1></div>
+        <div class="card" style="max-width:720px;">
+            <h3 style="font-size:16px;margin-bottom:12px;">个人资料</h3>
+            <form action="/api/user/bio" method="POST" style="display:flex;flex-direction:column;gap:10px;">
+                <label>真实姓名 / 昵称<input type="text" name="real_name" value="${htmlEscape(String(user.real_name || ''))}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
+                <label>所在地<input type="text" name="location" value="${htmlEscape(String(user.location || ''))}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
+                <label>个人主页链接<input type="url" name="profile_link" value="${htmlEscape(String(user.profile_link || ''))}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
+                <label>个人签名<textarea name="bio" rows="4" maxlength="180" placeholder="${t('bioPlaceholder')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;resize:vertical;">${htmlEscape(String(user.bio || ''))}</textarea></label>
+                <label>头像 URL<input type="url" name="avatar_url" value="${htmlEscape(String(user.avatar_url || ''))}" placeholder="https://example.com/avatar.png" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
+                <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;"><i class="fas fa-save"></i> ${t('updateBio')}</button>
+            </form>
+        </div>
+    `;
+    return await getLayout(env, user, '用户设置', content, '', req);
 }
