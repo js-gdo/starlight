@@ -90,6 +90,7 @@ export async function getLayout(
         userSection = `
       <div class="avatar">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
+      <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
       <form action="/logout" method="GET">
         <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
       </form>

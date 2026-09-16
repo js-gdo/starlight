@@ -11,7 +11,7 @@ export async function checkViolation(content: string) {
         );
         clearTimeout(timer);
         if (!res.ok) return { violated: false, words: [], error: 'API状态异常' };
-        const data = await res.json();
+        const data = await res.json() as { code?: number; data?: { is_violated?: boolean; violation_count?: number; violated_words?: Array<{ word?: string }> } };
         if (data.code === 200 && data.data) {
             return {
                 violated: data.data.is_violated === true,

@@ -1,3 +1,5 @@
+import type { Env } from '../env.d';
+
 export async function initDB(env: Env) {
     const db = env.DB;
 

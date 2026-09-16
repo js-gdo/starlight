@@ -120,12 +120,12 @@ export async function handleArticles(request: Request, env: Env, path: string) {
 
         const form = await request.formData();
         const article_id = form.get('article_id');
-        const content = form.get('content');
+        const content = String(form.get('content') || '');
         const parent_id = parseInt(String(form.get('parent_id'))) || 0;
         if (!article_id || !content) return jsonRes({ error: t('apiMissingParams') });
 
         const targetArticle = await db.prepare('SELECT is_locked, author_id FROM articles WHERE id = ?')
-            .bind(article_id).first();
+            .bind(article_id).first<any>();
         if (!targetArticle) return jsonRes({ error: t('apiArticleNotFound') }, 404);
         if (targetArticle.is_locked && !user.admin) return jsonRes({ error: t('lockedCannotComment') }, 403);
 

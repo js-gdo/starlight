@@ -117,7 +117,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             const assignee_id = parseInt(String(form.get('assignee_id'))) || 0;
             await db.prepare('UPDATE tickets SET assignee_id = ? WHERE id = ?').bind(assignee_id, id).run();
             if (assignee_id > 0 && assignee_id !== user.id) {
-                const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
+                const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first<any>();
                 if (ticket) {
                     await sendNotification(
                         env,
@@ -139,8 +139,8 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
         const id = parseInt(statusMatch[1]);
         const form = await request.formData();
-        const status = form.get('status');
-        const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
+        const status = String(form.get('status') || '');
+        const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first<any>();
         if (!ticket) return jsonRes({ error: t('apiTicketNotFound') });
 
         await db.prepare('UPDATE tickets SET status = ? WHERE id = ?').bind(status, id).run();
@@ -163,13 +163,13 @@ export async function handleTickets(request: Request, env: Env, path: string) {
     if (replyMatch && method === 'POST') {
         if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
         const id = parseInt(replyMatch[1]);
-        const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
+        const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first<any>();
         if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
         if (ticket.is_private && ticket.author_id !== user.id && !user.admin) {
             return jsonRes({ error: t('apiPermissionDenied') }, 403);
         }
         const form = await request.formData();
-        const content = form.get('content');
+        const content = String(form.get('content') || '');
         if (!content) return jsonRes({ error: t('apiMissingParams') });
 
         const invalidMentions = validateAtMentionSpacing(String(content));
