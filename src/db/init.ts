@@ -18,6 +18,13 @@ export async function initDB(env: Env) {
       checkin_date TEXT,
       last_fortune TEXT,
       points INTEGER DEFAULT 0,
+      server_coin REAL DEFAULT 0,
+      server_hardware_score INTEGER DEFAULT 0,
+      server_assets TEXT DEFAULT '[]',
+      server_cpu TEXT DEFAULT 'E5-2686 v4',
+      server_motherboard TEXT DEFAULT 'X99 主板',
+      server_ram TEXT DEFAULT '16GB DDR4',
+      server_storage TEXT DEFAULT '1TB HDD',
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -216,9 +223,9 @@ export async function initDB(env: Env) {
     if (!admin) {
         const hashedPassword = 'f1d0b7f4df42bf1b97865e03fac74872d109c6c3ee5d2789d2cbe03e5cd55bd5';
         await db.prepare(
-            `INSERT INTO users (id, username, password, admin, color, tag, points)
-       VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100)`
-        ).bind(hashedPassword).run();
+            `INSERT INTO users (id, username, password, admin, color, tag, points, server_coin, server_hardware_score, server_assets, server_cpu, server_motherboard, server_ram, server_storage)
+       VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100, 25, 28216, ?, 'E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD')`
+        ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
     }
 
     // 初始化默认轮播图
@@ -246,6 +253,13 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN real_name TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN location TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN profile_link TEXT DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN server_coin REAL DEFAULT 0',
+        'ALTER TABLE users ADD COLUMN server_hardware_score INTEGER DEFAULT 0',
+        'ALTER TABLE users ADD COLUMN server_assets TEXT DEFAULT "[]"',
+        'ALTER TABLE users ADD COLUMN server_cpu TEXT DEFAULT "E5-2686 v4"',
+        'ALTER TABLE users ADD COLUMN server_motherboard TEXT DEFAULT "X99 主板"',
+        'ALTER TABLE users ADD COLUMN server_ram TEXT DEFAULT "16GB DDR4"',
+        'ALTER TABLE users ADD COLUMN server_storage TEXT DEFAULT "1TB HDD"',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
@@ -284,7 +298,8 @@ export async function initDB(env: Env) {
         'CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows (followee_id)',
         'CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_id, status)',
         'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at)',
-        'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)'
+        'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)',
+        'CREATE INDEX IF NOT EXISTS idx_users_server_rank ON users (server_hardware_score DESC, server_coin DESC)'
     ];
     for (const sql of indexes) {
         try { await db.prepare(sql).run(); } catch { }
