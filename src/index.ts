@@ -20,6 +20,7 @@ import { renderJudgement } from './routes/judgement';
 import { renderClipboard } from './routes/clipboard';
 import { renderBackend } from './routes/backend';
 import { renderUser, renderUserSettings } from './routes/user';
+import { renderServer } from './routes/server';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
 
@@ -147,6 +148,12 @@ export default {
 
             if (path === '/backend') {
                 return new Response(await renderBackend(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/server') {
+                return new Response(await renderServer(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }

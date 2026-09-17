@@ -9,6 +9,7 @@ import { handlePm } from './pm';
 import { handleAdmin } from './admin';
 import { handleUser } from './user';
 import { handleReports } from './reports';
+import { handleServer } from './server';
 import { jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 
@@ -43,6 +44,9 @@ export async function handleApi(request: Request, env: Env, path: string) {
     }
     if (path.startsWith('/api/reports')) {
         return handleReports(request, env, path);
+    }
+    if (path.startsWith('/api/server')) {
+        return handleServer(request, env, path);
     }
     if (path.startsWith('/api/user')) {
         return handleUser(request, env, path);

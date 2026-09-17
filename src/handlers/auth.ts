@@ -37,8 +37,8 @@ export async function handleAuth(request: Request, env: Env, path: string) {
         if (!dbUser.use) return jsonRes({ error: t('apiBanned') }, 403);
 
         const loginIp = request.headers.get('CF-Connecting-IP') || '';
-        let loginRegion = request.cf?.region || '';
-        let loginCity = request.cf?.city || '';
+        let loginRegion = String(request.cf?.region || '');
+        let loginCity = String(request.cf?.city || '');
         const loginTime = new Date().toISOString();
         try {
             const info = await getLocationInfo(loginIp, loginRegion, loginCity);
@@ -79,8 +79,9 @@ export async function handleAuth(request: Request, env: Env, path: string) {
         if (existing) return jsonRes({ error: t('apiUsernameExists') }, 409);
 
         const hashedPassword = await sha256(password);
-        await db.prepare('INSERT INTO users (username, password, color) VALUES (?, ?, ?)')
-            .bind(username, hashedPassword, 'red').run();
+        const starterAssets = JSON.stringify(['E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD']);
+        await db.prepare('INSERT INTO users (username, password, color, server_coin, server_hardware_score, server_assets, server_cpu, server_motherboard, server_ram, server_storage) VALUES (?, ?, ?, 5, 28216, ?, ?, ?, ?, ?)')
+            .bind(username, hashedPassword, 'red', starterAssets, 'E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD').run();
         return jsonRes({ message: t('apiRegisterSuccess') }, 201);
     }
 

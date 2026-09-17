@@ -54,6 +54,7 @@ export async function getLayout(
 
     const navItems = [
         { href: '/', label: t('home'), active: title === t('home') },
+        { href: '/server', label: '服务器庄园', active: title === '服务器庄园' },
         { href: '/benben', label: t('benben'), active: title === t('benben') },
         { href: '/articles/list', label: t('articleList'), active: ['帖子列表', '帖子详情', '发布帖子', '编辑帖子'].includes(title) },
         { href: '/ticket/list', label: t('ticketList'), active: ['工单列表', '工单详情', '创建工单', '编辑工单'].includes(title) },
@@ -72,6 +73,7 @@ export async function getLayout(
         const onclickAttr = item.onclick ? ` onclick="${item.onclick}"` : '';
         const iconMap: Record<string, string> = {
             '/': 'fa-home',
+            '/server': 'fa-server',
             '/benben': 'fa-comment',
             '/articles/list': 'fa-file-alt',
             '/ticket/list': 'fa-ticket-alt',
@@ -105,6 +107,7 @@ export async function getLayout(
     }
 
     const quickLinks = `
+    <a href="/server" class="quick-link"><i class="fas fa-server"></i> 服务器庄园</a>
     <a href="/articles/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newArticle')}</a>
     <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newTicket')}</a>
     <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> ${t('judgement')}</a>
