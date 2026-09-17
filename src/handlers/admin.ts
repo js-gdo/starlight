@@ -1,5 +1,6 @@
 import { getSessionUser, jsonRes, getPermissionName } from '../utils/auth';
 import { sendNotification } from '../utils/notification';
+import { isValidUserColor } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 import { writeAudit } from '../utils/audit';
@@ -17,7 +18,8 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         const id = parseInt(userMatch[1]);
         const form = await request.formData();
         const mode = String(form.get('mode') || 'profile');
-        const color = String(form.get('color') || 'red');
+        const requestedColor = String(form.get('color') || '');
+        const color = isValidUserColor(requestedColor) ? requestedColor.trim().toLowerCase() : 'red';
         const tag = String(form.get('tag') || '');
         const permission = form.get('permission');
         const action = form.get('action');
@@ -48,7 +50,9 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
             }
         }
 
-        await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
+        if (mode === 'profile') {
+            await db.prepare('UPDATE users SET color = ?, tag = ? WHERE id = ?').bind(color, tag, id).run();
+        }
         await writeAudit(env, user.id, '修改用户资料或权限', 'user', id, permission && action ? `${permission}:${action}` : `color:${color}`);
 
         if (permission && action) {
@@ -83,7 +87,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     const userDeleteMatch = path.match(/^\/api\/admin\/user\/(\d+)\/delete$/);
     if (userDeleteMatch && method === 'POST') {
         const id = parseInt(userDeleteMatch[1]);
-        if (id === 1) return jsonRes({ error: t('apiCannotModifySuperAdmin') });
+        if (id === 1) return jsonRes({ error: t('apiCannotModifySuperAdmin') }, 403);
 
         const form = await request.formData();
         const deleteReason = String(form.get('reason') || '管理员直接删除用户').trim().slice(0, 500);
@@ -110,6 +114,10 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         await db.prepare('DELETE FROM follows WHERE follower_id = ? OR followee_id = ?').bind(id, id).run();
         await db.prepare('DELETE FROM judgements WHERE target_id = ? OR author_id = ?').bind(id, id).run();
         await db.prepare('DELETE FROM permission_logs WHERE target_id = ? OR admin_id = ?').bind(id, id).run();
+        await db.prepare('DELETE FROM article_likes WHERE user_id = ?').bind(id).run();
+        await db.prepare('DELETE FROM ticket_votes WHERE user_id = ?').bind(id).run();
+        await db.prepare('DELETE FROM permission_ticket_logs WHERE admin_id = ?').bind(id).run();
+        await db.prepare('DELETE FROM reports WHERE reporter_id = ?').bind(id).run();
         await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
     }
@@ -138,6 +146,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
             );
         }
         await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
+        await db.prepare('DELETE FROM article_likes WHERE article_id = ?').bind(id).run();
         await db.prepare('DELETE FROM articles WHERE id = ?').bind(id).run();
         await writeAudit(env, user.id, '删除帖子', 'article', id, String(article?.title || ''));
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
@@ -168,6 +177,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
         if (action === 'unlock') await db.prepare(`UPDATE articles SET is_locked = 0 WHERE id IN (${placeholders})`).bind(...articleIds).run();
         if (action === 'delete') {
             await db.prepare(`DELETE FROM comments WHERE article_id IN (${placeholders})`).bind(...articleIds).run();
+            await db.prepare(`DELETE FROM article_likes WHERE article_id IN (${placeholders})`).bind(...articleIds).run();
             await db.prepare(`DELETE FROM articles WHERE id IN (${placeholders})`).bind(...articleIds).run();
         }
         await writeAudit(env, user.id, `批量管理帖子：${action}`, 'article', 0, articleIds.join(','));
@@ -178,7 +188,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     if (pinMatch && method === 'POST') {
         const id = parseInt(pinMatch[1]);
         const article = await db.prepare('SELECT is_pinned FROM articles WHERE id = ?').bind(id).first();
-        if (!article) return jsonRes({ error: t('apiArticleNotFound') });
+        if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
         const newStatus = article.is_pinned ? 0 : 1;
         await db.prepare('UPDATE articles SET is_pinned = ? WHERE id = ?').bind(newStatus, id).run();
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
@@ -188,7 +198,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     if (lockMatch && method === 'POST') {
         const id = parseInt(lockMatch[1]);
         const article = await db.prepare('SELECT is_locked FROM articles WHERE id = ?').bind(id).first();
-        if (!article) return jsonRes({ error: t('apiArticleNotFound') });
+        if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
         const newStatus = article.is_locked ? 0 : 1;
         await db.prepare('UPDATE articles SET is_locked = ? WHERE id = ?').bind(newStatus, id).run();
         return new Response(null, { status: 302, headers: { Location: '/backend' } });

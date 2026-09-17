@@ -11,10 +11,13 @@ export async function handleFollow(request: Request, env: Env) {
 
     const db = env.DB;
     const body = await request.json() as { followee_id: number };
-    const followee_id = body.followee_id;
+    const followee_id = parseInt(String(body.followee_id)) || 0;
 
-    if (!followee_id) return jsonRes({ error: t('apiMissingParams') });
-    if (parseInt(String(followee_id)) === user.id) return jsonRes({ error: t('apiCannotFollowSelf') });
+    if (!followee_id) return jsonRes({ error: t('apiMissingParams') }, 400);
+    if (followee_id === user.id) return jsonRes({ error: t('apiCannotFollowSelf') }, 400);
+
+    const target = await db.prepare('SELECT id FROM users WHERE id = ?').bind(followee_id).first();
+    if (!target) return jsonRes({ error: t('apiUserNotFound') }, 404);
 
     const exists = await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?')
         .bind(user.id, followee_id).first();

@@ -1,5 +1,6 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import { generateFortune } from '../utils/fortune';
+import { getChinaDateString } from '../utils/time';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -11,7 +12,7 @@ export async function handleCheckin(request: Request, env: Env) {
     if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
 
     const db = env.DB;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getChinaDateString();
 
     if (user.checkin_date === today) {
         let fortune = null;

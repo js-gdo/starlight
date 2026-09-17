@@ -1,4 +1,4 @@
-import { getSessionUser, jsonRes } from '../utils/auth';
+import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
 import { sha256 } from '../utils/crypto';
 import { getLocationInfo } from '../utils/auth';
 import { getTranslator } from '../utils/i18n';
@@ -41,7 +41,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
         let loginCity = request.cf?.city || '';
         const loginTime = new Date().toISOString();
         try {
-            const info = await getLocationInfo(loginIp);
+            const info = await getLocationInfo(loginIp, loginRegion, loginCity);
             loginRegion = info.region || loginRegion;
             loginCity = info.city || loginCity;
         } catch { }
@@ -56,7 +56,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `uid=${dbUser.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+                'Set-Cookie': `uid=${await createSession(env, dbUser.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`
             }
         });
     }
