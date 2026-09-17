@@ -25,10 +25,15 @@ export const COLOR_MAP: Record<string, string> = {
 
 export const RAINBOW_GRADIENT = 'linear-gradient(90deg, #E74C3C 0%, #E67E22 14%, #F1C40F 29%, #5EB95E 43%, #00BCD4 57%, #0E90D2 71%, #8E44AD 100%)';
 
+export function isValidUserColor(color: string): boolean {
+    const normalized = String(color || '').trim().toLowerCase();
+    return normalized === 'rainbow' || Object.prototype.hasOwnProperty.call(COLOR_MAP, normalized);
+}
+
 export function getUserColor(color: string): string {
     const normalized = String(color || '').trim().toLowerCase();
     if (normalized === 'rainbow') return RAINBOW_GRADIENT;
-    return COLOR_MAP[normalized] || color || '#E74C3C';
+    return COLOR_MAP[normalized] || COLOR_MAP['red'];
 }
 
 export function getUserColorTextStyle(color: string): string {

@@ -24,7 +24,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'];
         const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : 'other';
 
-        if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+        if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') }, 400);
 
         if (isProblem) {
             if (!problemId) return jsonRes({ error: '请选择题目' }, 400);
@@ -72,8 +72,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         if (methodOverride === 'PUT') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const article = await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first();
-            if (!article) return jsonRes({ error: t('apiArticleNotFound') });
-            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
+            if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
+            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('editArticle') }) }, 403);
 
             let title = String(form.get('title') ?? '').trim();
@@ -82,7 +82,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             const problemId = String(form.get('problem_id') ?? article.problem_id ?? '').trim();
             const categories = ['leisure', 'culture', 'technology', 'programming', 'life', 'announcement', 'other'];
             const category = categories.includes(String(form.get('category'))) ? String(form.get('category')) : String(article.category || 'other');
-            if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+            if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') }, 400);
 
             if (isProblem) {
                 if (!problemId) return jsonRes({ error: '请选择题目' }, 400);
@@ -105,9 +105,10 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         } else if (methodOverride === 'DELETE') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const article = await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first();
-            if (!article) return jsonRes({ error: t('apiArticleNotFound') });
-            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
+            if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
+            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
+            await db.prepare('DELETE FROM article_likes WHERE article_id = ?').bind(id).run();
             await db.prepare('DELETE FROM articles WHERE id = ?').bind(id).run();
             return new Response(null, { status: 302, headers: { Location: '/articles/list' } });
         }
@@ -121,13 +122,19 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const article_id = form.get('article_id');
         const content = String(form.get('content') || '');
-        const parent_id = parseInt(String(form.get('parent_id'))) || 0;
-        if (!article_id || !content) return jsonRes({ error: t('apiMissingParams') });
+        let parent_id = parseInt(String(form.get('parent_id'))) || 0;
+        if (!article_id || !content) return jsonRes({ error: t('apiMissingParams') }, 400);
 
         const targetArticle = await db.prepare('SELECT is_locked, author_id FROM articles WHERE id = ?')
             .bind(article_id).first<any>();
         if (!targetArticle) return jsonRes({ error: t('apiArticleNotFound') }, 404);
         if (targetArticle.is_locked && !user.admin) return jsonRes({ error: t('lockedCannotComment') }, 403);
+
+        if (parent_id) {
+            const parentComment = await db.prepare('SELECT id FROM comments WHERE id = ? AND article_id = ?')
+                .bind(parent_id, article_id).first();
+            if (!parentComment) parent_id = 0;
+        }
 
         const invalidMentions = validateAtMentionSpacing(String(content));
         if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
@@ -156,8 +163,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         if (methodOverride === 'DELETE') {
             const id = parseInt(commentMatch[1]);
             const comment = await db.prepare('SELECT * FROM comments WHERE id = ?').bind(id).first();
-            if (!comment) return jsonRes({ error: t('apiCommentDeleted') });
-            if (user.id !== comment.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
+            if (!comment) return jsonRes({ error: t('apiCommentDeleted') }, 404);
+            if (user.id !== comment.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             await db.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
             const referer = request.headers.get('referer') || '/articles/list';
             return new Response(null, { status: 302, headers: { Location: referer } });

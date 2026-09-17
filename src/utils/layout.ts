@@ -583,14 +583,19 @@ export async function getLayout(
     }
     window.typesetMath = typesetMath;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    function renderMarkdownNodes(root) {
       var markdownNodes = [];
-      document.querySelectorAll('.markdown-content').forEach(function(el) {
+      (root || document).querySelectorAll('.markdown-content').forEach(function(el) {
         var text = el.textContent;
         el.innerHTML = renderMarkdown(text);
         markdownNodes.push(el);
       });
       typesetMath(markdownNodes);
+    }
+    window.renderMarkdownNodes = renderMarkdownNodes;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderMarkdownNodes(document);
     });
 
     function toggleMobileMenu() {
@@ -633,14 +638,17 @@ export async function getLayout(
       const cachePrefix = 'starlight:spa:';
       const cacheTtl = 30000;
       const cacheablePaths = new Set(['/','/index.html','/benben','/articles/list','/ticket/list','/judgement','/clipboard']);
-      const privatePaths = ['/messages', '/pm', '/backend', '/login', '/register', '/user/', '/ticket/new', '/ticket/'];
+      const spaExcludedPaths = ['/messages', '/pm', '/backend', '/login', '/register', '/logout', '/settings'];
       const mainSelector = '#spa-main-content';
 
-      function isCacheable(url) {
-        if (document.cookie.indexOf('uid=') !== -1) return false;
+      function canUseSpa(url) {
         if (url.origin !== window.location.origin) return false;
-        if (privatePaths.some(path => url.pathname === path || url.pathname.startsWith(path))) return false;
-        return cacheablePaths.has(url.pathname);
+        return !spaExcludedPaths.some(path => url.pathname === path || url.pathname.startsWith(path));
+      }
+
+      function canCache(url) {
+        if (document.cookie.indexOf('uid=') !== -1) return false;
+        return canUseSpa(url) && cacheablePaths.has(url.pathname);
       }
 
       function getCached(url) {
@@ -658,13 +666,27 @@ export async function getLayout(
         } catch (_) { /* Storage may be disabled or full. */ }
       }
 
+      let pageTimers = [];
+
       function executePageScripts(root) {
-        root.querySelectorAll('script').forEach(oldScript => {
-          const script = document.createElement('script');
-          Array.from(oldScript.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
-          script.textContent = oldScript.textContent;
-          oldScript.replaceWith(script);
-        });
+        pageTimers.forEach(id => window.clearInterval(id));
+        pageTimers = [];
+        const nativeSetInterval = window.setInterval;
+        window.setInterval = function(handler, timeout) {
+          const id = nativeSetInterval(handler, timeout);
+          pageTimers.push(id);
+          return id;
+        };
+        try {
+          root.querySelectorAll('script').forEach(oldScript => {
+            const script = document.createElement('script');
+            Array.from(oldScript.attributes).forEach(attribute => script.setAttribute(attribute.name, attribute.value));
+            script.textContent = oldScript.textContent;
+            oldScript.replaceWith(script);
+          });
+        } finally {
+          window.setInterval = nativeSetInterval;
+        }
       }
 
       function updateActiveNavigation(pathname) {
@@ -684,6 +706,7 @@ export async function getLayout(
         document.title = parsed.title;
         updateActiveNavigation(url.pathname);
         executePageScripts(currentMain);
+        if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(currentMain);
         if (pushState) history.pushState({ spa: true }, '', url.href);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         document.body.classList.remove('spa-loading');
@@ -693,18 +716,18 @@ export async function getLayout(
       }
 
       async function navigate(url, pushState = true) {
-        if (!isCacheable(url)) {
+        if (!canUseSpa(url)) {
           window.location.href = url.href;
           return;
         }
-        const cached = getCached(url);
+        const cached = canCache(url) ? getCached(url) : null;
         if (cached && replaceMain(cached, url, pushState)) return;
         document.body.classList.add('spa-loading');
         try {
           const response = await fetch(url.href, { headers: { 'X-Starlight-SPA': '1' }, credentials: 'same-origin' });
           if (!response.ok) throw new Error('SPA navigation failed');
           const html = await response.text();
-          if (isCacheable(url)) setCached(url, html);
+          if (canCache(url)) setCached(url, html);
           if (!replaceMain(html, url, pushState)) throw new Error('SPA content missing');
         } catch (_) {
           window.location.href = url.href;
@@ -718,7 +741,7 @@ export async function getLayout(
         const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
         if (!link || link.target === '_blank' || link.hasAttribute('download') || link.getAttribute('href').startsWith('#') || link.dataset.noSpa !== undefined) return;
         const url = new URL(link.href, window.location.href);
-        if (!isCacheable(url)) return;
+        if (!canUseSpa(url)) return;
         event.preventDefault();
         navigate(url);
       });

@@ -67,7 +67,7 @@ export async function handleMessages(request: Request, env: Env, path: string) {
             `SELECT m.*, u.username as from_name, u.color as from_color, u.tag as from_tag
              FROM messages m
              LEFT JOIN users u ON m.from_user_id = u.id
-             WHERE m.to_user_id = ?
+             WHERE m.to_user_id = ? AND m.type != 'pm_chat'
              ORDER BY m.created_at DESC LIMIT 50`
         ).bind(user.id).all();
         return jsonRes({ messages: messages.results });

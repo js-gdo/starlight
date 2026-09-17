@@ -1,6 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { formatTimeToChina } from '../utils/time';
+import { formatTimeToChina, getChinaDateString } from '../utils/time';
 import { htmlEscape, renderAvatar, renderUsernameLink } from '../utils/html';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
@@ -43,7 +43,7 @@ export async function renderHome(env: Env, req: Request) {
 
     const onlineCount = onlineResult ? onlineResult.cnt : 0;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getChinaDateString();
     let isCheckedIn = false;
     let fortuneDisplay = '';
     let fortuneDetail = '';

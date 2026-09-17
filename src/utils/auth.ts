@@ -1,4 +1,9 @@
 import type { Env } from '../env.d';
+import { hmacSha256, randomHex } from './crypto';
+
+const SESSION_COOKIE = 'uid';
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+let cachedSessionSecret: string | null = null;
 
 /**
  * 从请求中获取指定名称的 Cookie 值
@@ -10,15 +15,65 @@ export function getCookie(req: Request, name: string): string | null {
 }
 
 /**
- * 根据 Cookie 中的 uid 获取当前登录用户信息
+ * 会话密钥存放在 site_settings，缺失时生成并落库
+ */
+async function getSessionSecret(env: Env): Promise<string> {
+    if (cachedSessionSecret) return cachedSessionSecret;
+    try {
+        const row = await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'session_secret'").first<Record<string, any>>();
+        if (row && row.setting_value) {
+            cachedSessionSecret = String(row.setting_value);
+            return cachedSessionSecret;
+        }
+    } catch { }
+    const secret = randomHex(32);
+    try {
+        await env.DB.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('session_secret', ?)").bind(secret).run();
+        const row = await env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'session_secret'").first<Record<string, any>>();
+        cachedSessionSecret = row && row.setting_value ? String(row.setting_value) : secret;
+    } catch {
+        cachedSessionSecret = secret;
+    }
+    return cachedSessionSecret;
+}
+
+export function getSessionMaxAge(): number {
+    return SESSION_TTL_SECONDS;
+}
+
+/**
+ * 签发会话 Cookie 值，格式为 uid.expires.signature
+ */
+export async function createSession(env: Env, uid: number): Promise<string> {
+    const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+    const payload = `${uid}.${expires}`;
+    return `${payload}.${await hmacSha256(await getSessionSecret(env), payload)}`;
+}
+
+/**
+ * 校验会话 Cookie 值并取出 uid，签名不符或已过期返回 null
+ */
+async function verifySession(env: Env, value: string | null): Promise<number | null> {
+    if (!value) return null;
+    const parts = value.split('.');
+    if (parts.length !== 3) return null;
+    const uid = parseInt(parts[0], 10);
+    const expires = parseInt(parts[1], 10);
+    if (!uid || !expires || expires < Math.floor(Date.now() / 1000)) return null;
+    const expected = await hmacSha256(await getSessionSecret(env), `${parts[0]}.${parts[1]}`);
+    return expected === parts[2] ? uid : null;
+}
+
+/**
+ * 根据会话 Cookie 获取当前登录用户信息
  * 同时会节流更新用户的 last_active_at 字段（距上次更新超过 60 秒）
  */
 export async function getSessionUser(env: Env, req: Request): Promise<any | null> {
-    const uid = getCookie(req, 'uid');
+    const uid = await verifySession(env, getCookie(req, SESSION_COOKIE));
     if (!uid) return null;
     try {
-        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(parseInt(uid)).first<Record<string, any>>();
-        if (user) {
+        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first<Record<string, any>>();
+        if (user && user.use) {
             const now = new Date();
             const lastActive = user.last_active_at ? new Date(user.last_active_at) : null;
             if (!lastActive || (now.getTime() - lastActive.getTime()) > 60000) {
@@ -28,7 +83,7 @@ export async function getSessionUser(env: Env, req: Request): Promise<any | null
             }
             await recordOnlinePeak(env, now);
         }
-        return user;
+        return user && user.use ? user : null;
     } catch {
         return null;
     }

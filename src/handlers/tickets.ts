@@ -18,7 +18,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const title = form.get('title');
         const content = form.get('content');
-        if (!title || !content) return jsonRes({ error: t('apiMissingParams') });
+        if (!title || !content) return jsonRes({ error: t('apiMissingParams') }, 400);
         const ticketType = String(form.get('ticket_type') || 'normal');
         const permission = ticketType === 'permission' ? String(form.get('permission') || '') : '';
         const permissionAction = ticketType === 'permission' ? String(form.get('permission_action') || '') : '';
@@ -95,12 +95,12 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         if (methodOverride === 'PUT') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
-            if (!ticket) return jsonRes({ error: t('apiTicketNotFound') });
-            if (user.id !== ticket.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') });
+            if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
+            if (user.id !== ticket.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
 
             const title = form.get('title');
             const content = form.get('content');
-            if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') });
+            if (!title || !content) return jsonRes({ error: t('apiMissingTitleOrContent') }, 400);
             const invalidMentions = validateAtMentionSpacing(String(content));
             if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);
 
@@ -141,7 +141,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const form = await request.formData();
         const status = String(form.get('status') || '');
         const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first<any>();
-        if (!ticket) return jsonRes({ error: t('apiTicketNotFound') });
+        if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
 
         await db.prepare('UPDATE tickets SET status = ? WHERE id = ?').bind(status, id).run();
         if (ticket.author_id !== user.id) {
@@ -170,7 +170,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         }
         const form = await request.formData();
         const content = String(form.get('content') || '');
-        if (!content) return jsonRes({ error: t('apiMissingParams') });
+        if (!content) return jsonRes({ error: t('apiMissingParams') }, 400);
 
         const invalidMentions = validateAtMentionSpacing(String(content));
         if (invalidMentions.length > 0) return jsonRes({ error: t('apiAtMentionFormat') }, 400);

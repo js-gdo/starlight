@@ -17,6 +17,10 @@ export function formatTimeToChina(timestamp: any): string {
     }
 }
 
+export function getChinaDateString(): string {
+    return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
 export function getChinaTime() {
     const now = new Date();
     const chinaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
