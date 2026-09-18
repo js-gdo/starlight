@@ -1,6 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { getTranslator } from '../utils/i18n';
+import { htmlEscape } from '../utils/html';
 import type { Env } from '../env.d';
 
 const hardwareCatalog = [
@@ -65,6 +66,14 @@ export async function renderServer(env: Env, req: Request) {
         .server-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
         .server-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
         .server-card h3 { font-size: 15px; margin-bottom: 10px; color: #333; }
+        .server-hero { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; padding:22px; background:linear-gradient(135deg,#2f4054,#596b80); color:#fff; border-radius:10px; box-shadow:0 8px 20px rgba(47,64,84,.18); }
+        .server-hero h1 { font-size:28px; margin:0 0 6px; }
+        .server-hero p { color:rgba(255,255,255,.72); font-size:13px; }
+        .server-hero-badge { padding:8px 12px; border:1px solid rgba(255,255,255,.24); border-radius:8px; color:#fff; background:rgba(255,255,255,.1); font-size:12px; white-space:nowrap; }
+        .server-tabs { display:flex; gap:6px; overflow-x:auto; padding:2px; }
+        .server-tab { border:1px solid #e6e0ed; background:#fff; color:#666; border-radius:7px; padding:8px 14px; cursor:pointer; font-size:13px; white-space:nowrap; }
+        .server-tab.active, .server-tab:hover { background:#8E44AD; border-color:#8E44AD; color:#fff; }
+        .server-view[hidden] { display:none; }
         .server-stat { font-size: 28px; font-weight: 800; color: #8E44AD; }
         .server-sub { color: #777; font-size: 12px; margin-top: 4px; }
         .server-panel { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; }
@@ -77,13 +86,26 @@ export async function renderServer(env: Env, req: Request) {
         .exchange-form button { background: #8E44AD; color: #fff; border: none; cursor: pointer; font-weight: 600; }
         .server-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .server-table th, .server-table td { border-bottom: 1px solid #f0f0f0; padding: 8px 6px; text-align: left; }
+        .server-filter { display:flex; gap:8px; margin-bottom:10px; }
+        .server-filter input, .server-filter select { flex:1; min-width:0; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; }
         @media (max-width: 900px) { .server-grid, .server-panel, .server-rankings { grid-template-columns: 1fr; } }
       </style>
 
-      <div class="page-header">
-        <h1><i class="fas fa-server"></i> 服务器庄园</h1>
+      <div class="server-hero">
+        <div>
+          <h1><i class="fas fa-server"></i> 服务器庄园</h1>
+          <p>搭建你的服务器，管理资产、积分和 Server 币。</p>
+        </div>
+        <div class="server-hero-badge"><i class="fas fa-shield-halved"></i> 经济规则已启用</div>
+      </div>
+      <div class="server-tabs" role="tablist" aria-label="服务器庄园视图">
+        <button class="server-tab active" data-server-tab="overview" type="button">总览</button>
+        <button class="server-tab" data-server-tab="exchange" type="button">货币兑换</button>
+        <button class="server-tab" data-server-tab="ranking" type="button">全服排名</button>
+        <button class="server-tab" data-server-tab="hardware" type="button">硬件商店</button>
       </div>
       <div class="server-layout">
+        <div class="server-view" data-server-view="overview">
         <div class="server-grid">
           <div class="server-card">
             <h3>当前 Server 币</h3>
@@ -105,7 +127,9 @@ export async function renderServer(env: Env, req: Request) {
             <div class="server-sub">E5-2686 v4 · X99 主板 · 16GB DDR4 · 1TB HDD · 5 Server 币</div>
           </div>
         </div>
+        </div>
 
+        <div class="server-view" data-server-view="exchange" hidden>
         <div class="server-panel">
           <div class="server-card">
             <h3><i class="fas fa-exchange-alt"></i> 货币兑换</h3>
@@ -132,7 +156,9 @@ export async function renderServer(env: Env, req: Request) {
             </div>
           </div>
         </div>
+        </div>
 
+        <div class="server-view" data-server-view="ranking" hidden>
         <div class="server-rankings">
           <div class="server-card">
             <h3><i class="fas fa-medal"></i> 服务器硬件排名</h3>
@@ -141,7 +167,7 @@ export async function renderServer(env: Env, req: Request) {
                 <div class="rank-item">
                   <div class="rank-badge">${index + 1}</div>
                   <div>
-                    <div style="font-weight:700;">${row.username}</div>
+                    <div style="font-weight:700;">${htmlEscape(String(row.username || '未知用户'))}</div>
                     <div style="font-size:11px;color:#666;">${row.server_cpu || 'E5-2686 v4'} · ${row.server_ram || '16GB DDR4'}</div>
                   </div>
                   <div style="font-weight:700;color:#8E44AD;">${Number(row.server_hardware_score || 0)}</div>
@@ -157,7 +183,7 @@ export async function renderServer(env: Env, req: Request) {
                 <div class="rank-item">
                   <div class="rank-badge">${index + 1}</div>
                   <div>
-                    <div style="font-weight:700;">${row.username}</div>
+                    <div style="font-weight:700;">${htmlEscape(String(row.username || '未知用户'))}</div>
                     <div style="font-size:11px;color:#666;">积分 ${Number(row.points || 0)}</div>
                   </div>
                   <div style="font-weight:700;color:#8E44AD;">${Number(row.server_coin || 0)}</div>
@@ -166,9 +192,21 @@ export async function renderServer(env: Env, req: Request) {
             </div>
           </div>
         </div>
+        </div>
 
+        <div class="server-view" data-server-view="hardware" hidden>
         <div class="server-card">
           <h3><i class="fas fa-list"></i> 硬件商店</h3>
+          <div class="server-filter">
+            <input id="hardwareSearch" type="search" placeholder="搜索硬件名称">
+            <select id="hardwareType">
+              <option value="all">全部硬件</option>
+              <option value="cpu">CPU</option>
+              <option value="memory">内存</option>
+              <option value="storage">存储</option>
+              <option value="board">主板</option>
+            </select>
+          </div>
           <table class="server-table">
             <thead>
               <tr>
@@ -178,8 +216,8 @@ export async function renderServer(env: Env, req: Request) {
               </tr>
             </thead>
             <tbody>
-              ${hardwareCatalog.slice(0, 12).map((item: any) => `
-                <tr>
+              ${hardwareCatalog.map((item: any) => `
+                <tr data-hardware-name="${htmlEscape(item.name.toLowerCase())}" data-hardware-type="${item.name.includes('主板') ? 'board' : item.name.includes('DDR') ? 'memory' : item.name.includes('HDD') || item.name.includes('SSD') || item.name.includes('NVMe') ? 'storage' : 'cpu'}">
                   <td>${item.name}</td>
                   <td>${item.score}</td>
                   <td>${item.price.toFixed(1)} Server 币</td>
@@ -188,9 +226,28 @@ export async function renderServer(env: Env, req: Request) {
             </tbody>
           </table>
         </div>
+        </div>
       </div>
 
       <script>
+        document.querySelectorAll('[data-server-tab]').forEach(function (tab) {
+          tab.addEventListener('click', function () {
+            const view = tab.getAttribute('data-server-tab');
+            document.querySelectorAll('[data-server-tab]').forEach(function (item) { item.classList.toggle('active', item === tab); });
+            document.querySelectorAll('[data-server-view]').forEach(function (panel) { panel.hidden = panel.getAttribute('data-server-view') !== view; });
+          });
+        });
+        function filterHardware() {
+          const keyword = String(document.getElementById('hardwareSearch')?.value || '').toLowerCase().trim();
+          const type = String(document.getElementById('hardwareType')?.value || 'all');
+          document.querySelectorAll('[data-hardware-name]').forEach(function (row) {
+            const matchesName = !keyword || row.getAttribute('data-hardware-name').includes(keyword);
+            const matchesType = type === 'all' || row.getAttribute('data-hardware-type') === type;
+            row.hidden = !(matchesName && matchesType);
+          });
+        }
+        document.getElementById('hardwareSearch')?.addEventListener('input', filterHardware);
+        document.getElementById('hardwareType')?.addEventListener('change', filterHardware);
         const form = document.getElementById('serverExchangeForm');
         if (form) {
           form.addEventListener('submit', async function (event) {
