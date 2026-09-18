@@ -308,6 +308,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
+const CURRENT_SCHEMA_VERSION = '2';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
@@ -316,14 +317,14 @@ export async function ensureDB(env: Env) {
         const marker = await env.DB.prepare(
             "SELECT setting_value FROM site_settings WHERE setting_key = 'schema_version'"
         ).first();
-        if (marker) {
+        if (marker?.setting_value === CURRENT_SCHEMA_VERSION) {
             schemaReady = true;
             return;
         }
     } catch { }
     await initDB(env);
     await env.DB.prepare(
-        "INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('schema_version', '1')"
-    ).run();
+        "INSERT INTO site_settings (setting_key, setting_value) VALUES ('schema_version', ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value"
+      ).bind(CURRENT_SCHEMA_VERSION).run();
     schemaReady = true;
 }
