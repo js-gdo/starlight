@@ -10,10 +10,15 @@ import { handleAdmin } from './admin';
 import { handleUser } from './user';
 import { handleReports } from './reports';
 import { handleServer } from './server';
+import { handleHealth } from './health';
 import { jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 
 export async function handleApi(request: Request, env: Env, path: string) {
+    if (path === '/api/health') {
+        return handleHealth(request, env);
+    }
+
     // 按路径前缀分发
     if (path === '/api/login' || path === '/api/register') {
         return handleAuth(request, env, path);
