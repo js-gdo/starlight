@@ -123,4 +123,11 @@ describe("server game management UI", () => {
 		expect(html).toContain("Docker");
 		expect(html).toContain("DDoS");
 	});
+
+	it("exposes an actual DDoS attack action for opposing servers", async () => {
+		const response = await SELF.fetch("https://example.com/server");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("DDoS 攻击");
+	});
 });

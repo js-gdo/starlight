@@ -151,6 +151,61 @@ export async function handleServer(request: Request, env: Env, path: string) {
         });
     }
 
+    if (path === '/api/server/attack' && method === 'POST') {
+        if (!user) return jsonRes({ error: '请先登录后再发起 DDoS 攻击' }, 401);
+
+        let body: any = {};
+        try {
+            body = await request.json();
+        } catch {
+            return jsonRes({ error: '参数格式错误' }, 400);
+        }
+
+        const targetId = Number(body.target_id || 0);
+        const strength = Math.min(100, Math.max(10, Number(body.strength || 25)));
+        if (!targetId || targetId === user.id) {
+            return jsonRes({ error: '请选择正确的攻击目标' }, 400);
+        }
+
+        const targetUser = await db.prepare(
+            `SELECT id, username, server_hardware_score, server_coin, server_assets
+             FROM users WHERE id = ?`
+        ).bind(targetId).first<any>();
+        if (!targetUser) {
+            return jsonRes({ error: '目标用户不存在' }, 404);
+        }
+
+        const targetDefense = (Number(targetUser.server_hardware_score || 0) * 0.25)
+            + (JSON.parse(String(targetUser.server_assets || '[]')).filter((item: any) => item?.type === 'defense').length * 320);
+        const attackPower = (Number(user.server_hardware_score || 0) * 0.4) + (strength * 12);
+        const success = attackPower >= targetDefense;
+        const reward = 60 + strength * 3;
+        const loss = success ? Math.max(30, Math.round((strength + 25) * 1.4)) : 20;
+
+        if (success) {
+            const targetCoinLoss = Math.min(Number(targetUser.server_coin || 0), loss);
+            await db.prepare('UPDATE users SET server_coin = server_coin + ? WHERE id = ?').bind(reward, user.id).run();
+            await db.prepare('UPDATE users SET server_coin = ? WHERE id = ?').bind(Math.max(0, Number(targetUser.server_coin || 0) - targetCoinLoss), targetId).run();
+            return jsonRes({
+                success: true,
+                message: `已对 ${targetUser.username} 发起 DDoS 攻击，成功造成 ${targetCoinLoss} Server 币损失并获得 ${reward} Server 币收益`,
+                attack_power: attackPower,
+                defense_power: targetDefense,
+                target_loss: targetCoinLoss,
+                reward,
+            });
+        }
+
+        await db.prepare('UPDATE users SET server_coin = server_coin - ? WHERE id = ?').bind(20, user.id).run();
+        return jsonRes({
+            success: false,
+            message: `DDoS 攻击未能突破 ${targetUser.username} 的防御，已消耗 20 Server 币`,
+            attack_power: attackPower,
+            defense_power: targetDefense,
+            cost: 20,
+        }, 400);
+    }
+
     if (path === '/api/server/exchange' && method === 'POST') {
         if (!user) return jsonRes({ error: '请先登录后再兑换' }, 401);
 
