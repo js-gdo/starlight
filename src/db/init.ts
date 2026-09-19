@@ -11,6 +11,7 @@ export async function initDB(env: Env) {
       use INTEGER DEFAULT 1,
       speak INTEGER DEFAULT 1,
       admin INTEGER DEFAULT 0,
+      admin_roles TEXT DEFAULT '["unassigned"]',
       color TEXT DEFAULT 'red',
       tag TEXT DEFAULT '',
       avatar_url TEXT DEFAULT '',
@@ -268,6 +269,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN server_last_event_date TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN egg_endings TEXT DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN egg_locked INTEGER DEFAULT 0',
+        'ALTER TABLE users ADD COLUMN admin_roles TEXT DEFAULT "[]"',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
@@ -288,6 +290,8 @@ export async function initDB(env: Env) {
     for (const sql of alterColumns) {
         try { await db.prepare(sql).run(); } catch { }
     }
+
+    await db.prepare("UPDATE users SET admin_roles = '[\"unassigned\"]' WHERE admin = 1 AND (admin_roles IS NULL OR admin_roles = '' OR admin_roles = '[]')").run();
 
     const indexes = [
         'CREATE INDEX IF NOT EXISTS idx_articles_pinned_created ON articles (is_pinned, created_at)',
@@ -316,7 +320,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '4';
+const CURRENT_SCHEMA_VERSION = '5';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

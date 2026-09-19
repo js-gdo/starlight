@@ -4,6 +4,7 @@ import { isValidUserColor } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 import { writeAudit } from '../utils/audit';
+import { normalizeAdminRoles } from '../utils/adminRoles';
 
 export async function handleAdmin(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -12,6 +13,23 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     const user = await getSessionUser(env, request);
 
     if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+
+    if (path === '/api/admin/roles' && method === 'POST') {
+        if (user.id !== 1) return jsonRes({ error: '只有 superuser（UID 1）可以修改管理员分类' }, 403);
+        const form = await request.formData();
+        const ids = form.getAll('user_id').map(value => Number(value)).filter(id => Number.isInteger(id) && id > 0);
+        const reason = String(form.get('reason') || '').trim().slice(0, 500);
+        if (!ids.length) return jsonRes({ error: '请选择至少一名管理员' }, 400);
+        if (!reason) return jsonRes({ error: '批量修改管理员分类必须填写理由' }, 400);
+        const roles = normalizeAdminRoles(form.getAll('role'));
+        const placeholders = ids.map(() => '?').join(',');
+        const targets = await db.prepare(`SELECT id FROM users WHERE admin = 1 AND id IN (${placeholders})`).bind(...ids).all<any>();
+        const targetIds = (targets.results || []).map(row => Number(row.id));
+        if (targetIds.length !== ids.length) return jsonRes({ error: '只能修改当前管理员的分类' }, 400);
+        await db.prepare(`UPDATE users SET admin_roles = ? WHERE id IN (${placeholders})`).bind(JSON.stringify(roles), ...targetIds).run();
+        await writeAudit(env, user.id, '批量修改管理员分类', 'admin_roles', 0, `目标UID: ${targetIds.join(',')} | 分类: ${roles.join(',')} | 理由: ${reason}`);
+        return new Response(null, { status: 302, headers: { Location: '/admin-list' } });
+    }
 
     const userMatch = path.match(/^\/api\/admin\/user\/(\d+)$/);
     if (userMatch && method === 'POST') {

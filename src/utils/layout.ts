@@ -55,6 +55,7 @@ export async function getLayout(
     const navItems = [
         { href: '/', label: t('home'), active: title === t('home') },
         { href: '/server', label: '服务器庄园', active: title === '服务器庄园' },
+        { href: '/admin-list', label: '管理员列表', active: title === '管理员列表' },
         { href: '/benben', label: t('benben'), active: title === t('benben') },
         { href: '/articles/list', label: t('articleList'), active: ['帖子列表', '帖子详情', '发布帖子', '编辑帖子'].includes(title) },
         { href: '/ticket/list', label: t('ticketList'), active: ['工单列表', '工单详情', '创建工单', '编辑工单'].includes(title) },
@@ -74,6 +75,7 @@ export async function getLayout(
         const iconMap: Record<string, string> = {
             '/': 'fa-home',
             '/server': 'fa-server',
+            '/admin-list': 'fa-user-shield',
             '/benben': 'fa-comment',
             '/articles/list': 'fa-file-alt',
             '/ticket/list': 'fa-ticket-alt',

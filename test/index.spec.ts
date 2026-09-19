@@ -176,3 +176,14 @@ describe("Unknown easter egg API", () => {
 	});
 
 });
+
+describe("administrator list", () => {
+	it("renders the public administrator list route", async () => {
+		const response = await SELF.fetch("https://example.com/admin-list");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("管理员列表");
+		expect(html).toContain("未分配管理");
+		expect(html).toContain("/admin-list");
+	});
+});

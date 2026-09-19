@@ -3,6 +3,7 @@ import { getLayout } from '../utils/layout';
 import { renderAvatar, renderUsernameLink, htmlEscape } from '../utils/html';
 import { getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
+import { ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import type { Env } from '../env.d';
 
 export async function renderUser(env: Env, req: Request, path: string) {
@@ -33,6 +34,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
                 </div>
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
+                ${user.admin ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${parseAdminRoles(user.admin_roles).map(role => `<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#f3e8ff;color:#6b21a8;font-size:12px;">${ADMIN_ROLE_LABELS[role]}</span>`).join('')}</div>` : ''}
                 ${currentUser && currentUser.id == user.id ? `<a href="/settings" style="display:inline-block;margin-top:12px;color:#8E44AD;text-decoration:none;"><i class="fas fa-user-cog"></i> 用户设置</a>` : ''}
                 ${currentUser && currentUser.id != user.id ? `
                     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
