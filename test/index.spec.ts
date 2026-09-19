@@ -188,3 +188,15 @@ describe("administrator list", () => {
 	});
 
 });
+
+describe("public health page", () => {
+	it("renders community service metrics", async () => {
+		const response = await SELF.fetch("https://example.com/health");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("服务脉搏");
+		expect(html).toContain("当前在线");
+		expect(html).toContain("新工单");
+		expect(html).toContain("/api/health");
+	});
+});
