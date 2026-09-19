@@ -8,11 +8,13 @@ function getChinaDayRange(now: Date): { date: string; start: string; end: string
     const chinaNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
     const date = chinaNow.toISOString().slice(0, 10);
     const nextDay = new Date(`${date}T00:00:00.000Z`);
+    const start = new Date(nextDay.getTime() - 8 * 60 * 60 * 1000).toISOString();
+    const end = new Date(nextDay.getTime() + 16 * 60 * 60 * 1000).toISOString();
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
     return {
         date,
-        start: new Date(nextDay.getTime() - 24 * 60 * 60 * 1000 - 8 * 60 * 60 * 1000).toISOString(),
-        end: new Date(nextDay.getTime() - 8 * 60 * 60 * 1000).toISOString(),
+        start,
+        end,
     };
 }
 

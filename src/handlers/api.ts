@@ -11,12 +11,16 @@ import { handleUser } from './user';
 import { handleReports } from './reports';
 import { handleServer } from './server';
 import { handleHealth } from './health';
+import { handleEgg } from './egg';
 import { jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 
 export async function handleApi(request: Request, env: Env, path: string) {
     if (path === '/api/health') {
         return handleHealth(request, env);
+    }
+    if (path === '/api/egg/status' || path === '/api/egg/claim') {
+        return handleEgg(request, env, path);
     }
 
     // 按路径前缀分发
