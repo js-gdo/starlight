@@ -166,3 +166,7 @@ dist
 .env*
 !.env.example
 .wrangler/
+
+# Example svg
+
+*.svg

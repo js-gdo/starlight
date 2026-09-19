@@ -114,3 +114,13 @@ describe("report processing metadata", () => {
 		expect(auditText).toContain("已确认违规");
 	});
 });
+
+describe("server game management UI", () => {
+	it("exposes concrete server operations like Docker and DDoS controls", async () => {
+		const response = await SELF.fetch("https://example.com/server");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("Docker");
+		expect(html).toContain("DDoS");
+	});
+});
