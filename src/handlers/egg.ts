@@ -49,7 +49,7 @@ export async function handleEgg(request: Request, env: Env, path: string): Promi
     const endings = parseEndings(row?.egg_endings);
 
     if (path === '/api/egg/status' && request.method === 'GET') {
-        return jsonRes({ locked: Number(row?.egg_locked || 0) === 1, endings });
+        return jsonRes({ locked: false, endings });
     }
 
     if (path !== '/api/egg/claim' || request.method !== 'POST') {
@@ -63,16 +63,13 @@ export async function handleEgg(request: Request, env: Env, path: string): Promi
     if (!(ending in REWARDS) || !isValidEnding(ending, choices)) {
         return jsonRes({ error: '结局路径校验失败' }, 400);
     }
-    if (Number(row?.egg_locked || 0) === 1 && ending !== 'E2') {
-        return jsonRes({ error: '彩蛋已永久封锁' }, 403);
-    }
     if (endings.includes(ending)) {
         return jsonRes({ success: true, claimed: false, ending, name: ENDING_NAMES[ending], reward: 0, points: Number(row?.points || 0) });
     }
 
     const reward = REWARDS[ending];
     const nextEndings = [...endings, ending];
-    const nextLocked = ending === 'E2' ? 1 : Number(row?.egg_locked || 0);
+    const nextLocked = 0;
     await env.DB.prepare(
         'UPDATE users SET points = points + ?, egg_endings = ?, egg_locked = ? WHERE id = ?'
     ).bind(reward, JSON.stringify(nextEndings), nextLocked, user.id).run();
@@ -84,6 +81,6 @@ export async function handleEgg(request: Request, env: Env, path: string): Promi
         name: ENDING_NAMES[ending],
         reward,
         points: Number(row?.points || 0) + reward,
-        locked: nextLocked === 1,
+        locked: false,
     });
 }
