@@ -888,9 +888,10 @@ export async function getLayout(
       busy=false;
     }
     async function start() {
-      if (busy) return; var status=await fetch('/api/egg/status'); var data=await status.json(); if (data.locked) return;
+      if (busy) return; var status=await fetch('/api/egg/status'); var data=await status.json();
       var saved=null; try { saved=JSON.parse(localStorage.getItem('egg_progress') || 'null'); } catch (error) { saved=null; }
-      state=saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]}; openOverlay();
+      state=data.endings && data.endings.length ? {node:'N1',suspicion:0,choices:[]} : (saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]});
+      if (data.endings && data.endings.length) clearProgress(); openOverlay();
       if (state.node === 'N1' && state.choices.length === 0) await showLines(['……你还在。']);
       await renderNode(state.node);
     }

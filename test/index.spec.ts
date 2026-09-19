@@ -174,4 +174,5 @@ describe("Unknown easter egg API", () => {
 		});
 		expect(claim.status).toBe(403);
 	});
+
 });
