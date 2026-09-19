@@ -102,7 +102,7 @@ export async function renderServer(env: Env, req: Request) {
     let userStats: any = null;
     if (user) {
         userStats = await db.prepare(
-            `SELECT id, username, color, tag, points, server_coin, server_hardware_score, server_cpu, server_motherboard, server_ram, server_storage, server_assets
+            `SELECT id, username, color, tag, points, server_coin, server_hardware_score, server_cpu, server_motherboard, server_ram, server_storage, server_assets, server_last_collected_at
              FROM users WHERE id = ?`
         ).bind(user.id).first<any>();
     }
@@ -133,7 +133,8 @@ export async function renderServer(env: Env, req: Request) {
     const dockerCount = serverAssets.filter((item: any) => item?.type === 'docker' || item?.id === 'docker-base' || item?.id === 'docker-extended').length;
     const installedHardware = serverAssets.filter((item: any) => ['cpu', 'board', 'memory', 'storage', 'gpu', 'nic', 'power'].includes(String(item?.type || '')));
     const installedSoftware = serverAssets.filter((item: any) => item?.type === 'software');
-    const dockerCapacity = 2 + serverAssets.filter((item: any) => String(item?.id || '').includes('docker-extended')).length * 3;
+    const dockerEnabled = dockerCount > 0;
+    const dockerCapacity = dockerEnabled ? 2 + serverAssets.filter((item: any) => String(item?.id || '').includes('docker-extended')).length * 3 : 0;
     const serviceLimit = dockerCapacity > 0 ? Math.max(dockerCapacity, Math.min(8, Math.max(2, Math.floor(hardwareScore / 200000) + 2))) : 1;
     const cpuName = userStats?.server_cpu || 'E5-2686 v4';
     const ramName = userStats?.server_ram || '16GB DDR4';
@@ -142,6 +143,8 @@ export async function renderServer(env: Env, req: Request) {
     const loadValue = Math.min(100, Math.max(15, softwareCount * 12 + defenseCount * 8 + dockerCount * 10));
     const defenseLevel = Math.min(100, 10 + defenseCount * 28);
     const dockerPenalty = dockerCount > 0 ? 'Docker 已启用，CPU 实际性能减少 10%' : 'Docker 未启用，CPU 不受影响';
+    const lastCollectedAt = userStats?.server_last_collected_at ? new Date(String(userStats.server_last_collected_at)) : null;
+    const collectionReady = !lastCollectedAt || !Number.isFinite(lastCollectedAt.getTime()) || Date.now() - lastCollectedAt.getTime() >= 60 * 60 * 1000;
     const attackTargets = user ? await db.prepare(
         `SELECT id, username, server_hardware_score, server_coin
          FROM users
@@ -321,7 +324,8 @@ export async function renderServer(env: Env, req: Request) {
             <h3><i class="fas fa-bolt"></i> 随机事件</h3>
             <div style="display:grid; gap:8px; color:#555; font-size:13px;">
               <div><strong>${htmlEscape(currentEvent.title)}</strong>: ${htmlEscape(currentEvent.summary)}</div>
-              <div>当前策略建议：保持 DDoS 防御与 Docker 资源平衡，避免一段时间内丢失收益。</div>
+              <div>事件会在每日首次结算时生效；Docker 会降低 10% 生产效率。</div>
+              ${user ? `<button type="button" id="collectServerIncome" ${collectionReady ? '' : 'disabled'}>${collectionReady ? '运营结算' : '结算冷却中'}</button><div id="collectMessage" style="font-size:13px;color:#666;"></div>` : ''}
             </div>
           </div>
         </div>
@@ -611,6 +615,26 @@ export async function renderServer(env: Env, req: Request) {
             } catch (error) {
               messageEl.textContent = '网络错误，请稍后再试';
               messageEl.style.color = '#c0392b';
+            }
+          });
+        }
+
+        const collectButton = document.getElementById('collectServerIncome');
+        if (collectButton) {
+          collectButton.addEventListener('click', async function () {
+            collectButton.disabled = true;
+            const messageEl = document.getElementById('collectMessage');
+            try {
+              const response = await fetch('/api/server/collect', { method: 'POST' });
+              const data = await response.json();
+              messageEl.textContent = data.message || data.error || '结算完成';
+              messageEl.style.color = response.ok ? '#27ae60' : '#c0392b';
+              if (response.ok) setTimeout(() => window.location.reload(), 700);
+              else collectButton.disabled = false;
+            } catch (error) {
+              messageEl.textContent = '网络错误，请稍后再试';
+              messageEl.style.color = '#c0392b';
+              collectButton.disabled = false;
             }
           });
         }

@@ -25,6 +25,8 @@ export async function initDB(env: Env) {
       server_motherboard TEXT DEFAULT 'X99 主板',
       server_ram TEXT DEFAULT '16GB DDR4',
       server_storage TEXT DEFAULT '1TB HDD',
+      server_last_collected_at TEXT DEFAULT '',
+      server_last_event_date TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -260,6 +262,8 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN server_motherboard TEXT DEFAULT "X99 主板"',
         'ALTER TABLE users ADD COLUMN server_ram TEXT DEFAULT "16GB DDR4"',
         'ALTER TABLE users ADD COLUMN server_storage TEXT DEFAULT "1TB HDD"',
+        'ALTER TABLE users ADD COLUMN server_last_collected_at TEXT DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN server_last_event_date TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',

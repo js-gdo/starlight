@@ -34,6 +34,24 @@ const catalogLookup = new Map([
     ['docker-extended', { kind: 'docker', price: 960, score: 260, name: '镜像扩容套餐' }],
 ]);
 
+const softwareIncome = new Map([
+    ['software-nginx', 360],
+    ['software-api', 620],
+    ['software-shortlink', 820],
+    ['software-doc-preview', 980],
+    ['software-image-compress', 1250],
+    ['software-sandbox', 1750],
+    ['software-monitoring', 1600],
+    ['software-mysql', 2100],
+]);
+
+const serverEvents = [
+    { title: '线路波动', summary: '线路出现短暂抖动，本次收益减少 15%', multiplier: 0.85, bonus: 0 },
+    { title: '流量暴涨', summary: '突发流量带来额外订单，本次获得 280 Server 币', multiplier: 1, bonus: 280 },
+    { title: '节点宕机', summary: '节点维护导致本次收益归零', multiplier: 0, bonus: 0 },
+    { title: '扩容奖励', summary: '平台发放扩容补贴，本次获得 220 Server 币', multiplier: 1, bonus: 220 },
+];
+
 function normalizeAmount(value: unknown): number {
     const num = Number(value);
     if (!Number.isFinite(num) || num <= 0) return 0;
@@ -67,6 +85,16 @@ function getServiceLimit(assets: any[], hardwareScore: number): number {
     if (hardwareScore >= 500000) return Math.max(dockerCap, 5);
     if (hardwareScore >= 250000) return Math.max(dockerCap, 3);
     return Math.max(dockerCap, 2);
+}
+
+function getEventIndex(userId: number, date: string): number {
+    let hash = userId * 31;
+    for (const character of date) hash = (hash + character.charCodeAt(0)) % 997;
+    return hash % serverEvents.length;
+}
+
+function getUtcDate(value: Date): string {
+    return value.toISOString().slice(0, 10);
 }
 
 export async function handleServer(request: Request, env: Env, path: string) {
@@ -187,6 +215,49 @@ export async function handleServer(request: Request, env: Env, path: string) {
             message: `已购买 ${item.name}，消耗 ${cost} Server 币`,
             result,
             balance_after: Number((currentBalance - cost).toFixed(1)),
+        });
+    }
+
+    if (path === '/api/server/collect' && method === 'POST') {
+        if (!user) return jsonRes({ error: '请先登录后再进行运营结算' }, 401);
+
+        const row = await db.prepare(
+            `SELECT server_coin, server_assets, server_last_collected_at, server_last_event_date
+             FROM users WHERE id = ?`
+        ).bind(user.id).first<any>();
+        const assets = parseServerAssets(row?.server_assets ?? '[]');
+        const now = new Date();
+        const lastCollectedAt = row?.server_last_collected_at ? new Date(String(row.server_last_collected_at)) : null;
+        const elapsedMs = lastCollectedAt && Number.isFinite(lastCollectedAt.getTime()) ? now.getTime() - lastCollectedAt.getTime() : 24 * 60 * 60 * 1000;
+        const cooldownMs = 60 * 60 * 1000;
+        if (elapsedMs < cooldownMs) {
+            const remainingMinutes = Math.ceil((cooldownMs - elapsedMs) / 60000);
+            return jsonRes({ error: `运营结算冷却中，还需 ${remainingMinutes} 分钟`, remaining_minutes: remainingMinutes }, 400);
+        }
+
+        const elapsedHours = Math.min(24, Math.max(1, elapsedMs / (60 * 60 * 1000)));
+        const dailyIncome = assets.reduce((total: number, asset: any) => total + (asset?.type === 'software' ? Number(softwareIncome.get(String(asset.id)) || 0) : 0), 0);
+        const dockerMultiplier = hasDockerAsset(assets) ? 0.9 : 1;
+        const eventDate = getUtcDate(now);
+        const event = serverEvents[getEventIndex(Number(user.id), eventDate)];
+        const eventApplied = String(row?.server_last_event_date || '') !== eventDate;
+        const production = Math.floor(dailyIncome * elapsedHours / 24 * dockerMultiplier);
+        const eventBonus = eventApplied ? event.bonus : 0;
+        const eventProduction = eventApplied ? Math.floor(production * event.multiplier) : production;
+        const earned = Math.max(0, eventProduction + eventBonus);
+        const result = await db.prepare(
+            `UPDATE users
+             SET server_coin = server_coin + ?, server_last_collected_at = ?, server_last_event_date = ?
+             WHERE id = ?`
+        ).bind(earned, now.toISOString(), eventDate, user.id).run();
+
+        return jsonRes({
+            success: true,
+            earned,
+            production,
+            event: eventApplied ? event : null,
+            message: earned > 0 ? `本次运营结算获得 ${earned} Server 币` : '本次运营结算完成，但服务器没有产生收益',
+            result,
         });
     }
 
