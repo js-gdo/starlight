@@ -30,6 +30,7 @@ export async function initDB(env: Env) {
       server_last_event_date TEXT DEFAULT '',
       egg_endings TEXT DEFAULT '[]',
       egg_locked INTEGER DEFAULT 0,
+      sidebar_mode TEXT DEFAULT 'classic',
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -270,6 +271,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN egg_endings TEXT DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN egg_locked INTEGER DEFAULT 0',
         'ALTER TABLE users ADD COLUMN admin_roles TEXT DEFAULT "[]"',
+        'ALTER TABLE users ADD COLUMN sidebar_mode TEXT DEFAULT "classic"',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
@@ -320,7 +322,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '5';
+const CURRENT_SCHEMA_VERSION = '6';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

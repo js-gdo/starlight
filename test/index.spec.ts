@@ -200,3 +200,4 @@ describe("public health page", () => {
 		expect(html).toContain("/api/health");
 	});
 });
+

@@ -92,6 +92,10 @@ export async function renderUserSettings(env: Env, req: Request) {
                 <label>个人主页链接<input type="url" name="profile_link" value="${htmlEscape(String(user.profile_link || ''))}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
                 <label>个人签名<textarea name="bio" rows="4" maxlength="180" placeholder="${t('bioPlaceholder')}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;resize:vertical;">${htmlEscape(String(user.bio || ''))}</textarea></label>
                 <label>头像 URL<input type="url" name="avatar_url" value="${htmlEscape(String(user.avatar_url || ''))}" placeholder="https://example.com/avatar.png" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
+                <label>侧栏样式<select name="sidebar_mode" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="classic" ${user.sidebar_mode !== 'hover' ? 'selected' : ''}>经典侧栏：固定显示</option>
+                    <option value="hover" ${user.sidebar_mode === 'hover' ? 'selected' : ''}>悬停侧栏：鼠标移入展开</option>
+                </select></label>
                 <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;"><i class="fas fa-save"></i> ${t('updateBio')}</button>
             </form>
         </div>
