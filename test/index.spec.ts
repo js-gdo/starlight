@@ -139,5 +139,7 @@ describe("server game management UI", () => {
 		expect(html).toContain("Docker 镜像");
 		expect(html).toContain("GPU");
 		expect(html).toContain("网卡");
+		expect(html).toContain("事件会在每日首次结算时生效");
+		expect(html).toContain("/api/server/collect");
 	});
 });
