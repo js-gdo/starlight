@@ -143,3 +143,22 @@ describe("server game management UI", () => {
 		expect(html).toContain("/api/server/collect");
 	});
 });
+
+describe("health API", () => {
+	it("returns service, access, ticket, and content metrics", async () => {
+		const response = await SELF.fetch("https://example.com/api/health");
+		expect(response.status).toBe(200);
+		const data = await response.json() as any;
+		expect(data.status).toBe("ok");
+		expect(data.service.timezone).toBe("Asia/Shanghai (UTC+8)");
+		expect(data.access).toHaveProperty("current_online");
+		expect(data.tickets).toHaveProperty("new_today");
+		expect(data.content).toHaveProperty("reports_today");
+		expect(data.period.date_china).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+	});
+
+	it("rejects non-GET requests", async () => {
+		const response = await SELF.fetch("https://example.com/api/health", { method: "POST" });
+		expect(response.status).toBe(405);
+	});
+});
