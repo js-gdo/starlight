@@ -138,6 +138,13 @@ export async function renderServer(env: Env, req: Request) {
     const loadValue = Math.min(100, Math.max(15, softwareCount * 12 + defenseCount * 8 + dockerCount * 10));
     const defenseLevel = Math.min(100, 10 + defenseCount * 28);
     const dockerPenalty = dockerCount > 0 ? 'Docker 已启用，CPU 实际性能减少 10%' : 'Docker 未启用，CPU 不受影响';
+    const attackTargets = user ? await db.prepare(
+        `SELECT id, username, server_hardware_score, server_coin
+         FROM users
+         WHERE use = 1 AND id != ?
+         ORDER BY server_hardware_score DESC, server_coin DESC
+         LIMIT 10`
+    ).bind(user.id).all<any>() : { results: [] as any[] };
 
     const content = `
       <style>
@@ -250,6 +257,27 @@ export async function renderServer(env: Env, req: Request) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="server-card" style="margin-top:16px;">
+            <h3><i class="fas fa-bomb"></i> DDoS 攻击</h3>
+            ${user ? `
+              <form class="exchange-form" id="ddosAttackForm">
+                <select id="ddosTarget" name="target_id">
+                  ${(attackTargets.results || []).map((row: any) => `
+                    <option value="${row.id}">${htmlEscape(String(row.username || '未知用户'))} · 硬件 ${Number(row.server_hardware_score || 0)}</option>
+                  `).join('') || '<option value="">暂无可攻击目标</option>'}
+                </select>
+                <select id="ddosStrength" name="strength">
+                  <option value="25">轻度攻击</option>
+                  <option value="50">常规攻击</option>
+                  <option value="75">重度攻击</option>
+                  <option value="100">全力压测</option>
+                </select>
+                <button type="submit">发起 DDoS 攻击</button>
+              </form>
+              <div id="ddosMessage" style="margin-top:10px;color:#666;font-size:13px;"></div>
+            ` : `<div style="color:#666;font-size:14px;">登录后才可对其他服务器发起 DDoS 攻击。</div>`}
           </div>
 
           <div class="server-card" style="margin-top:16px;">
@@ -453,6 +481,35 @@ export async function renderServer(env: Env, req: Request) {
                 return;
               }
               messageEl.textContent = data.message || '兑换成功';
+              messageEl.style.color = '#27ae60';
+              setTimeout(() => window.location.reload(), 700);
+            } catch (error) {
+              messageEl.textContent = '网络错误，请稍后再试';
+              messageEl.style.color = '#c0392b';
+            }
+          });
+        }
+
+        const ddosForm = document.getElementById('ddosAttackForm');
+        if (ddosForm) {
+          ddosForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const targetId = Number(document.getElementById('ddosTarget')?.value || 0);
+            const strength = Number(document.getElementById('ddosStrength')?.value || 25);
+            const messageEl = document.getElementById('ddosMessage');
+            try {
+              const response = await fetch('/api/server/attack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: targetId, strength })
+              });
+              const data = await response.json();
+              if (!response.ok) {
+                messageEl.textContent = data.error || '攻击失败';
+                messageEl.style.color = '#c0392b';
+                return;
+              }
+              messageEl.textContent = data.message || '攻击已发起';
               messageEl.style.color = '#27ae60';
               setTimeout(() => window.location.reload(), 700);
             } catch (error) {
