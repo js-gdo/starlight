@@ -27,6 +27,8 @@ export async function initDB(env: Env) {
       server_storage TEXT DEFAULT '1TB HDD',
       server_last_collected_at TEXT DEFAULT '',
       server_last_event_date TEXT DEFAULT '',
+      egg_endings TEXT DEFAULT '[]',
+      egg_locked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -264,6 +266,8 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN server_storage TEXT DEFAULT "1TB HDD"',
         'ALTER TABLE users ADD COLUMN server_last_collected_at TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN server_last_event_date TEXT DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN egg_endings TEXT DEFAULT "[]"',
+        'ALTER TABLE users ADD COLUMN egg_locked INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
@@ -312,7 +316,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '3';
+const CURRENT_SCHEMA_VERSION = '4';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

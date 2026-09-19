@@ -162,3 +162,16 @@ describe("health API", () => {
 		expect(response.status).toBe(405);
 	});
 });
+
+describe("Unknown easter egg API", () => {
+	it("requires login for status and reward claims", async () => {
+		const status = await SELF.fetch("https://example.com/api/egg/status");
+		expect(status.status).toBe(403);
+		const claim = await SELF.fetch("https://example.com/api/egg/claim", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ending: "E1", choices: [0, 0, 0] }),
+		});
+		expect(claim.status).toBe(403);
+	});
+});

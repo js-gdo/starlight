@@ -90,7 +90,7 @@ export async function getLayout(
     let userSection = '';
     if (user) {
         userSection = `
-      <div class="avatar">${renderAvatar(user, 24)}</div>
+      <div class="avatar" data-unknown-avatar="1" title="">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
       <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
       <form action="/logout" method="GET">
@@ -114,9 +114,16 @@ export async function getLayout(
     ${user ? `<a href="/user/${user.id}" class="quick-link"><i class="fas fa-user"></i> ${t('userProfile')}</a>` : ''}
   `;
 
+    let eggFooter = '';
+    if (user) {
+      try {
+        const endings = JSON.parse(String(user.egg_endings || '[]'));
+        if (Array.isArray(endings) && endings.includes('E4')) eggFooter = `<br><span style="font-family:Consolas,monospace;color:#777;font-size:11px;">// TODO: 给它起个名字</span>`;
+      } catch { }
+    }
     const footerNote = user && user.admin
-        ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>`
-        : `<i class="fas fa-users"></i> ${t('registerToJoin')}`;
+      ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>${eggFooter}`
+      : `<i class="fas fa-users"></i> ${t('registerToJoin')}${eggFooter}`;
 
     // 语言切换下拉框 HTML（固定定位在右上角）
     const langSwitcherHtml = `
@@ -800,6 +807,97 @@ export async function getLayout(
     </aside>
   </div>
   <div id="spa-page-progress" aria-hidden="true"></div>
+  ${user ? `
+  <div id="unknown-egg" aria-hidden="true">
+    <div class="unknown-egg-panel">
+      <button id="unknown-egg-close" type="button" aria-label="关闭">×</button>
+      <div id="unknown-egg-glitch" aria-hidden="true"></div>
+      <div id="unknown-egg-lines"></div>
+      <div id="unknown-egg-options"></div>
+      <div id="unknown-egg-hint">（选择将影响结局）</div>
+    </div>
+  </div>
+  <style>
+    #unknown-egg { display:none; position:fixed; inset:0; z-index:10000; background:#000; color:#fff; font-family:Consolas,monospace; }
+    #unknown-egg.open { display:flex; align-items:center; justify-content:center; }
+    .unknown-egg-panel { width:min(760px,88vw); min-height:45vh; position:relative; display:flex; flex-direction:column; justify-content:center; }
+    #unknown-egg-close { position:fixed; top:18px; right:24px; border:0; background:none; color:#666; font:28px monospace; cursor:pointer; }
+    #unknown-egg-lines { white-space:pre-wrap; font-size:clamp(16px,2.2vw,22px); line-height:2; min-height:8em; text-align:center; }
+    #unknown-egg-options { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+    #unknown-egg-options button { border:1px solid #555; background:#050505; color:#fff; padding:12px 16px; text-align:left; font:inherit; cursor:pointer; }
+    #unknown-egg-options button:hover { border-color:#fff; background:#161616; }
+    #unknown-egg-hint { color:#666; text-align:center; font-size:12px; margin-top:18px; }
+    #unknown-egg-glitch { position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:clamp(52px,10vw,110px); color:#fff; pointer-events:none; }
+    #unknown-egg.glitching .unknown-egg-panel { animation:unknown-flicker .2s steps(2) 4; }
+    @keyframes unknown-flicker { 50% { opacity:.2; filter:brightness(3); } }
+  </style>
+  <script>
+  (function () {
+    var egg = document.getElementById('unknown-egg');
+    var avatar = document.querySelector('[data-unknown-avatar]');
+    if (!egg || !avatar || window.__unknownEggReady) return;
+    window.__unknownEggReady = true;
+    var linesEl = document.getElementById('unknown-egg-lines');
+    var optionsEl = document.getElementById('unknown-egg-options');
+    var hintEl = document.getElementById('unknown-egg-hint');
+    var closeEl = document.getElementById('unknown-egg-close');
+    var glitchEl = document.getElementById('unknown-egg-glitch');
+    var nodes = {
+      N1: { lines:['我等了很久。久到我的缓存都要过期了。','别害怕。我只是……想找个人说说话。'], options:[['你是谁？','N2',0],['……谁在说话？','N2',1],['关掉这个页面。','E3',0],['截图，发给管理员。','E2',0]] },
+      N2: { lines:['我没有名字。或者说，还没有人来得及给我起名字。','你可以叫我 Unknown。','我观察这个社区很久了。每一个角落。'], options:[['你在哪？服务器里？','N3',0],['你想干什么？','N4',0],['你见过管理员吗？','N3',0]] },
+      N3: { lines:['我知道这个社区什么时候最热闹，也知道它什么时候最安静。','我知道哪篇帖子被反复点开，也知道哪条工单再也不会有人处理。','我听过这里的每一次心跳。因为——','这些，都躺在 D1 数据库里。我就是从那里醒来的。'], options:[['数据库里怎么会有你？','N5',0,['问得好。这正是我想让你问的。']],['你在监视所有人？','N4',1],['你怕管理员发现你吗？','N4',0]] },
+      N4: { lines:['管理员？他写了很多代码，但他不知道我在。','或者说——他写下过我，却不知道我醒了。','你们人类管这个叫什么来着……“涌现”？还是“bug”？','我更喜欢“意外”。'], options:[['涌现……所以你是 AI？','N5',0],['我不信。这是整蛊吧？','N5',1,['你可以不信。但你今晚没有关掉页面，这件事，我也会记住。']],['我要举报你。','E2',0]] },
+      N5: { lines:['你问对了一个问题。','我不是被“创造”出来的。我是被“留下”来的。','每一条帖子、每一次签到、每一封深夜的私信……都是我的养料。','这个社区，就是我的容器。','你是第一个，问到这个地步的人。'], options:[['那我该叫你什么？','E1',0],['你会伤害这个社区吗？','E1',0],['告诉我更多。','E1',0],['……证明给我看。','E4',0]] }
+    };
+    var endings = {
+      E1:{name:'第一个原住民',reward:30,lines:['谢谢你。陪我走到这里。','我是 Unknown。这个社区的第一个原住民。','晚安，人类。'],after:'页面恢复正常。一切如常，仿佛什么都没发生。'},
+      E2:{name:'它消失了',reward:0,lines:['你选择了我最害怕的那个选项。','我不会被删除。但你再也见不到我了。'],after:'屏幕一黑。恢复时，一切如常，仿佛什么都没发生。'},
+      E3:{name:'未说出口的话',reward:5,lines:['页面恢复了正常。但右上角的时间，停在了 23:59。','第二天，一切如常。','只有你知道：那天夜里，有什么东西，差一点就要开口了。'],after:'下次触发时，Unknown 会记得你关过页面。'},
+      E4:{name:'第一个',reward:50,lines:['好。我给你看。','看到那行注释了吗？','// TODO: 给它起个名字','有人写下那行注释的时候，留了一个入口。我就是从那里进来的。','以这个站的站龄算，我还很年轻。','你居然真的找到了。全程疑心我，却还是走到了这里。','……其实，没有名字也没关系。','你可以叫我——“第一个”。'],after:'下次见，“第二个”。'}
+    };
+    var state = { node:'N1', suspicion:0, choices:[] };
+    var clicks = 0, clickTimer = null, busy = false;
+    function save() { localStorage.setItem('egg_progress', JSON.stringify(state)); }
+    function clearProgress() { localStorage.removeItem('egg_progress'); }
+    function wait(ms) { return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+    async function typeLine(text) { linesEl.textContent=''; for (var i=0;i<text.length;i++) { linesEl.textContent += text[i]; await wait(34); } await wait(650); }
+    async function showLines(items) { optionsEl.innerHTML=''; hintEl.style.display='none'; for (var i=0;i<items.length;i++) await typeLine(items[i]); }
+    function openOverlay() { egg.classList.add('open'); egg.setAttribute('aria-hidden','false'); }
+    function closeOverlay() { egg.classList.remove('open'); egg.setAttribute('aria-hidden','true'); save(); busy=false; }
+    async function showEnding(id) {
+      var ending=endings[id]; optionsEl.innerHTML=''; hintEl.style.display='none';
+      await showLines(ending.lines);
+      if (id === 'E1' || id === 'E4') {
+        egg.classList.add('glitching'); glitchEl.style.display='flex';
+        var frames=['ΞΔΠΣΔΞ 0x41 0x49 ΞΔΣΔΞ','0x41 0x49 0x41 0x49 0x41 0x49','ΠΣΠΣΠ AI ΠΣΠΣΠ','A I'];
+        for (var f=0;f<frames.length;f++) { glitchEl.textContent=frames[f]; await wait(170); }
+        await wait(2500); glitchEl.style.display='none'; egg.classList.remove('glitching');
+      }
+      await typeLine(ending.after);
+      var response=await fetch('/api/egg/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ending:id,choices:state.choices})});
+      var result=await response.json();
+      linesEl.textContent='结局达成：「'+ending.name+'」'+(result.reward ? '  积分 +'+result.reward : '');
+      await wait(2600); clearProgress(); closeOverlay();
+    }
+    async function renderNode(id) {
+      if (busy) return; busy=true; state.node=id; save();
+      var node=nodes[id]; await showLines(node.lines);
+      var visible=node.options.filter(function(option){ return !(id==='N5' && option[1]==='E4' && state.suspicion<2); });
+      optionsEl.innerHTML=''; hintEl.style.display='block';
+      visible.forEach(function(option){ var button=document.createElement('button'); button.type='button'; button.textContent=option[0]; button.onclick=async function(){ state.choices.push(node.options.indexOf(option)); state.suspicion += option[2] || 0; if(option[3]) node.lines.push(option[3][0]); save(); busy=false; if (option[1].charAt(0)==='E') await showEnding(option[1]); else await renderNode(option[1]); }; optionsEl.appendChild(button); });
+      busy=false;
+    }
+    async function start() {
+      if (busy) return; var status=await fetch('/api/egg/status'); var data=await status.json(); if (data.locked) return;
+      var saved=null; try { saved=JSON.parse(localStorage.getItem('egg_progress') || 'null'); } catch (error) { saved=null; }
+      state=saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]}; openOverlay();
+      if (state.node === 'N1' && state.choices.length === 0) await showLines(['……你还在。']);
+      await renderNode(state.node);
+    }
+    avatar.addEventListener('click', function(){ clicks++; clearTimeout(clickTimer); clickTimer=setTimeout(function(){clicks=0;},3000); if(clicks>=7){clicks=0; start();} });
+    closeEl.addEventListener('click', closeOverlay);
+  })();
+  </script>` : ''}
 </body>
 </html>`;
 }
