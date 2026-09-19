@@ -15,13 +15,18 @@ const catalogLookup = new Map([
     ['storage-1tb-nvme', { kind: 'storage', price: 680, score: 21000, name: '1TB NVMe SSD' }],
     ['storage-4tb-nvme', { kind: 'storage', price: 2200, score: 62000, name: '4TB NVMe SSD' }],
     ['storage-20tb-sata', { kind: 'storage', price: 5900, score: 125000, name: '20TB HDD 存储池' }],
-    ['gpu-rtx-a6000', { kind: 'accelerator', price: 9200, score: 115000, name: 'NVIDIA RTX A6000' }],
+    ['gpu-rtx-a6000', { kind: 'gpu', price: 9200, score: 115000, name: 'NVIDIA RTX A6000' }],
+    ['nic-10g', { kind: 'nic', price: 1600, score: 18000, name: '10GbE 网卡' }],
+    ['nic-25g', { kind: 'nic', price: 3100, score: 36000, name: '25GbE 服务器网卡' }],
+    ['ups-1kva', { kind: 'power', price: 1200, score: 16000, name: '1KVA UPS 电源' }],
     ['software-nginx', { kind: 'software', price: 180, score: 500, name: 'Nginx 静态托管' }],
     ['software-api', { kind: 'software', price: 260, score: 800, name: 'API 网关服务' }],
     ['software-shortlink', { kind: 'software', price: 340, score: 900, name: '短链接平台' }],
     ['software-doc-preview', { kind: 'software', price: 420, score: 1100, name: '文档预览服务' }],
     ['software-image-compress', { kind: 'software', price: 510, score: 1400, name: '图像压缩 API' }],
     ['software-sandbox', { kind: 'software', price: 760, score: 2200, name: '在线沙箱运行' }],
+    ['software-monitoring', { kind: 'software', price: 660, score: 1800, name: '监控告警平台' }],
+    ['software-mysql', { kind: 'software', price: 720, score: 2000, name: 'MySQL 数据库集群' }],
     ['ddos-filter', { kind: 'defense', price: 540, score: 300, name: '基础 DDoS 过滤' }],
     ['ddos-gateway', { kind: 'defense', price: 1200, score: 800, name: '网关级 DDoS 防护' }],
     ['ddos-enterprise', { kind: 'defense', price: 2600, score: 1500, name: '企业级防御阵列' }],
@@ -43,6 +48,25 @@ function parseServerAssets(value: unknown): any[] {
     } catch {
         return [];
     }
+}
+
+function hasDockerAsset(assets: any[]): boolean {
+    return assets.some((item: any) => item && ['docker', 'docker-base', 'docker-extended'].includes(String(item.type || item.id || '')));
+}
+
+function getDockerCapacity(assets: any[]): number {
+    if (!hasDockerAsset(assets)) return 0;
+    const extendedCount = assets.filter((item: any) => item && String(item.id || item.type || '').includes('docker-extended')).length;
+    return 2 + extendedCount * 3;
+}
+
+function getServiceLimit(assets: any[], hardwareScore: number): number {
+    const dockerCap = getDockerCapacity(assets);
+    if (dockerCap === 0) return 1;
+    if (hardwareScore >= 700000) return Math.max(dockerCap, 8);
+    if (hardwareScore >= 500000) return Math.max(dockerCap, 5);
+    if (hardwareScore >= 250000) return Math.max(dockerCap, 3);
+    return Math.max(dockerCap, 2);
 }
 
 export async function handleServer(request: Request, env: Env, path: string) {
@@ -118,6 +142,19 @@ export async function handleServer(request: Request, env: Env, path: string) {
             return jsonRes({ error: '你已经购买过这个商品了' }, 400);
         }
 
+        const hardwareScore = Number(currentUserRow?.server_hardware_score || 0);
+        const serviceLimit = getServiceLimit(currentAssets, hardwareScore);
+        if (item.kind === 'software') {
+            const hasDocker = hasDockerAsset(currentAssets);
+            const softwareCount = currentAssets.filter((entry: any) => String(entry?.type || '') === 'software').length;
+            if (!hasDocker && softwareCount >= 1) {
+                return jsonRes({ error: '未安装 Docker 时只能部署 1 个服务，请先购买 Docker 容器基础层或升级服务器' }, 400);
+            }
+            if (hasDocker && softwareCount >= serviceLimit) {
+                return jsonRes({ error: `当前 CPU 与 Docker 配置最多可部署 ${serviceLimit} 个服务，请先升级硬件或扩容 Docker 镜像` }, 400);
+            }
+        }
+
         const nextAssets = [...currentAssets, { id, type: item.kind, name: item.name, price: cost, score: item.score || 0, bought_at: new Date().toISOString() }];
         let nextCpu = currentUserRow?.server_cpu || 'E5-2686 v4';
         let nextMotherboard = currentUserRow?.server_motherboard || 'X99 主板';
@@ -129,7 +166,9 @@ export async function handleServer(request: Request, env: Env, path: string) {
         if (item.kind === 'board') nextMotherboard = item.name;
         if (item.kind === 'memory') nextRam = item.name;
         if (item.kind === 'storage') nextStorage = item.name;
-        if (item.kind === 'accelerator') nextCpu = `${nextCpu} + ${item.name}`;
+        if (item.kind === 'gpu') nextCpu = `${nextCpu} + ${item.name}`;
+        if (item.kind === 'nic') nextMotherboard = `${nextMotherboard} + ${item.name}`;
+        if (item.kind === 'power') nextStorage = `${nextStorage} + ${item.name}`;
 
         const result = await db.prepare(
             `UPDATE users

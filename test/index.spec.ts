@@ -130,4 +130,14 @@ describe("server game management UI", () => {
 		const html = await response.text();
 		expect(html).toContain("DDoS 攻击");
 	});
+
+	it("shows installed server items, Docker capacity, and categorized shop entries", async () => {
+		const response = await SELF.fetch("https://example.com/server");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("已安装设备");
+		expect(html).toContain("Docker 镜像");
+		expect(html).toContain("GPU");
+		expect(html).toContain("网卡");
+	});
 });

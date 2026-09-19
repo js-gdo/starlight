@@ -130,7 +130,11 @@ export async function renderServer(env: Env, req: Request) {
     const serverAssets = parseServerAssets(userStats?.server_assets ?? '[]');
     const softwareCount = serverAssets.filter((item: any) => item?.type === 'software').length;
     const defenseCount = serverAssets.filter((item: any) => item?.type === 'defense').length;
-    const dockerCount = serverAssets.filter((item: any) => item?.type === 'docker').length;
+    const dockerCount = serverAssets.filter((item: any) => item?.type === 'docker' || item?.id === 'docker-base' || item?.id === 'docker-extended').length;
+    const installedHardware = serverAssets.filter((item: any) => ['cpu', 'board', 'memory', 'storage', 'gpu', 'nic', 'power'].includes(String(item?.type || '')));
+    const installedSoftware = serverAssets.filter((item: any) => item?.type === 'software');
+    const dockerCapacity = 2 + serverAssets.filter((item: any) => String(item?.id || '').includes('docker-extended')).length * 3;
+    const serviceLimit = dockerCapacity > 0 ? Math.max(dockerCapacity, Math.min(8, Math.max(2, Math.floor(hardwareScore / 200000) + 2))) : 1;
     const cpuName = userStats?.server_cpu || 'E5-2686 v4';
     const ramName = userStats?.server_ram || '16GB DDR4';
     const storageName = userStats?.server_storage || '1TB HDD';
@@ -218,8 +222,41 @@ export async function renderServer(env: Env, req: Request) {
             </div>
             <div class="server-card">
               <h3>当前状态</h3>
-              <div class="server-sub"><span class="pill">${softwareCount} 个软件</span> <span class="pill">${defenseCount} 层防御</span></div>
+              <div class="server-sub"><span class="pill">${softwareCount} 个软件</span> <span class="pill">${defenseCount} 层防御</span> <span class="pill">Docker 容量 ${dockerCapacity}</span></div>
               <div class="server-sub">${dockerPenalty}</div>
+            </div>
+          </div>
+
+          <div class="server-card" style="margin-top:16px;">
+            <h3><i class="fas fa-boxes-stacked"></i> 已安装设备</h3>
+            <div style="display:grid; gap:10px; font-size:13px; color:#555;">
+              ${installedHardware.length > 0 ? installedHardware.map((item: any) => `
+                <div style="display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                  <span>${htmlEscape(String(item.name || item.id || '设备'))}</span>
+                  <span class="pill">${htmlEscape(String(item.type || 'hardware'))}</span>
+                </div>
+              `).join('') : '<div style="color:#999;">尚未安装任何硬件设备</div>'}
+            </div>
+          </div>
+
+          <div class="server-card" style="margin-top:16px;">
+            <h3><i class="fas fa-cubes"></i> 已部署软件</h3>
+            <div style="display:grid; gap:10px; font-size:13px; color:#555;">
+              ${installedSoftware.length > 0 ? installedSoftware.map((item: any) => `
+                <div style="display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                  <span>${htmlEscape(String(item.name || item.id || '服务'))}</span>
+                  <span class="pill">服务</span>
+                </div>
+              `).join('') : '<div style="color:#999;">暂未部署任何软件服务</div>'}
+            </div>
+          </div>
+
+          <div class="server-card" style="margin-top:16px;">
+            <h3><i class="fas fa-docker"></i> Docker / 服务容量</h3>
+            <div style="display:grid; gap:10px; font-size:13px; color:#555;">
+              <div>Docker 镜像容量：${dockerCapacity} 个</div>
+              <div>部署上限：${serviceLimit} 个服务</div>
+              <div>安装状态：${dockerCount > 0 ? 'Docker 已启用' : '未安装 Docker（仅可部署 1 个服务）'}</div>
             </div>
           </div>
 
@@ -365,6 +402,9 @@ export async function renderServer(env: Env, req: Request) {
                 <option value="memory">内存</option>
                 <option value="storage">存储</option>
                 <option value="board">主板</option>
+                <option value="gpu">GPU</option>
+                <option value="nic">网卡</option>
+                <option value="power">电源</option>
                 <option value="software">软件</option>
                 <option value="defense">DDoS</option>
                 <option value="docker">Docker</option>
@@ -382,6 +422,46 @@ export async function renderServer(env: Env, req: Request) {
                 </div>
               `).join('')}
 
+              <div class="store-item" data-store-item="gpu" data-store-name="nvidia rtx a6000">
+                <h4>NVIDIA RTX A6000</h4>
+                <small>AI 加速 / 计算节点 / 图像推理</small>
+                <div style="color:#8E44AD;font-weight:700;">9200.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">性能分 115000</div>
+                <button type="button" data-purchase="gpu-rtx-a6000" data-kind="gpu">购买</button>
+              </div>
+
+              <div class="store-item" data-store-item="nic" data-store-name="10gbe 网卡">
+                <h4>10GbE 网卡</h4>
+                <small>提升网络吞吐与稳定性</small>
+                <div style="color:#8E44AD;font-weight:700;">1600.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">性能分 18000</div>
+                <button type="button" data-purchase="nic-10g" data-kind="nic">购买</button>
+              </div>
+
+              <div class="store-item" data-store-item="nic" data-store-name="25gbe 服务器网卡">
+                <h4>25GbE 服务器网卡</h4>
+                <small>适配高并发业务与多租户网络</small>
+                <div style="color:#8E44AD;font-weight:700;">3100.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">性能分 36000</div>
+                <button type="button" data-purchase="nic-25g" data-kind="nic">购买</button>
+              </div>
+
+              <div class="store-item" data-store-item="power" data-store-name="1kva ups 电源">
+                <h4>1KVA UPS 电源</h4>
+                <small>稳定供电，降低断电风险</small>
+                <div style="color:#8E44AD;font-weight:700;">1200.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">性能分 16000</div>
+                <button type="button" data-purchase="ups-1kva" data-kind="power">购买</button>
+              </div>
+
+              <div class="store-item" data-store-item="storage" data-store-name="raid 控制器">
+                <h4>RAID 控制器</h4>
+                <small>增强存储冗余与读写吞吐</small>
+                <div style="color:#8E44AD;font-weight:700;">1400.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">性能分 24000</div>
+                <button type="button" data-purchase="raid-hba" data-kind="storage">购买</button>
+              </div>
+
               ${softwareCatalog.map((item: any) => `
                 <div class="store-item" data-store-item="software" data-store-name="${htmlEscape(item.name.toLowerCase())}">
                   <h4>${htmlEscape(item.name)}</h4>
@@ -391,6 +471,22 @@ export async function renderServer(env: Env, req: Request) {
                   <button type="button" data-purchase="${htmlEscape(item.id)}" data-kind="software">部署</button>
                 </div>
               `).join('')}
+
+              <div class="store-item" data-store-item="software" data-store-name="监控告警平台">
+                <h4>监控告警平台</h4>
+                <small>追踪 CPU、网络和停机事件，降低事故损失。</small>
+                <div style="color:#8E44AD;font-weight:700;">660.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">收益 1600 /日 · 资源 3 CPU / 5 GB</div>
+                <button type="button" data-purchase="software-monitoring" data-kind="software">部署</button>
+              </div>
+
+              <div class="store-item" data-store-item="software" data-store-name="mysql 数据库集群">
+                <h4>MySQL 数据库集群</h4>
+                <small>支撑企业数据库应用与高可用读写。</small>
+                <div style="color:#8E44AD;font-weight:700;">720.0 Server 币</div>
+                <div style="font-size:12px;color:#666;">收益 2100 /日 · 资源 4 CPU / 8 GB</div>
+                <button type="button" data-purchase="software-mysql" data-kind="software">部署</button>
+              </div>
 
               ${defenseCatalog.map((item: any) => `
                 <div class="store-item" data-store-item="defense" data-store-name="${htmlEscape(item.name.toLowerCase())}">
