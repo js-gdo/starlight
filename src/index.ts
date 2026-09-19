@@ -22,6 +22,7 @@ import { renderBackend } from './routes/backend';
 import { renderUser, renderUserSettings } from './routes/user';
 import { renderServer } from './routes/server';
 import { renderAdminList } from './routes/admin-list';
+import { renderHealth } from './routes/health';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
 
@@ -161,6 +162,12 @@ export default {
 
             if (path === '/admin-list') {
                 return new Response(await renderAdminList(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/health') {
+                return new Response(await renderHealth(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
