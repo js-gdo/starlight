@@ -5,6 +5,7 @@ import { formatTimeToChina } from '../utils/time';
 import { getUserColor, getTicketStatus } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
+import { ADMIN_ROLE_KEYS, ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 
 export async function renderBackend(env: Env, req: Request) {
     const t = getTranslator(req);
@@ -306,6 +307,7 @@ export async function renderBackend(env: Env, req: Request) {
         <button class="backend-tab" type="button" data-admin-tab="users">用户</button>
         <button class="backend-tab" type="button" data-admin-tab="content">内容管理</button>
         <button class="backend-tab" type="button" data-admin-tab="site">站点与导出</button>
+        <button class="backend-tab" type="button" data-admin-tab="admin-roles">管理员设置</button>
     </div>
 
     <div class="card" data-admin-panel="overview">
@@ -378,6 +380,29 @@ export async function renderBackend(env: Env, req: Request) {
             </select>
             <button type="submit"><i class="fas fa-save"></i> 保存站点状态</button>
         </form>
+    </div>
+
+    <div class="card" data-admin-panel="admin-roles">
+        <div class="section-title"><i class="fas fa-user-shield"></i> 管理员分类设置</div>
+        ${user.id !== 1 ? `<div class="admin-warning">只有 UID 1 的 superuser 可以修改管理员分类。当前页面仍可查看分类，完整展示见 <a href="/admin-list">管理员列表</a>。</div>` : `
+            <div class="admin-warning">可批量选择管理员并统一切换分类。管理员可以身兼多个分类，提交时必须填写操作理由。</div>
+            <form action="/api/admin/roles" method="POST" class="admin-role-form" style="border-top:0;padding-top:0;">
+                <div style="display:grid;gap:8px;margin-bottom:12px;">
+                    ${users.results.filter((admin: any) => admin.admin).map((admin: any) => `
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                            <input type="checkbox" name="user_id" value="${admin.id}">
+                            <span>${renderUsernameLink(admin.username, admin.color, admin.tag, admin.id)}</span>
+                            <span style="color:#999;font-size:11px;">当前：${parseAdminRoles(admin.admin_roles).map(role => ADMIN_ROLE_LABELS[role]).join('、')}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                    ${ADMIN_ROLE_KEYS.map(role => `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#555;"><input type="checkbox" name="role" value="${role}"> ${ADMIN_ROLE_LABELS[role]}</label>`).join('')}
+                </div>
+                <input type="text" name="reason" required maxlength="500" placeholder="填写批量修改管理员分类的理由" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:5px;">
+                <button type="submit" class="btn-sm btn-primary" style="margin-top:10px;color:#fff;">批量保存管理员分类</button>
+            </form>
+        `}
     </div>
 
     <div class="card" data-admin-panel="security">

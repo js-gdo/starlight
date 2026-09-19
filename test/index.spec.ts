@@ -186,4 +186,5 @@ describe("administrator list", () => {
 		expect(html).toContain("未分配管理");
 		expect(html).toContain("/admin-list");
 	});
+
 });
