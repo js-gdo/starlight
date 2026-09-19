@@ -259,6 +259,24 @@ export async function getLayout(
       max-height: calc(100vh - 24px);
       overflow-y: auto;
     }
+    .app-layout.sidebar-hover-mode { grid-template-columns: 60px 1fr 200px; }
+    .sidebar-left.sidebar-hover-mode {
+      width: 60px;
+      overflow-x: hidden;
+      transition: width 0.2s ease, box-shadow 0.2s ease;
+      z-index: 150;
+    }
+    .sidebar-left.sidebar-hover-mode:hover {
+      width: 200px;
+      align-items: stretch;
+      box-shadow: 8px 0 24px rgba(31, 41, 55, 0.18);
+    }
+    .sidebar-left.sidebar-hover-mode:hover a { flex-direction: row; gap: 9px; padding: 8px 14px; font-size: 12px; text-align: left; }
+    .sidebar-left.sidebar-hover-mode:hover a .icon { width: 18px; text-align: center; margin-bottom: 0; }
+    .sidebar-left.sidebar-hover-mode:hover .brand { text-align: left; padding-left: 14px; }
+    .sidebar-left.sidebar-hover-mode:hover .user-section { text-align: left; padding-left: 14px; padding-right: 14px; }
+    .sidebar-left.sidebar-hover-mode:hover .user-section .avatar { margin-left: 0; }
+    .sidebar-left.sidebar-hover-mode:hover .user-name a { font-size: 12px; }
     .sidebar-left .brand {
       color: #fff;
       font-size: 14px;
@@ -773,8 +791,8 @@ export async function getLayout(
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
 
-  <div class="app-layout">
-    <aside class="sidebar-left" id="sidebarLeft">
+  <div class="app-layout${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}">
+    <aside class="sidebar-left${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}" id="sidebarLeft">
       <div class="brand">✦</div>
       ${sidebarLinks}
       <div class="user-section">
