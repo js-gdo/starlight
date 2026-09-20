@@ -88,7 +88,7 @@ export async function getLayout(
             '/backend': 'fa-cog',
         };
         const icon = iconMap[item.href] || 'fa-link';
-        return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span> ${item.label}${badgeHtml}</a>`;
+        return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
     }).join('');
 
     let userSection = '';
@@ -277,6 +277,11 @@ export async function getLayout(
     .sidebar-left.sidebar-hover-mode:hover .user-section { text-align: left; padding-left: 14px; padding-right: 14px; }
     .sidebar-left.sidebar-hover-mode:hover .user-section .avatar { margin-left: 0; }
     .sidebar-left.sidebar-hover-mode:hover .user-name a { font-size: 12px; }
+    .sidebar-left.sidebar-hover-mode:not(:hover) .nav-text,
+    .sidebar-left.sidebar-hover-mode:not(:hover) .badge,
+    .sidebar-left.sidebar-hover-mode:not(:hover) .user-name,
+    .sidebar-left.sidebar-hover-mode:not(:hover) .user-section > a,
+    .sidebar-left.sidebar-hover-mode:not(:hover) .user-section > form { display: none; }
     .sidebar-left .brand {
       color: #fff;
       font-size: 14px;
