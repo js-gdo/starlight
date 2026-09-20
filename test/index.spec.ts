@@ -201,3 +201,14 @@ describe("public health page", () => {
 	});
 });
 
+describe("hover sidebar rendering", () => {
+	it("includes collapsed icon and text hooks", async () => {
+		const response = await SELF.fetch("https://example.com/");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("class=\"nav-text\"");
+		expect(html).toContain("sidebar-hover-mode:not(:hover)");
+		expect(html).toContain(".user-section > form");
+	});
+});
+
