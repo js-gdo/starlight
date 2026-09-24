@@ -84,6 +84,15 @@ describe("worker routing", () => {
 		expect(html).toContain('href="/leaderboard"');
 	});
 
+	it("marks username links for global points-rank badges", async () => {
+		const response = await SELF.fetch("https://example.com/admin-list");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain('class="username-link"');
+		expect(html).toContain("data-user-id=");
+		expect(html).toContain("/api/leaderboard/badge?uid=");
+	});
+
 	it("renders the independent achievements page and sidebar entry", async () => {
 		const response = await SELF.fetch("https://example.com/achievements");
 		expect(response.status).toBe(200);
