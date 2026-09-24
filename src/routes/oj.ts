@@ -14,7 +14,8 @@ const OJ_STYLES = `
     .oj-tag { display:inline-block; margin:2px 4px 2px 0; padding:2px 7px; border-radius:10px; background:#f2eafa; color:#754092; font-size:11px; }
     .oj-muted { color:#999; font-size:13px; }
     .oj-layout { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(280px, 1fr); gap:16px; align-items:start; }
-    .oj-code { width:100%; min-height:360px; resize:vertical; padding:12px; border:1px solid #ddd; border-radius:6px; font:13px/1.6 Consolas,Monaco,monospace; }
+    .oj-editor { width:100%; height:420px; border:1px solid #ddd; border-radius:6px; overflow:hidden; }
+    .oj-code-fallback { width:100%; min-height:360px; resize:vertical; padding:12px; border:1px solid #ddd; border-radius:6px; font:13px/1.6 Consolas,Monaco,monospace; }
     .oj-submit { border:0; border-radius:6px; padding:9px 16px; background:#8E44AD; color:#fff; cursor:pointer; font-weight:600; }
     .oj-submit:disabled { opacity:.55; cursor:wait; }
     .oj-status { margin-top:12px; padding:10px; border-radius:6px; background:#f8f9fa; color:#555; font-size:13px; white-space:pre-wrap; }
@@ -109,7 +110,16 @@ function renderOjProblemContent(problemId: string): string {
             <section class="card">
                 <h2 style="font-size:16px;margin-bottom:10px;"><i class="fas fa-paper-plane"></i> 提交代码</h2>
                 <p class="oj-muted" style="margin-bottom:10px;">提交后会自动轮询评测结果。</p>
-                <textarea id="ojCode" class="oj-code" spellcheck="false" placeholder="// 在此输入代码"></textarea>
+                <div id="ojEditor" class="oj-editor" aria-label="代码编辑器"></div>
+                <textarea id="ojCode" class="oj-code-fallback" spellcheck="false" placeholder="// 在此输入代码">#include &lt;bits/stdc++.h&gt;
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    return 0;
+}</textarea>
+                <div id="ojEditorStatus" class="oj-muted" style="margin-top:6px;">正在加载 Monaco Editor...</div>
                 <button id="ojSubmit" class="oj-submit" type="button">提交评测</button>
                 <div id="ojJudgeStatus" class="oj-status" hidden></div>
             </section>
@@ -121,6 +131,47 @@ function renderOjProblemContent(problemId: string): string {
             var view = document.getElementById('ojProblemView');
             var status = document.getElementById('ojJudgeStatus');
             var submit = document.getElementById('ojSubmit');
+            var editorHost = document.getElementById('ojEditor');
+            var fallback = document.getElementById('ojCode');
+            var editorStatus = document.getElementById('ojEditorStatus');
+            var editor = null;
+            function useFallback(message) {
+                editorHost.hidden = true;
+                fallback.hidden = false;
+                editorStatus.textContent = message;
+            }
+            function initializeMonaco() {
+                var loader = document.createElement('script');
+                loader.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js';
+                loader.onload = function () {
+                    if (!window.require || typeof window.require.config !== 'function') {
+                        useFallback('Monaco Editor 加载失败，已切换为文本编辑器。');
+                        return;
+                    }
+                    window.require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+                    window.require(['vs/editor/editor.main'], function () {
+                        editor = window.monaco.editor.create(editorHost, {
+                            value: fallback.value,
+                            language: 'cpp',
+                            theme: 'vs-dark',
+                            automaticLayout: true,
+                            minimap: { enabled: false },
+                            fontSize: 13,
+                            tabSize: 4,
+                            wordWrap: 'off',
+                        });
+                        fallback.hidden = true;
+                        editorStatus.textContent = 'Monaco Editor · C++';
+                    }, function () {
+                        useFallback('Monaco Editor 加载失败，已切换为文本编辑器。');
+                    });
+                };
+                loader.onerror = function () {
+                    useFallback('Monaco Editor 网络不可用，已切换为文本编辑器。');
+                };
+                document.head.appendChild(loader);
+            }
+            initializeMonaco();
             function esc(value) {
                 return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
                     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
@@ -156,7 +207,7 @@ function renderOjProblemContent(problemId: string): string {
                     .catch(function (error) { showStatus('查询评测结果失败：' + error.message, true); submit.disabled = false; });
             }
             submit.addEventListener('click', function () {
-                var code = document.getElementById('ojCode').value;
+                var code = editor ? editor.getValue() : fallback.value;
                 if (!code.trim()) { showStatus('请输入代码后再提交。', true); return; }
                 submit.disabled = true;
                 showStatus('正在提交...');

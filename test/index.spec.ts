@@ -69,6 +69,8 @@ describe("worker routing", () => {
 		expect(html).toContain("题目 1001");
 		expect(html).toContain("/api/oj/problem?pid=");
 		expect(html).toContain("提交评测");
+		expect(html).toContain("monaco-editor@0.52.2");
+		expect(html).toContain("Monaco Editor");
 	});
 
 	it("does not leak internal error details", async () => {
