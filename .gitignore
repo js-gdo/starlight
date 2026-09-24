@@ -170,3 +170,6 @@ dist
 # Example svg
 
 *.svg
+
+# OJ API
+APIs.md
