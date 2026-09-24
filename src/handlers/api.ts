@@ -26,6 +26,24 @@ export async function handleApi(request: Request, env: Env, path: string) {
     if (path.startsWith('/api/oj/')) {
         return handleOj(request, env, path);
     }
+    if (path === '/api/leaderboard/badge' && request.method === 'GET') {
+        const uid = Number(new URL(request.url).searchParams.get('uid'));
+        if (!Number.isInteger(uid) || uid <= 0) return jsonRes({ error: 'Invalid user ID' }, 400);
+        const user = await env.DB.prepare('SELECT points FROM users WHERE id = ? AND use = 1').bind(uid).first<any>();
+        if (!user) return jsonRes({ level: null });
+        const totalRow = await env.DB.prepare('SELECT COUNT(*) AS count FROM users WHERE use = 1').first<any>();
+        const total = Number(totalRow?.count || 0);
+        const rankRow = await env.DB.prepare(
+            `SELECT COUNT(*) AS count FROM users
+             WHERE use = 1 AND (points > ? OR (points = ? AND id <= ?))`
+        ).bind(Number(user.points || 0), Number(user.points || 0), uid).first<any>();
+        const rank = Number(rankRow?.count || 0);
+        const goldLimit = Math.max(1, Math.ceil(total * 0.1));
+        const blueLimit = Math.max(goldLimit, Math.ceil(total * 0.3));
+        const greenLimit = Math.max(blueLimit, Math.ceil(total * 0.6));
+        const level = rank <= goldLimit ? 'gold' : rank <= blueLimit ? 'blue' : rank <= greenLimit ? 'green' : null;
+        return jsonRes({ level, rank, total });
+    }
 
     // 按路径前缀分发
     if (path === '/api/login' || path === '/api/register') {

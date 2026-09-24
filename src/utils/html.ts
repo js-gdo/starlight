@@ -121,7 +121,7 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
 export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '') {
     if (!username) return '';
     const tagHtml = tag ? `<span style="${htmlEscape(getUserTagStyle(color))}">${htmlEscape(tag)}</span>` : '';
-    return `<a href="/user/${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
+    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
 }
 
 export function renderAvatar(user: { id?: number; username?: string; avatar_url?: string }, size = 42): string {
