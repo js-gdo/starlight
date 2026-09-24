@@ -73,6 +73,17 @@ describe("worker routing", () => {
 		expect(html).toContain("Monaco Editor");
 	});
 
+	it("renders the top-50 points leaderboard in the sidebar", async () => {
+		const response = await SELF.fetch("https://example.com/leaderboard");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("积分榜");
+		expect(html).toContain("全服积分排名");
+		expect(html).toContain("leaderboard-table");
+		expect(html).toContain("前 10%");
+		expect(html).toContain('href="/leaderboard"');
+	});
+
 	it("does not leak internal error details", async () => {
 		const request = new IncomingRequest("http://example.com/");
 		const brokenEnv = { ...env, DB: undefined } as unknown as typeof env;
