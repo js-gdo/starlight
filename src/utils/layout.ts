@@ -64,6 +64,7 @@ export async function getLayout(
         { href: '/clipboard', label: t('clipboard'), active: title === t('clipboard') },
         { href: '/oj', label: t('oj'), active: title === 'OJ 评测' || title.startsWith('题目 ') },
         { href: '/leaderboard', label: '积分榜', active: title === '积分榜' },
+        { href: '/achievements', label: '成就系统', active: title === '成就系统' },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
     ];
@@ -86,6 +87,7 @@ export async function getLayout(
             '/clipboard': 'fa-clipboard',
             '/oj': 'fa-code',
             '/leaderboard': 'fa-ranking-star',
+            '/achievements': 'fa-medal',
             '/messages': 'fa-bell',
             '/pm': 'fa-envelope',
             '/backend': 'fa-cog',

@@ -211,6 +211,13 @@ export async function initDB(env: Env) {
         `CREATE TABLE IF NOT EXISTS site_settings (
       setting_key TEXT PRIMARY KEY,
       setting_value TEXT NOT NULL DEFAULT ''
+    )`,
+        `CREATE TABLE IF NOT EXISTS user_achievements (
+      user_id INTEGER NOT NULL,
+      achievement_id TEXT NOT NULL,
+      unlocked_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, achievement_id),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`
     ];
 
@@ -314,6 +321,7 @@ export async function initDB(env: Env) {
         'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)',
         'CREATE INDEX IF NOT EXISTS idx_users_server_rank ON users (server_hardware_score DESC, server_coin DESC)'
+        , 'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)'
     ];
     for (const sql of indexes) {
         try { await db.prepare(sql).run(); } catch { }

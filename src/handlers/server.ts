@@ -3,6 +3,7 @@ import type { Env } from '../env.d';
 
 const DEFAULT_SERVER_RANK_LIMIT = 10;
 const catalogLookup = new Map([
+    ['gpu-rtx-5090', { kind: 'gpu', price: 10800, score: 145000, name: 'NVIDIA RTX 5090 计算卡' }],
     ['cpu-epyc-9755', { kind: 'cpu', price: 9800, score: 760000, name: 'AMD EPYC 9755' }],
     ['cpu-epyc-9965', { kind: 'cpu', price: 9150, score: 742000, name: 'AMD EPYC 9965' }],
     ['cpu-intel-6980p', { kind: 'cpu', price: 8200, score: 675000, name: 'Intel Xeon 6980P' }],

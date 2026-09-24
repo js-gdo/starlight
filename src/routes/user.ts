@@ -4,6 +4,7 @@ import { renderAvatar, renderUsernameLink, htmlEscape } from '../utils/html';
 import { getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import { ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
+import { getAchievementBadges } from '../utils/achievements';
 import type { Env } from '../env.d';
 
 export async function renderUser(env: Env, req: Request, path: string) {
@@ -21,9 +22,10 @@ export async function renderUser(env: Env, req: Request, path: string) {
     const followers = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followee_id = ?').bind(uid).all<any>();
     const followees = await db.prepare('SELECT u.* FROM follows f JOIN users u ON f.followee_id = u.id WHERE f.follower_id = ?').bind(uid).all<any>();
     const isFollowing = currentUser ? await db.prepare('SELECT * FROM follows WHERE follower_id = ? AND followee_id = ?').bind(currentUser.id, uid).first() : null;
+    const achievementBadges = await getAchievementBadges(db, uid);
 
     const content = `
-        <div class="page-header" style="display:flex;align-items:center;gap:10px;"><h1 style="display:flex;align-items:center;gap:10px;">${renderAvatar(user, 48)} ${renderUsernameLink(user.username, user.color, '', user.id)}</h1></div>
+        <div class="page-header" style="display:flex;align-items:center;gap:10px;"><h1 style="display:flex;align-items:center;gap:10px;">${renderAvatar(user, 48)} ${renderUsernameLink(user.username, user.color, '', user.id)}${achievementBadges}</h1></div>
         <div style="display:grid;gap:16px;">
             <div class="card">
                 ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
@@ -35,6 +37,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
                 ${user.admin ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${parseAdminRoles(user.admin_roles).map(role => `<span style="display:inline-block;padding:4px 8px;border-radius:999px;background:#f3e8ff;color:#6b21a8;font-size:12px;">${ADMIN_ROLE_LABELS[role]}</span>`).join('')}</div>` : ''}
+                <p style="margin-top:10px;font-size:13px;color:#777;">成就：${achievementBadges || '暂无成就'} <a href="/achievements" style="color:#8E44AD;text-decoration:none;">查看全部</a></p>
                 ${currentUser && currentUser.id == user.id ? `<a href="/settings" style="display:inline-block;margin-top:12px;color:#8E44AD;text-decoration:none;"><i class="fas fa-user-cog"></i> 用户设置</a>` : ''}
                 ${currentUser && currentUser.id != user.id ? `
                     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
