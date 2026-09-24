@@ -12,6 +12,7 @@ import { handleReports } from './reports';
 import { handleServer } from './server';
 import { handleHealth } from './health';
 import { handleEgg } from './egg';
+import { handleOj } from './oj';
 import { jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 
@@ -21,6 +22,9 @@ export async function handleApi(request: Request, env: Env, path: string) {
     }
     if (path === '/api/egg/status' || path === '/api/egg/claim') {
         return handleEgg(request, env, path);
+    }
+    if (path.startsWith('/api/oj/')) {
+        return handleOj(request, env, path);
     }
 
     // 按路径前缀分发
