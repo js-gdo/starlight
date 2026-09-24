@@ -52,6 +52,25 @@ describe("worker routing", () => {
 		expect(await response.json()).toEqual({ error: "API not found" });
 	});
 
+	it("renders the OJ problem list and exposes it in the sidebar", async () => {
+		const response = await SELF.fetch("https://example.com/oj");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("OJ 评测");
+		expect(html).toContain('href="/oj"');
+		expect(html).toContain("/api/oj/problems");
+		expect(html).toContain("MathJax");
+	});
+
+	it("renders an OJ problem page shell", async () => {
+		const response = await SELF.fetch("https://example.com/oj/1001");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("题目 1001");
+		expect(html).toContain("/api/oj/problem?pid=");
+		expect(html).toContain("提交评测");
+	});
+
 	it("does not leak internal error details", async () => {
 		const request = new IncomingRequest("http://example.com/");
 		const brokenEnv = { ...env, DB: undefined } as unknown as typeof env;
@@ -211,4 +230,3 @@ describe("hover sidebar rendering", () => {
 		expect(html).toContain(".user-section > form");
 	});
 });
-

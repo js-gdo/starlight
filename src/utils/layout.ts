@@ -52,7 +52,7 @@ export async function getLayout(
       }
     }
 
-    const navItems = [
+    const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number }> = [
         { href: '/', label: t('home'), active: title === t('home') },
         { href: '/server', label: '服务器庄园', active: title === '服务器庄园' },
         { href: '/admin-list', label: '管理员列表', active: title === '管理员列表' },
@@ -62,7 +62,7 @@ export async function getLayout(
         { href: '/ticket/list', label: t('ticketList'), active: ['工单列表', '工单详情', '创建工单', '编辑工单'].includes(title) },
         { href: '/judgement', label: t('judgement'), active: title === t('judgement') },
         { href: '/clipboard', label: t('clipboard'), active: title === t('clipboard') },
-        { href: '#', label: t('oj'), onclick: 'openOJ()' },
+        { href: '/oj', label: t('oj'), active: title === 'OJ 评测' || title.startsWith('题目 ') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
     ];
@@ -83,6 +83,7 @@ export async function getLayout(
             '/ticket/list': 'fa-ticket-alt',
             '/judgement': 'fa-gavel',
             '/clipboard': 'fa-clipboard',
+            '/oj': 'fa-code',
             '/messages': 'fa-bell',
             '/pm': 'fa-envelope',
             '/backend': 'fa-cog',
@@ -674,7 +675,7 @@ export async function getLayout(
     (function initializeProgressiveSpa() {
       const cachePrefix = 'starlight:spa:';
       const cacheTtl = 30000;
-      const cacheablePaths = new Set(['/','/index.html','/benben','/articles/list','/ticket/list','/judgement','/clipboard']);
+      const cacheablePaths = new Set(['/','/index.html','/benben','/articles/list','/ticket/list','/judgement','/clipboard','/oj']);
       const spaExcludedPaths = ['/messages', '/pm', '/backend', '/login', '/register', '/logout', '/settings'];
       const mainSelector = '#spa-main-content';
 

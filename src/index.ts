@@ -23,6 +23,7 @@ import { renderUser, renderUserSettings } from './routes/user';
 import { renderServer } from './routes/server';
 import { renderAdminList } from './routes/admin-list';
 import { renderHealth } from './routes/health';
+import { renderOjList, renderOjProblem } from './routes/oj';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
 
@@ -138,6 +139,17 @@ export default {
 
             if (path === '/judgement') {
                 return new Response(await renderJudgement(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/oj') {
+                return new Response(await renderOjList(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+            if (path.startsWith('/oj/') && path.length > 4) {
+                return new Response(await renderOjProblem(env, request, path), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
