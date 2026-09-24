@@ -330,7 +330,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '6';
+const CURRENT_SCHEMA_VERSION = '7';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
