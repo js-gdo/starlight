@@ -5,6 +5,7 @@ import { htmlEscape } from '../utils/html';
 import type { Env } from '../env.d';
 
 const hardwareCatalog = [
+    { id: 'gpu-rtx-5090', type: 'gpu', name: 'NVIDIA RTX 5090 计算卡', score: 145000, price: 10800, spec: 'AI 推理 / 图形计算 / 高性能节点' },
     { id: 'cpu-epyc-9755', type: 'cpu', name: 'AMD EPYC 9755', score: 760000, price: 9800, spec: '128 核 / 256 线程 / 5.7 GHz' },
     { id: 'cpu-epyc-9965', type: 'cpu', name: 'AMD EPYC 9965', score: 742000, price: 9150, spec: '96 核 / 192 线程 / 5.4 GHz' },
     { id: 'cpu-intel-6980p', type: 'cpu', name: 'Intel Xeon 6980P', score: 675000, price: 8200, spec: '128 核 / 256 线程 / 5.2 GHz' },

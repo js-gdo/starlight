@@ -25,6 +25,7 @@ import { renderAdminList } from './routes/admin-list';
 import { renderHealth } from './routes/health';
 import { renderOjList, renderOjProblem } from './routes/oj';
 import { renderLeaderboard } from './routes/leaderboard';
+import { renderAchievements } from './routes/achievements';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
 
@@ -152,6 +153,12 @@ export default {
 
             if (path === '/leaderboard') {
                 return new Response(await renderLeaderboard(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/achievements') {
+                return new Response(await renderAchievements(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }

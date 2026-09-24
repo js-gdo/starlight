@@ -84,6 +84,16 @@ describe("worker routing", () => {
 		expect(html).toContain('href="/leaderboard"');
 	});
 
+	it("renders the independent achievements page and sidebar entry", async () => {
+		const response = await SELF.fetch("https://example.com/achievements");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("成就系统");
+		expect(html).toContain("欢迎来到 StarLight");
+		expect(html).toContain("帖子大佬 I");
+		expect(html).toContain('href="/achievements"');
+	});
+
 	it("does not leak internal error details", async () => {
 		const request = new IncomingRequest("http://example.com/");
 		const brokenEnv = { ...env, DB: undefined } as unknown as typeof env;
@@ -170,6 +180,7 @@ describe("server game management UI", () => {
 		expect(html).toContain("已安装设备");
 		expect(html).toContain("Docker 镜像");
 		expect(html).toContain("GPU");
+		expect(html).toContain("NVIDIA RTX 5090 计算卡");
 		expect(html).toContain("网卡");
 		expect(html).toContain("事件会在每日首次结算时生效");
 		expect(html).toContain("/api/server/collect");
