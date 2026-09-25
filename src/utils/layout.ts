@@ -76,9 +76,7 @@ export async function getLayout(
         navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
     }
     if (user?.id === 1) {
-        navItems.push({ href: '/team/requests', label: '团队审核', active: title === '团队审核' });
         navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
-        navItems.push({ href: '/oj/proposals', label: 'OJ 投题审核', active: title === 'OJ 投题审核' });
     }
 
     const sidebarLinks = navItems.map(item => {
@@ -105,7 +103,6 @@ export async function getLayout(
             '/pm': 'fa-envelope',
             '/backend': 'fa-cog',
             '/oj/propose': 'fa-file-circle-plus',
-            '/oj/proposals': 'fa-clipboard-check',
         };
         const icon = iconMap[item.href] || 'fa-link';
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;

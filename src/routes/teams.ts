@@ -6,14 +6,47 @@ import type { Env } from '../env.d';
 export async function renderTeamNew(env: Env, req: Request) {
   const user = await getSessionUser(env, req);
   const isSuper = !!user?.admin && (user.id === 1 || String(user.admin_roles || '').includes('super'));
-  const content = `<div class="page-header"><h1>创建团队</h1></div><div class="card">
-    ${!user ? '<p>提交申请前请先登录。</p>' : ''}
-    <p>${isSuper ? '超级管理员可直接创建团队，普通用户提交后进入审核队列。' : '团队创建申请将由超级管理员审核。'}</p>
-    <form method="POST" action="/api/teams"><label>团队名称</label><input name="name" required maxlength="40">
-    <label>简介</label><textarea name="description" maxlength="500"></textarea>
-    <label>等级</label><select name="level"><option value="普通">普通团队：每月最多 3 次比赛、1 次公开赛</option><option value="高级">高级团队：比赛和公开赛不限</option></select>
-    <label>高级团队兑换码（申请高级团队时必填）</label><input name="upgrade_code" maxlength="64" autocomplete="off">
-    <button type="submit">提交</button></form></div>`;
+  const submitted = new URL(req.url).searchParams.get('submitted') === '1';
+  const content = `<div class="page-header"><h1><i class="fas fa-users"></i> 创建团队</h1><p>创建一个专属空间，管理团队成员、公告和 OJ 比赛。</p></div>
+    ${submitted ? '<div class="card team-notice team-notice-success">团队创建申请已提交，请等待 superuser 审核。</div>' : ''}
+    <div class="card team-create-card">
+      <div class="team-create-intro"><strong>${isSuper ? '你可以直接创建团队。' : '团队创建申请需要审核。'}</strong><span>${isSuper ? '创建后你将自动成为团队队长。' : '审核通过后，你将自动成为团队队长。'}</span></div>
+      ${!user ? `<div class="team-notice"><p>登录后即可提交团队创建申请。</p><a class="team-login-link" href="/login?redirect=${encodeURIComponent('/team/new')}">前往登录</a></div>` : `
+      <form method="POST" action="/api/teams" class="team-create-form">
+        <label>团队名称<input name="name" required maxlength="40" placeholder="例如：星光算法社"></label>
+        <label>团队简介<textarea name="description" maxlength="500" rows="4" placeholder="介绍团队方向、招募计划或兴趣领域"></textarea></label>
+        <label>团队等级<select name="level" id="teamLevel">
+          <option value="普通">普通团队：每月最多 3 次比赛、1 次公开赛</option>
+          <option value="高级">高级团队：比赛和公开赛不限</option>
+        </select></label>
+        <label id="teamUpgradeCodeField" hidden>高级团队兑换码<input name="upgrade_code" maxlength="64" autocomplete="off" placeholder="申请高级团队时填写"></label>
+        <button class="team-submit-button" type="submit"><i class="fas fa-plus"></i> ${isSuper ? '创建团队' : '提交审核申请'}</button>
+      </form>
+      <script>
+        (function () {
+          var level = document.getElementById('teamLevel');
+          var code = document.getElementById('teamUpgradeCodeField');
+          if (!level || !code) return;
+          function sync() { code.hidden = level.value !== '高级'; }
+          level.addEventListener('change', sync);
+          sync();
+        }());
+      </script>`}
+    </div>
+    <style>
+      .team-create-card{max-width:720px}
+      .team-create-intro{display:grid;gap:5px;margin-bottom:20px;padding:14px 16px;border-left:4px solid #8E44AD;background:#faf7fd;color:#4a3a54}
+      .team-create-intro span{color:#777;font-size:13px}
+      .team-create-form{display:grid;gap:15px}
+      .team-create-form label{display:grid;gap:7px;color:#555;font-size:13px;font-weight:600}
+      .team-create-form input,.team-create-form textarea,.team-create-form select{box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid #d9d3df;border-radius:7px;background:#fff;color:#333;font:inherit;font-weight:400}
+      .team-create-form textarea{resize:vertical;min-height:96px}
+      .team-submit-button{justify-self:start;border:0;border-radius:7px;padding:10px 18px;background:#8E44AD;color:#fff;cursor:pointer;font-weight:600}
+      .team-notice{padding:14px 16px;border-radius:7px;background:#f8f9fa;color:#666}
+      .team-notice p{margin:0 0 8px}
+      .team-notice-success{margin-bottom:16px;background:#effaf3;color:#18794e}
+      .team-login-link{color:#8E44AD;font-weight:600;text-decoration:none}
+    </style>`;
   return getLayout(env, user, '创建团队', content, '', req);
 }
 
