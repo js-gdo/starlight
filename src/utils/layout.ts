@@ -76,7 +76,7 @@ export async function getLayout(
         navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
     }
     if (user?.id === 1) {
-        navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
+        navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
     }
 
     const sidebarLinks = navItems.map(item => {
@@ -212,7 +212,7 @@ export async function getLayout(
   `;
 
     const announcementHtml = announcements.results.length > 0 ? `
-    <div class="site-announcements" aria-label="鍏憡">
+    <div class="site-announcements" aria-label="公告">
       <div class="site-announcements-track" id="announcementTrack" style="animation-duration:${Math.max(5, Number(announcements.results[0]?.scroll_speed || 24))}s;">
         ${announcements.results.map((item: any) => `<span class="site-announcement-item announcement-${htmlEscape(item.announcement_type || 'notice')}"><i class="fas fa-${item.announcement_type === 'urgent' ? 'triangle-exclamation' : item.announcement_type === 'warning' ? 'circle-exclamation' : 'bullhorn'}"></i> ${htmlEscape(item.content)}</span>`).join('')}
       </div>

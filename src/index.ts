@@ -42,7 +42,7 @@ export default {
 
             await ensureDB(env);
 
-            // ============ 椤甸潰璺敱 ============
+            // ============ 页面路由 ============
             if (path === '/' || path === '/index.html') {
                 return new Response(await renderHome(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -262,7 +262,7 @@ if (path === '/leaderboard') {
                 });
             }
 
-            // ============ API 璺敱 ============
+            // ============ API 路由 ============
             if (path.startsWith('/api/')) {
                 return await handleApi(request, env, path);
             }
