@@ -71,6 +71,17 @@ describe("worker routing", () => {
 		expect(html).toContain("提交评测");
 		expect(html).toContain("monaco-editor@0.52.2");
 		expect(html).toContain("Monaco Editor");
+		expect(html).toContain("window.location.href = '/oj/submission/'");
+	});
+
+	it("renders an OJ submission detail page shell", async () => {
+		const response = await SELF.fetch("https://example.com/oj/submission/123");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("提交详情");
+		expect(html).toContain("提交 #123");
+		expect(html).toContain("/api/oj/submission?sid=");
+		expect(html).toContain("测试点详情");
 	});
 
 	it("renders the top-50 points leaderboard in the sidebar", async () => {
@@ -104,6 +115,15 @@ describe("worker routing", () => {
 		expect(html).toContain("社区明星");
 		expect(html).toContain("积分达人");
 		expect(html).toContain('href="/achievements"');
+	});
+
+	it("renders the site search page and sidebar entry", async () => {
+		const response = await SELF.fetch("https://example.com/search?q=star");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain("全站搜索");
+		expect(html).toContain('action="/search"');
+		expect(html).toContain('href="/search"');
 	});
 
 	it("does not leak internal error details", async () => {
