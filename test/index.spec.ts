@@ -100,6 +100,9 @@ describe("worker routing", () => {
 		expect(html).toContain("成就系统");
 		expect(html).toContain("欢迎来到 StarLight");
 		expect(html).toContain("帖子大佬 I");
+		expect(html).toContain("初次创作");
+		expect(html).toContain("社区明星");
+		expect(html).toContain("积分达人");
 		expect(html).toContain('href="/achievements"');
 	});
 
