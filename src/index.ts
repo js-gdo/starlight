@@ -23,9 +23,10 @@ import { renderUser, renderUserSettings } from './routes/user';
 import { renderServer } from './routes/server';
 import { renderAdminList } from './routes/admin-list';
 import { renderHealth } from './routes/health';
-import { renderOjList, renderOjProblem } from './routes/oj';
+import { renderOjList, renderOjProblem, renderOjSubmission } from './routes/oj';
 import { renderLeaderboard } from './routes/leaderboard';
 import { renderAchievements } from './routes/achievements';
+import { renderSearch } from './routes/search';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
 
@@ -151,6 +152,12 @@ export default {
                 });
             }
 
+            if (path.startsWith('/oj/submission/') && path.length > '/oj/submission/'.length) {
+                return new Response(await renderOjSubmission(env, request, path), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
             if (path === '/leaderboard') {
                 return new Response(await renderLeaderboard(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -159,6 +166,11 @@ export default {
 
             if (path === '/achievements') {
                 return new Response(await renderAchievements(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+            if (path === '/search') {
+                return new Response(await renderSearch(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }

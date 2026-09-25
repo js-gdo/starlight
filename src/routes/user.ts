@@ -102,6 +102,25 @@ export async function renderUserSettings(env: Env, req: Request) {
                 <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;"><i class="fas fa-save"></i> ${t('updateBio')}</button>
             </form>
         </div>
+        <div class="card" style="max-width:720px;margin-top:14px;">
+            <h3 style="font-size:16px;margin-bottom:12px;">账号安全</h3>
+            <form id="passwordForm" style="display:flex;flex-direction:column;gap:10px;">
+                <input name="current_password" type="password" autocomplete="current-password" placeholder="当前密码" required style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                <input name="new_password" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="新密码（至少 6 位）" required style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;">更新密码</button>
+                <span id="passwordStatus" style="font-size:13px;"></span>
+            </form>
+        </div>
+        <script>
+            document.getElementById('passwordForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+                var status = document.getElementById('passwordStatus');
+                var response = await fetch('/api/user/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(event.target))) });
+                var data = await response.json();
+                status.textContent = data.message || data.error || '操作完成';
+                status.style.color = response.ok ? '#27ae60' : '#e74c3c';
+            });
+        </script>
     `;
     return await getLayout(env, user, '用户设置', content, '', req);
 }
