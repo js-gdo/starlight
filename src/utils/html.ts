@@ -94,6 +94,25 @@ export async function normalizeAtMentionsInContent(db: any, text: string): Promi
     });
 }
 
+export function renderUserVerificationBadge(level: 'gold' | 'blue' | 'green' | 'default' = 'default'): string {
+    const palette = {
+        gold: '#f1c40f',
+        blue: '#3498db',
+        green: '#2ecc71',
+        default: '#8E44AD',
+    } as const;
+    const color = palette[level] || palette.default;
+    return `<svg class="user-rank-hook" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-label="verified" title="verified" style="vertical-align:-2px;display:inline-block; margin-left:4px;"><path d="M12.9 3.2L6.7 9.4L4.1 6.8L2.7 8.2L6.7 12.2L14.3 4.6L12.9 3.2Z" fill="${color}"/></svg>`;
+}
+
+export function getUserVerificationLevel(uid: number): 'gold' | 'blue' | 'green' | 'default' {
+    if (!Number.isFinite(uid) || uid <= 0) return 'default';
+    if (uid === 1) return 'gold';
+    if (uid === 2) return 'blue';
+    if (uid === 3) return 'green';
+    return 'blue';
+}
+
 export function renderAtMentions(text: string, resolveUser: (token: string) => MentionUser | null): string {
     if (!text) return '';
     const regex = /(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g;
@@ -108,7 +127,8 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
         result += htmlEscape(text.slice(lastIndex, start));
         const user = resolveUser(token);
         if (user) {
-            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}</a>`;
+            const badge = renderUserVerificationBadge(getUserVerificationLevel(user.id));
+            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}${badge}</a>`;
         } else {
             result += `${htmlEscape(prefix)}${htmlEscape('@' + token)}`;
         }
@@ -118,10 +138,11 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
     return result.replace(/\n/g, '<br>');
 }
 
-export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '') {
+export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '', rankLevel?: 'gold' | 'blue' | 'green' | 'default') {
     if (!username) return '';
     const tagHtml = tag ? `<span style="${htmlEscape(getUserTagStyle(color))}">${htmlEscape(tag)}</span>` : '';
-    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
+    const badge = renderUserVerificationBadge(rankLevel ?? getUserVerificationLevel(uid));
+    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}${badge}</a>`;
 }
 
 export function renderAvatar(user: { id?: number; username?: string; avatar_url?: string }, size = 42): string {
