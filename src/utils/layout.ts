@@ -68,11 +68,17 @@ export async function getLayout(
         { href: '/game', label: '星光牧场', active: title === '星光牧场' },
         { href: '/redeem', label: '积分兑换码', active: title === '积分兑换码' },
         { href: '/search', label: '全站搜索', active: title === '全站搜索' },
+        { href: '/team/new', label: '团队', active: title === '创建团队' || title.includes('团队') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
     ];
     if (user && user.admin) {
         navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
+    }
+    if (user?.id === 1) {
+        navItems.push({ href: '/team/requests', label: '团队审核', active: title === '团队审核' });
+        navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
+        navItems.push({ href: '/oj/proposals', label: 'OJ 投题审核', active: title === 'OJ 投题审核' });
     }
 
     const sidebarLinks = navItems.map(item => {
@@ -94,9 +100,12 @@ export async function getLayout(
             '/game': 'fa-paw',
             '/redeem': 'fa-ticket',
             '/search': 'fa-search',
+            '/team/new': 'fa-users',
             '/messages': 'fa-bell',
             '/pm': 'fa-envelope',
             '/backend': 'fa-cog',
+            '/oj/propose': 'fa-file-circle-plus',
+            '/oj/proposals': 'fa-clipboard-check',
         };
         const icon = iconMap[item.href] || 'fa-link';
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;

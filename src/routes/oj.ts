@@ -303,6 +303,70 @@ export async function renderOjList(env: Env, req: Request) {
     return getLayout(env, user, 'OJ 评测', renderOjListContent(), OJ_STYLES, req);
 }
 
+export async function renderOjProposal(env: Env, req: Request) {
+    const user = await getSessionUser(env, req);
+    if (user?.id !== 1) {
+        return getLayout(env, user, 'OJ 投题', '<div class="card"><h2>无权访问</h2><p class="oj-muted">只有 superuser（UID 1）可以提交 OJ 投题。</p></div>', OJ_STYLES, req);
+    }
+    const submitted = new URL(req.url).searchParams.get('submitted') === '1';
+    const content = `
+        <div class="page-header"><h1><i class="fas fa-file-circle-plus"></i> OJ 投题</h1>
+            <p style="margin-top:4px;">登记题目元数据，并通过外部文件服务交接题目压缩包。</p></div>
+        ${submitted ? '<div class="card" style="color:#18794e;background:#effaf3;">投题已登记，等待 superuser 审核。</div>' : ''}
+        <div class="card">
+            <form action="/api/oj/proposals" method="POST" class="oj-proposal-form">
+                <label>题目名称<input name="problem_name" maxlength="120" required placeholder="例如：区间查询"></label>
+                <label>标签<input name="tags" maxlength="300" placeholder="用逗号分隔，例如：数据结构,线段树"></label>
+                <label>5 字母取件码<input name="pickup_code" minlength="5" maxlength="5" pattern="[A-Za-z]{5}" required placeholder="上传后从外部文件服务取得"></label>
+                <div class="oj-upload-guidance"><strong>外部上传说明</strong><br>
+                    请先将题目 ZIP 上传至 <a href="https://filetransmit.cqiming.com/#/send" target="_blank" rel="noopener noreferrer">filetransmit.cqiming.com</a>，再把服务生成的 5 个英文字母取件码填入这里。
+                    本站只保存题目名称、标签和取件码，不接收、不上传、也不保存 ZIP 文件或文件内的详细评测数据。
+                    请勿把密码、完整下载链接或测试点内容填写到表单。</div>
+                <button class="oj-submit" type="submit">登记投题</button>
+            </form>
+        </div>
+        <style>
+            .oj-proposal-form { display:grid; gap:14px; max-width:620px; }
+            .oj-proposal-form label { display:grid; gap:6px; color:#555; font-size:13px; font-weight:600; }
+            .oj-proposal-form input { padding:9px 10px; border:1px solid #ddd; border-radius:6px; font:inherit; font-weight:400; }
+            .oj-upload-guidance { padding:12px; border-radius:6px; background:#fff8dc; border:1px solid #f0d98c; color:#765b14; font-size:12px; line-height:1.7; }
+        </style>`;
+    return getLayout(env, user, 'OJ 投题', content, OJ_STYLES, req);
+}
+
+export async function renderOjProposalReview(env: Env, req: Request) {
+    const user = await getSessionUser(env, req);
+    if (user?.id !== 1) {
+        return getLayout(env, user, 'OJ 投题审核', '<div class="card"><h2>无权访问</h2><p class="oj-muted">只有 superuser（UID 1）可以查看审核队列。</p></div>', OJ_STYLES, req);
+    }
+    const rows = await env.DB.prepare(
+        `SELECT p.*, u.username AS proposer_name FROM oj_proposals p
+         LEFT JOIN users u ON u.id = p.proposer_id ORDER BY p.created_at DESC, p.id DESC`
+    ).all<any>();
+    const proposals = rows.results || [];
+    const content = `
+        <div class="page-header"><h1><i class="fas fa-clipboard-check"></i> OJ 投题审核</h1></div>
+        <div class="card">
+            ${proposals.length ? proposals.map((proposal: any) => {
+                let tags: string[] = [];
+                try { tags = JSON.parse(String(proposal.tags || '[]')); } catch { }
+                return `<article class="oj-proposal-row">
+                    <div><strong>${htmlEscape(String(proposal.problem_name))}</strong>
+                        <span class="oj-proposal-status status-${htmlEscape(String(proposal.status))}">${htmlEscape(String(proposal.status))}</span>
+                        <div class="oj-muted">#${proposal.id} · ${htmlEscape(String(proposal.proposer_name || '未知'))} · ${htmlEscape(tags.join('、') || '无标签')} · 取件码：${htmlEscape(String(proposal.pickup_code))}</div>
+                    </div>
+                    <form action="/api/oj/proposals/${proposal.id}" method="POST" class="oj-proposal-review">
+                        <select name="status"><option value="pending" ${proposal.status === 'pending' ? 'selected' : ''}>待审核</option><option value="approved" ${proposal.status === 'approved' ? 'selected' : ''}>通过</option><option value="rejected" ${proposal.status === 'rejected' ? 'selected' : ''}>退回</option></select>
+                        <input name="review_note" maxlength="500" placeholder="审核备注" value="${htmlEscape(String(proposal.review_note || ''))}">
+                        <button class="oj-submit" type="submit">保存</button>
+                    </form>
+                </article>`;
+            }).join('') : '<p class="oj-muted">暂无投题记录。</p>'}
+        </div>
+        <style>.oj-proposal-row{display:flex;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid #eee;align-items:center}.oj-proposal-row:last-child{border-bottom:0}.oj-proposal-status{margin-left:8px;padding:2px 6px;border-radius:8px;font-size:11px}.status-pending{background:#fff8dc;color:#765b14}.status-approved{background:#effaf3;color:#18794e}.status-rejected{background:#fff0f0;color:#a33}.oj-proposal-review{display:flex;gap:6px;flex-wrap:wrap}.oj-proposal-review input,.oj-proposal-review select{padding:7px;border:1px solid #ddd;border-radius:5px;max-width:180px}</style>`;
+    return getLayout(env, user, 'OJ 投题审核', content, OJ_STYLES, req);
+}
+
 export async function renderOjProblem(env: Env, req: Request, path: string) {
     const user = await getSessionUser(env, req);
     const problemId = decodeURIComponent(path.slice('/oj/'.length)).trim();
