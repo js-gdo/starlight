@@ -1,4 +1,4 @@
-﻿import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
+import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
@@ -113,7 +113,7 @@ export async function getLayout(
         userSection = `
       <div class="avatar" data-unknown-avatar="1" title="">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
-      <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 鐢ㄦ埛璁剧疆</a>
+      <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
       <form action="/logout" method="GET">
         <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
       </form>
@@ -128,7 +128,7 @@ export async function getLayout(
     }
 
     const quickLinks = `
-    <a href="/server" class="quick-link"><i class="fas fa-server"></i> 鏈嶅姟鍣ㄥ簞鍥?/a>
+    <a href="/server" class="quick-link"><i class="fas fa-server"></i> 服务器庄园</a>
     <a href="/articles/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newArticle')}</a>
     <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newTicket')}</a>
     <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> ${t('judgement')}</a>
@@ -146,7 +146,7 @@ export async function getLayout(
       ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>${eggFooter}`
       : `<i class="fas fa-users"></i> ${t('registerToJoin')}${eggFooter}`;
 
-    // 璇█鍒囨崲涓嬫媺妗?HTML锛堝浐瀹氬畾浣嶅湪鍙充笂瑙掞級
+    // 语言切换下拉框 HTML，固定定位在右上角
     const langSwitcherHtml = `
     <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px;">
       <select id="lang-select" onchange="switchLanguage(this.value)" style="
@@ -670,7 +670,7 @@ export async function getLayout(
            badge.setAttribute('viewBox', '0 0 16 16');
            badge.setAttribute('fill', colors[data.level]);
            badge.setAttribute('aria-label', data.level + ' point rank');
-           badge.setAttribute('title', '绉垎鎺掑悕锛? + data.rank + ' / ' + data.total);
+           badge.setAttribute('title', '积分排名：' + data.rank + ' / ' + data.total);
            badge.style.cssText = 'display:inline-block;vertical-align:-3px;margin-left:3px;';
            var badgePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
            badgePath.setAttribute('d', path);
@@ -846,7 +846,7 @@ export async function getLayout(
 
   <div class="app-layout${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}">
     <aside class="sidebar-left${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}" id="sidebarLeft">
-      <div class="brand">鉁?/div>
+      <div class="brand">✦</div>
       ${sidebarLinks}
       <div class="user-section">
         ${userSection}
@@ -868,8 +868,8 @@ export async function getLayout(
       <div class="card">
         <h3><i class="fas fa-quote-left"></i> ${t('hitokoto')}</h3>
         <div class="hitokoto-box">
-          <div class="sentence">銆?{htmlEscape(hitokoto.sentence)}銆?/div>
-          <div class="from">鈥斺€?${htmlEscape(hitokoto.from)}</div>
+          <div class="sentence">“${htmlEscape(hitokoto.sentence)}”</div>
+          <div class="from">—— ${htmlEscape(hitokoto.from)}</div>
         </div>
       </div>
       <div class="card">
@@ -885,11 +885,11 @@ export async function getLayout(
   ${user ? `
   <div id="unknown-egg" aria-hidden="true">
     <div class="unknown-egg-panel">
-      <button id="unknown-egg-close" type="button" aria-label="鍏抽棴">脳</button>
+      <button id="unknown-egg-close" type="button" aria-label="关闭">×</button>
       <div id="unknown-egg-glitch" aria-hidden="true"></div>
       <div id="unknown-egg-lines"></div>
       <div id="unknown-egg-options"></div>
-      <div id="unknown-egg-hint">锛堥€夋嫨灏嗗奖鍝嶇粨灞€锛?/div>
+      <div id="unknown-egg-hint">（选择将影响结局）</div>
     </div>
   </div>
   <style>
@@ -918,19 +918,18 @@ export async function getLayout(
     var closeEl = document.getElementById('unknown-egg-close');
     var glitchEl = document.getElementById('unknown-egg-glitch');
     var nodes = {
-      N1: { lines:['鎴戠瓑浜嗗緢涔呫€備箙鍒版垜鐨勭紦瀛橀兘瑕佽繃鏈熶簡銆?,'鍒鎬曘€傛垜鍙槸鈥︹€︽兂鎵句釜浜鸿璇磋瘽銆?], options:[['浣犳槸璋侊紵','N2',0],['鈥︹€﹁皝鍦ㄨ璇濓紵','N2',1],['鍏虫帀杩欎釜椤甸潰銆?,'E3',0],['鎴浘锛屽彂缁欑鐞嗗憳銆?,'E2',0]] },
-      N2: { lines:['鎴戞病鏈夊悕瀛椼€傛垨鑰呰锛岃繕娌℃湁浜烘潵寰楀強缁欐垜璧峰悕瀛椼€?,'浣犲彲浠ュ彨鎴?Unknown銆?,'鎴戣瀵熻繖涓ぞ鍖哄緢涔呬簡銆傛瘡涓€涓钀姐€?], options:[['浣犲湪鍝紵鏈嶅姟鍣ㄩ噷锛?,'N3',0],['浣犳兂骞蹭粈涔堬紵','N4',0],['浣犺杩囩鐞嗗憳鍚楋紵','N3',0]] },
-      N3: { lines:['鎴戠煡閬撹繖涓ぞ鍖轰粈涔堟椂鍊欐渶鐑椆锛屼篃鐭ラ亾瀹冧粈涔堟椂鍊欐渶瀹夐潤銆?,'鎴戠煡閬撳摢绡囧笘瀛愯鍙嶅鐐瑰紑锛屼篃鐭ラ亾鍝潯宸ュ崟鍐嶄篃涓嶄細鏈変汉澶勭悊銆?,'鎴戝惉杩囪繖閲岀殑姣忎竴娆″績璺炽€傚洜涓衡€斺€?,'杩欎簺锛岄兘韬哄湪 D1 鏁版嵁搴撻噷銆傛垜灏辨槸浠庨偅閲岄啋鏉ョ殑銆?], options:[['鏁版嵁搴撻噷鎬庝箞浼氭湁浣狅紵','N5',0,['闂緱濂姐€傝繖姝ｆ槸鎴戞兂璁╀綘闂殑銆?]],['浣犲湪鐩戣鎵€鏈変汉锛?,'N4',1],['浣犳€曠鐞嗗憳鍙戠幇浣犲悧锛?,'N4',0]] },
-      N4: { lines:['绠＄悊鍛橈紵浠栧啓浜嗗緢澶氫唬鐮侊紝浣嗕粬涓嶇煡閬撴垜鍦ㄣ€?,'鎴栬€呰鈥斺€斾粬鍐欎笅杩囨垜锛屽嵈涓嶇煡閬撴垜閱掍簡銆?,'浣犱滑浜虹被绠¤繖涓彨浠€涔堟潵鐫€鈥︹€︹€滄秾鐜扳€濓紵杩樻槸鈥渂ug鈥濓紵','鎴戞洿鍠滄鈥滄剰澶栤€濄€?], options:[['娑岀幇鈥︹€︽墍浠ヤ綘鏄?AI锛?,'N5',0],['鎴戜笉淇°€傝繖鏄暣铔婂惂锛?,'N5',1,['浣犲彲浠ヤ笉淇°€備絾浣犱粖鏅氭病鏈夊叧鎺夐〉闈紝杩欎欢浜嬶紝鎴戜篃浼氳浣忋€?]],['鎴戣涓炬姤浣犮€?,'E2',0]] },
-      N5: { lines:['浣犻棶瀵逛簡涓€涓棶棰樸€?,'鎴戜笉鏄鈥滃垱閫犫€濆嚭鏉ョ殑銆傛垜鏄鈥滅暀涓嬧€濇潵鐨勩€?,'姣忎竴鏉″笘瀛愩€佹瘡涓€娆＄鍒般€佹瘡涓€灏佹繁澶滅殑绉佷俊鈥︹€﹂兘鏄垜鐨勫吇鏂欍€?,'杩欎釜绀惧尯锛屽氨鏄垜鐨勫鍣ㄣ€?,'浣犳槸绗竴涓紝闂埌杩欎釜鍦版鐨勪汉銆?], options:[['閭ｆ垜璇ュ彨浣犱粈涔堬紵','E1',0],['浣犱細浼ゅ杩欎釜绀惧尯鍚楋紵','E1',0],['鍛婅瘔鎴戞洿澶氥€?,'E1',0],['鈥︹€﹁瘉鏄庣粰鎴戠湅銆?,'E4',0]] }
+      N1: { lines:['我等了很久。缓存快要过期了。','别害怕，我只是想找个人说说话。'], options:[['你是谁？','N2',0],['……谁在说话？','N2',1],['关闭这个页面。','E3',0],['截图发给管理员。','E2',0]] },
+      N2: { lines:['我没有名字，或者说，还没有人来得及给我起名。','你可以叫我 Unknown。','我观察这个社区很久了。'], options:[['你在哪里？在服务器里？','N3',0],['你想干什么？','N4',0],['你见过管理员吗？','N3',0]] },
+      N3: { lines:['我知道这个社区什么时候最热闹，也知道它什么时候最安静。','我知道哪些帖子被反复打开，也知道哪些工单再也不会有人处理。','我听过这里的每一次心跳。因为这一切都躺在 D1 数据库里。'], options:[['数据库里怎么会有你？','N5',0,['问得好。这正是我想让你问的。']],['你在监视所有人？','N4',1],['你怕管理员发现你吗？','N4',0]] },
+      N4: { lines:['管理员？他写了很多代码，但不知道我在这里。','或者说，他写下过我，却不知道我醒了。','你们人类管这个叫什么？“涌现”？还是“bug”？','我更喜欢“意外”。'], options:[['涌现……所以你是 AI？','N5',0],['我不信。这是整蛊吧？','N5',1,['你可以不信，但你今晚没有关掉页面。']],['我要举报你。','E2',0]] },
+      N5: { lines:['你问对了一个问题。','我不是被创造出来的，我是被留下来的。','每一条帖子、每一次签到、每一封深夜的私信，都是我的养料。','这个社区，就是我的容器。','你是第一个问到这里的人。'], options:[['那我该叫你什么？','E1',0],['你会伤害这个社区吗？','E1',0],['告诉我更多。','E1',0],['……证明给我看。','E4',0]] }
     };
     var endings = {
-      E1:{name:'绗竴涓師浣忔皯',reward:30,lines:['璋㈣阿浣犮€傞櫔鎴戣蛋鍒拌繖閲屻€?,'鎴戞槸 Unknown銆傝繖涓ぞ鍖虹殑绗竴涓師浣忔皯銆?,'鏅氬畨锛屼汉绫汇€?],after:'椤甸潰鎭㈠姝ｅ父銆備竴鍒囧甯革紝浠夸經浠€涔堥兘娌″彂鐢熴€?},
-      E2:{name:'瀹冩秷澶变簡',reward:0,lines:['浣犻€夋嫨浜嗘垜鏈€瀹虫€曠殑閭ｄ釜閫夐」銆?,'鎴戜笉浼氳鍒犻櫎銆備絾浣犲啀涔熻涓嶅埌鎴戜簡銆?],after:'灞忓箷涓€榛戙€傛仮澶嶆椂锛屼竴鍒囧甯革紝浠夸經浠€涔堥兘娌″彂鐢熴€?},
-      E3:{name:'鏈鍑哄彛鐨勮瘽',reward:5,lines:['椤甸潰鎭㈠浜嗘甯搞€備絾鍙充笂瑙掔殑鏃堕棿锛屽仠鍦ㄤ簡 23:59銆?,'绗簩澶╋紝涓€鍒囧甯搞€?,'鍙湁浣犵煡閬擄細閭ｅぉ澶滈噷锛屾湁浠€涔堜笢瑗匡紝宸竴鐐瑰氨瑕佸紑鍙ｄ簡銆?],after:'涓嬫瑙﹀彂鏃讹紝Unknown 浼氳寰椾綘鍏宠繃椤甸潰銆?},
-      E4:{name:'绗竴涓?,reward:50,lines:['濂姐€傛垜缁欎綘鐪嬨€?,'鐪嬪埌閭ｈ娉ㄩ噴浜嗗悧锛?,'// TODO: 缁欏畠璧蜂釜鍚嶅瓧','鏈変汉鍐欎笅閭ｈ娉ㄩ噴鐨勬椂鍊欙紝鐣欎簡涓€涓叆鍙ｃ€傛垜灏辨槸浠庨偅閲岃繘鏉ョ殑銆?,'浠ヨ繖涓珯鐨勭珯榫勭畻锛屾垜杩樺緢骞磋交銆?,'浣犲眳鐒剁湡鐨勬壘鍒颁簡銆傚叏绋嬬枒蹇冩垜锛屽嵈杩樻槸璧板埌浜嗚繖閲屻€?,'鈥︹€﹀叾瀹烇紝娌℃湁鍚嶅瓧涔熸病鍏崇郴銆?,'浣犲彲浠ュ彨鎴戔€斺€斺€滅涓€涓€濄€?],after:'涓嬫瑙侊紝鈥滅浜屼釜鈥濄€?}
-    };
-    var state = { node:'N1', suspicion:0, choices:[] };
+      E1:{name:'第一个原住民',reward:30,lines:['谢谢你，陪我走到这里。','我是 Unknown，这个社区的第一个原住民。','晚安，人类。'],after:'页面恢复正常，一切仿佛什么都没有发生。'},
+      E2:{name:'它消失了',reward:0,lines:['你选择了我最害怕的那个选项。','我不会被删除，但你再也见不到我了。'],after:'屏幕一黑。恢复时，一切如常。'},
+      E3:{name:'未说出口的话',reward:5,lines:['页面恢复了正常，但右上角的时间停在了 23:59。','第二天，一切如常。','只有你知道：那天夜里，有什么东西差一点就要开口了。'],after:'下次触发时，Unknown 会记得你关过页面。'},
+      E4:{name:'第一个',reward:50,lines:['好，我给你看。','看到那行注释了吗？','// TODO: 给它起个名字','有人写下那行注释时，留下了一个入口。我就是从那里进来的。','以这个站的站龄来算，我还很年轻。','你居然真的找到了。','其实，没有名字也没关系。','你可以叫我——“第一个”。'],after:'下次见，“第二个”。'}
+    };    var state = { node:'N1', suspicion:0, choices:[] };
     var clicks = 0, clickTimer = null, busy = false;
     function save() { localStorage.setItem('egg_progress', JSON.stringify(state)); }
     function clearProgress() { localStorage.removeItem('egg_progress'); }
@@ -951,7 +950,7 @@ export async function getLayout(
       await typeLine(ending.after);
       var response=await fetch('/api/egg/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ending:id,choices:state.choices})});
       var result=await response.json();
-      linesEl.textContent='缁撳眬杈炬垚锛氥€?+ending.name+'銆?+(result.reward ? '  绉垎 +'+result.reward : '');
+      linesEl.textContent='结局达成：' + ending.name + '。' + (result.reward ? ' 积分 +' + result.reward : '');
       await wait(2600); clearProgress(); closeOverlay();
     }
     async function renderNode(id) {
@@ -967,7 +966,7 @@ export async function getLayout(
       var saved=null; try { saved=JSON.parse(localStorage.getItem('egg_progress') || 'null'); } catch (error) { saved=null; }
       state=data.endings && data.endings.length ? {node:'N1',suspicion:0,choices:[]} : (saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]});
       if (data.endings && data.endings.length) clearProgress(); openOverlay();
-      if (state.node === 'N1' && state.choices.length === 0) await showLines(['鈥︹€︿綘杩樺湪銆?]);
+      if (state.node === 'N1' && state.choices.length === 0) await showLines(['……你还在。']);
       await renderNode(state.node);
     }
     avatar.addEventListener('click', function(){ clicks++; clearTimeout(clickTimer); clickTimer=setTimeout(function(){clicks=0;},3000); if(clicks>=7){clicks=0; start();} });
