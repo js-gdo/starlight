@@ -15,6 +15,7 @@ export async function getLayout(
 ) {
     const t = getTranslator(request);
     const lang = getLanguage(request);
+    const uiMode = String(user?.ui_mode || 'classic') === 'modern' ? 'modern' : 'classic';
 
     const chinaTime = getChinaTime();
     const currentPath = request ? new URL(request.url).pathname : '/';
@@ -247,6 +248,50 @@ export async function getLayout(
       color: #333;
       min-height: 100vh;
       padding: 12px;
+    }
+    body.ui-modern {
+      background: radial-gradient(circle at top left, rgba(204, 170, 116, 0.18), transparent 20%), linear-gradient(180deg, #f6f2ec 0%, #f3f5f8 100%);
+      color: #1f2937;
+    }
+    body.ui-modern .site-announcements {
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 16px;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.04);
+    }
+    body.ui-modern .app-layout {
+      gap: 18px;
+      max-width: 1440px;
+    }
+    body.ui-modern .sidebar-left {
+      background: rgba(17, 24, 39, 0.96);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    }
+    body.ui-modern .main-content .card,
+    body.ui-modern .sidebar-right .card {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+      backdrop-filter: blur(12px);
+    }
+    body.ui-modern .page-header h1 {
+      letter-spacing: -0.04em;
+      color: #111827;
+    }
+    body.ui-modern .quick-link,
+    body.ui-modern .sidebar-left a {
+      border-radius: 12px;
+    }
+    body.ui-modern .sidebar-left a.active {
+      background: rgba(180, 138, 74, 0.18);
+      color: #f5efe7;
+    }
+    body.ui-modern .sidebar-right .card h3 i,
+    body.ui-modern .quick-link i {
+      color: #b38a4a;
     }
     .app-layout {
       display: grid;
@@ -836,7 +881,7 @@ export async function getLayout(
     })();
   </script>
 </head>
-<body>
+<body class="ui-${uiMode}">
   ${langSwitcherHtml}
   ${announcementHtml}
   ${siteStatusHtml}

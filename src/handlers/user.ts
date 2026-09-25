@@ -35,6 +35,7 @@ export async function handleUser(request: Request, env: Env, path: string) {
             real_name: String(form.get('real_name') || ''),
         };
         const sidebarMode = String(form.get('sidebar_mode') || 'classic') === 'hover' ? 'hover' : 'classic';
+        const uiMode = String(form.get('ui_mode') || 'classic') === 'modern' ? 'modern' : 'classic';
         const normalized = normalizeProfileFields(raw);
 
         if (normalized.avatar_url && !validateAvatarUrl(normalized.avatar_url)) {
@@ -48,8 +49,8 @@ export async function handleUser(request: Request, env: Env, path: string) {
         const violation = await checkViolation(normalized.bio);
         if (violation.violated) return violationErrorPage(violation, t);
 
-        await db.prepare('UPDATE users SET bio = ?, avatar_url = ?, location = ?, profile_link = ?, real_name = ?, sidebar_mode = ? WHERE id = ?')
-            .bind(normalized.bio, normalized.avatar_url, normalized.location, normalized.profile_link, normalized.real_name, sidebarMode, user.id)
+        await db.prepare('UPDATE users SET bio = ?, avatar_url = ?, location = ?, profile_link = ?, real_name = ?, sidebar_mode = ?, ui_mode = ? WHERE id = ?')
+            .bind(normalized.bio, normalized.avatar_url, normalized.location, normalized.profile_link, normalized.real_name, sidebarMode, uiMode, user.id)
             .run();
         return new Response(null, { status: 302, headers: { Location: `/user/${user.id}` } });
     }
