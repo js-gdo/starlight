@@ -386,7 +386,7 @@ export async function initDB(env: Env) {
         ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
     }
 
-    // 鍒濆鍖栭粯璁よ疆鎾浘
+    // 初始化默认轮播图
     const bannerCount = await db.prepare('SELECT COUNT(*) as cnt FROM banners').first();
     if (!bannerCount || bannerCount.cnt === 0) {
         const defaultBanners = [
@@ -400,7 +400,7 @@ export async function initDB(env: Env) {
         }
     }
 
-    // 涓烘棫鏁版嵁搴撹ˉ鍏呭瓧娈碉紙蹇界暐閿欒锛?
+    // 为旧数据库补充字段（忽略已存在字段错误）
     const alterColumns = [
         'ALTER TABLE users ADD COLUMN last_ip TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_region TEXT DEFAULT ""',
