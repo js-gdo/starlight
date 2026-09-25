@@ -31,7 +31,7 @@ import { renderRedeem } from './routes/redeem';
 import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
 import { handleApi } from './handlers/api';
-import { renderTeamNew, renderTeam, renderTeamRequests } from './routes/teams';
+import { renderTeamList, renderTeamNew, renderTeam, renderTeamSettings, renderTeamRequests } from './routes/teams';
 import type { Env } from './env.d';
 
 export default {
@@ -205,11 +205,17 @@ if (path === '/leaderboard') {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
+            if (path === '/team') {
+                return new Response(await renderTeamList(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
             if (path === '/team/new') {
                 return new Response(await renderTeamNew(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
             }
             if (path === '/team/requests') {
                 return new Response(await renderTeamRequests(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+            if (path.startsWith('/team/') && path.endsWith('/settings')) {
+                return new Response(await renderTeamSettings(env, request, path), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
             }
             if (path.startsWith('/team/') && path.length > 6) {
                 return new Response(await renderTeam(env, request, path), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });

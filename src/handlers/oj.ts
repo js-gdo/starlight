@@ -102,6 +102,8 @@ async function handleProposalApi(request: Request, env: Env, path: string): Prom
             if (!teamId) return jsonRes({ error: 'Please select a team.' }, 400);
             const team = await db.prepare("SELECT id FROM teams WHERE id = ? AND status = 'active'").bind(teamId).first();
             if (!team) return jsonRes({ error: 'Selected team is unavailable.' }, 400);
+            const membership = await db.prepare("SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND status = 'approved'").bind(teamId, user.id).first();
+            if (!membership) return jsonRes({ error: 'Only your own team can be selected for team problems.' }, 403);
         }
         let result;
         try {
