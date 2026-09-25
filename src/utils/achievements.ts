@@ -14,13 +14,20 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     { id: 'writer-1', name: '帖子大佬 I', description: '发布过 5 篇帖子', icon: '✎', color: '#3498db' },
     { id: 'writer-2', name: '帖子大佬 II', description: '发布过 10 篇帖子', icon: '✎', color: '#2980b9' },
     { id: 'writer-3', name: '帖子大佬 III', description: '发布过 25 篇帖子', icon: '✎', color: '#1f618d' },
+    { id: 'first-post', name: '初次创作', description: '发布过 1 篇帖子', icon: '✦', color: '#5dade2' },
+    { id: 'master-writer', name: '全能创作者', description: '发布过 50 篇帖子', icon: '✍', color: '#154360' },
     { id: 'bug-hunter', name: 'Bug 寻找者', description: '创建过 10 个工单', icon: '⚒', color: '#e67e22' },
+    { id: 'first-report', name: '首次反馈', description: '创建过 1 个工单', icon: '⚑', color: '#ca6f1e' },
     { id: 'commentator', name: '热心评论家', description: '发表过 10 条评论', icon: '✦', color: '#16a085' },
+    { id: 'first-comment', name: '留下足迹', description: '发表过 1 条评论', icon: '☄', color: '#48c9b0' },
     { id: 'checkin-veteran', name: '每日打卡', description: '完成过一次每日签到', icon: '✓', color: '#27ae60' },
     { id: 'popular', name: '社区熟面孔', description: '拥有 5 位粉丝', icon: '♥', color: '#e74c3c' },
+    { id: 'community-star', name: '社区明星', description: '拥有 20 位粉丝', icon: '✹', color: '#c0392b' },
     { id: 'points-collector', name: '积分收藏家', description: '累计获得 500 积分', icon: '◆', color: '#f39c12' },
+    { id: 'points-master', name: '积分达人', description: '累计获得 2000 积分', icon: '◇', color: '#b9770e' },
     { id: 'profile-complete', name: '资料完整', description: '完善个人签名、头像和主页链接', icon: '●', color: '#7f8c8d' },
     { id: 'server-operator', name: '服务器运营者', description: '拥有超过 1000 Server 币', icon: '⚙', color: '#5b6ee1' },
+    { id: 'server-tycoon', name: '服务器富翁', description: '拥有超过 10000 Server 币', icon: '♜', color: '#34495e' },
 ];
 
 const definitionMap = new Map(ACHIEVEMENTS.map((achievement) => [achievement.id, achievement]));
@@ -48,13 +55,20 @@ export async function syncAchievements(db: any, userId: number): Promise<void> {
     if (articleCount >= 5) earned.add('writer-1');
     if (articleCount >= 10) earned.add('writer-2');
     if (articleCount >= 25) earned.add('writer-3');
+    if (articleCount >= 1) earned.add('first-post');
+    if (articleCount >= 50) earned.add('master-writer');
     if (ticketCount >= 10) earned.add('bug-hunter');
+    if (ticketCount >= 1) earned.add('first-report');
     if (commentCount >= 10) earned.add('commentator');
+    if (commentCount >= 1) earned.add('first-comment');
     if (user.checkin_date) earned.add('checkin-veteran');
     if (followerCount >= 5) earned.add('popular');
+    if (followerCount >= 20) earned.add('community-star');
     if (Number(user.points || 0) >= 500) earned.add('points-collector');
+    if (Number(user.points || 0) >= 2000) earned.add('points-master');
     if (user.bio && user.avatar_url && user.profile_link) earned.add('profile-complete');
     if (Number(user.server_coin || 0) > 1000) earned.add('server-operator');
+    if (Number(user.server_coin || 0) > 10000) earned.add('server-tycoon');
 
     for (const achievementId of earned) {
         await db.prepare('INSERT OR IGNORE INTO user_achievements (user_id, achievement_id) VALUES (?, ?)')
