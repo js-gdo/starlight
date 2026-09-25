@@ -70,7 +70,7 @@ export async function getLayout(
         { href: '/game', label: '小游戏', active: title === '小游戏' },
         { href: '/redeem', label: '积分兑换', active: title === '积分兑换' },
         { href: '/search', label: '站内搜索', active: title === '站内搜索' },
-        { href: '/team/new', label: '团队', active: title === '创建团队' || title.includes('团队') },
+        { href: '/team', label: '团队', active: title === '创建团队' || title.includes('团队') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
     ];if (user && user.admin) {
