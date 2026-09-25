@@ -52,6 +52,15 @@ describe("worker routing", () => {
 		expect(await response.json()).toEqual({ error: "API not found" });
 	});
 
+	it("exposes team creation and isolated team APIs", async () => {
+		const page = await SELF.fetch("https://example.com/team/new");
+		expect(page.status).toBe(200);
+		expect(await page.text()).toContain("创建团队");
+		const teams = await SELF.fetch("https://example.com/api/teams");
+		expect(teams.status).toBe(200);
+		expect(await teams.json()).toEqual([]);
+	});
+
 	it("renders the OJ problem list and exposes it in the sidebar", async () => {
 		const response = await SELF.fetch("https://example.com/oj");
 		expect(response.status).toBe(200);

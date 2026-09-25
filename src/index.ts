@@ -23,13 +23,14 @@ import { renderUser, renderUserSettings } from './routes/user';
 import { renderServer } from './routes/server';
 import { renderAdminList } from './routes/admin-list';
 import { renderHealth } from './routes/health';
-import { renderOjList, renderOjProblem, renderOjSubmission } from './routes/oj';
+import { renderOjList, renderOjProblem, renderOjSubmission, renderOjProposal, renderOjProposalReview } from './routes/oj';
 import { renderLeaderboard } from './routes/leaderboard';
 import { renderAchievements } from './routes/achievements';
 import { renderRedeem } from './routes/redeem';
 import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
 import { handleApi } from './handlers/api';
+import { renderTeamNew, renderTeam, renderTeamRequests } from './routes/teams';
 import type { Env } from './env.d';
 
 export default {
@@ -154,6 +155,17 @@ export default {
                 });
             }
 
+            if (path === '/oj/propose') {
+                return new Response(await renderOjProposal(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+            if (path === '/oj/proposals') {
+                return new Response(await renderOjProposalReview(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
             if (path.startsWith('/oj/submission/') && path.length > '/oj/submission/'.length) {
                 return new Response(await renderOjSubmission(env, request, path), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -181,6 +193,15 @@ export default {
                 return new Response(await renderSearch(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
+            }
+            if (path === '/team/new') {
+                return new Response(await renderTeamNew(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+            if (path === '/team/requests') {
+                return new Response(await renderTeamRequests(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+            if (path.startsWith('/team/') && path.length > 6) {
+                return new Response(await renderTeam(env, request, path), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
             }
             if (path.startsWith('/oj/') && path.length > 4) {
                 return new Response(await renderOjProblem(env, request, path), {

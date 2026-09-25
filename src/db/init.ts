@@ -196,6 +196,69 @@ export async function initDB(env: Env) {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS teams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      level TEXT NOT NULL DEFAULT '普通' CHECK (level IN ('普通','高级')),
+      owner_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      competition_quota INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS team_members (
+      team_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(team_id, user_id),
+      FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS team_posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      team_id INTEGER NOT NULL,
+      author_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      is_announcement INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
+      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS team_creation_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      requester_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      level TEXT NOT NULL DEFAULT '普通',
+      status TEXT NOT NULL DEFAULT 'pending',
+      reviewed_by INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(requester_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS team_competition_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      team_id INTEGER NOT NULL,
+      requester_id INTEGER NOT NULL,
+      competition_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      is_public INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
+      FOREIGN KEY(requester_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS team_upgrade_codes (
+      code TEXT PRIMARY KEY,
+      max_uses INTEGER NOT NULL DEFAULT 1,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      expires_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
         `CREATE TABLE IF NOT EXISTS permission_ticket_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ticket_id INTEGER NOT NULL,
@@ -218,6 +281,20 @@ export async function initDB(env: Env) {
       unlocked_at TEXT DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, achievement_id),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS oj_proposals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      proposer_id INTEGER NOT NULL,
+      problem_name TEXT NOT NULL,
+      tags TEXT NOT NULL DEFAULT '[]',
+      pickup_code TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      reviewer_id INTEGER DEFAULT 0,
+      review_note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      reviewed_at TEXT DEFAULT '',
+      FOREIGN KEY(proposer_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(reviewer_id) REFERENCES users(id) ON DELETE SET NULL
     )`,
         `CREATE TABLE IF NOT EXISTS redeem_codes (
       code TEXT PRIMARY KEY,
@@ -325,6 +402,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE articles ADD COLUMN problem_id TEXT DEFAULT ""',
         'ALTER TABLE articles ADD COLUMN is_pinned INTEGER DEFAULT 0',
         'ALTER TABLE articles ADD COLUMN is_locked INTEGER DEFAULT 0'
+        , 'ALTER TABLE team_competition_requests ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0'
     ];
     for (const sql of alterColumns) {
         try { await db.prepare(sql).run(); } catch { }
@@ -350,7 +428,10 @@ export async function initDB(env: Env) {
         'CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_id, status)',
         'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)',
-        'CREATE INDEX IF NOT EXISTS idx_users_server_rank ON users (server_hardware_score DESC, server_coin DESC)'
+        'CREATE INDEX IF NOT EXISTS idx_users_server_rank ON users (server_hardware_score DESC, server_coin DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members (user_id, status)',
+        'CREATE INDEX IF NOT EXISTS idx_team_posts_team ON team_posts (team_id, created_at)',
+        'CREATE INDEX IF NOT EXISTS idx_team_creation_requests_status ON team_creation_requests (status, created_at)'
         , 'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)'
     ];
     for (const sql of indexes) {
@@ -360,7 +441,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '8';
+const CURRENT_SCHEMA_VERSION = '11';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
