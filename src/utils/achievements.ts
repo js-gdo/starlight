@@ -77,7 +77,7 @@ export async function syncAchievements(db: any, userId: number): Promise<void> {
         changed = false;
         for (const achievement of ACHIEVEMENTS) {
             if (!earned.has(achievement.id) || unlocked.has(achievement.id)) continue;
-            if ((achievement.prerequisites || []).every((id) => unlocked.has(id) || id === 'welcome' && earned.has(id))) {
+            if ((achievement.prerequisites || []).every((id) => unlocked.has(id))) {
                 unlocked.add(achievement.id);
                 changed = true;
             }
