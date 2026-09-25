@@ -32,6 +32,7 @@ export async function initDB(env: Env) {
       egg_locked INTEGER DEFAULT 0,
       sidebar_mode TEXT DEFAULT 'classic',
       ui_mode TEXT DEFAULT 'classic',
+      redirect_delay_seconds INTEGER DEFAULT 5,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -426,6 +427,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN admin_roles TEXT DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN sidebar_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN ui_mode TEXT DEFAULT "classic"',
+        'ALTER TABLE users ADD COLUMN redirect_delay_seconds INTEGER DEFAULT 5',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
