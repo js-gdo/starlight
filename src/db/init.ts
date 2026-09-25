@@ -23,7 +23,7 @@ export async function initDB(env: Env) {
       server_hardware_score INTEGER DEFAULT 0,
       server_assets TEXT DEFAULT '[]',
       server_cpu TEXT DEFAULT 'E5-2686 v4',
-      server_motherboard TEXT DEFAULT 'X99 主板',
+      server_motherboard TEXT DEFAULT 'X99 涓绘澘',
       server_ram TEXT DEFAULT '16GB DDR4',
       server_storage TEXT DEFAULT '1TB HDD',
       server_last_collected_at TEXT DEFAULT '',
@@ -288,13 +288,51 @@ export async function initDB(env: Env) {
       problem_name TEXT NOT NULL,
       tags TEXT NOT NULL DEFAULT '[]',
       pickup_code TEXT NOT NULL,
+      proposal_category TEXT NOT NULL DEFAULT 'public',
+      problem_id TEXT NOT NULL DEFAULT '',
+      team_id INTEGER DEFAULT NULL,
+      visibility TEXT NOT NULL DEFAULT 'public',
       status TEXT NOT NULL DEFAULT 'pending',
-      reviewer_id INTEGER DEFAULT 0,
+      reviewer_id INTEGER DEFAULT NULL,
       review_note TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       reviewed_at TEXT DEFAULT '',
       FOREIGN KEY(proposer_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    )`,
+        `CREATE TABLE IF NOT EXISTS contests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      organizer_id INTEGER DEFAULT 1,
+      participation_mode TEXT NOT NULL DEFAULT 'public' CHECK (participation_mode IN ('public', 'team')),
+      is_ioi INTEGER NOT NULL DEFAULT 1,
+      start_at TEXT DEFAULT '',
+      end_at TEXT DEFAULT '',
+      schedule_state TEXT DEFAULT 'scheduled',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(organizer_id) REFERENCES users(id) ON DELETE SET DEFAULT
+    )`,
+        `CREATE TABLE IF NOT EXISTS contest_problems (
+      contest_id INTEGER NOT NULL,
+      problem_id TEXT NOT NULL,
+      problem_order INTEGER NOT NULL DEFAULT 0,
+      visibility TEXT NOT NULL DEFAULT 'public',
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (contest_id, problem_id),
+      FOREIGN KEY(contest_id) REFERENCES contests(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS contest_enrollments (
+      contest_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      team_id INTEGER DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'enrolled',
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (contest_id, user_id),
+      FOREIGN KEY(contest_id) REFERENCES contests(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE SET NULL
     )`,
         `CREATE TABLE IF NOT EXISTS redeem_codes (
       code TEXT PRIMARY KEY,
@@ -348,7 +386,7 @@ export async function initDB(env: Env) {
         ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
     }
 
-    // 初始化默认轮播图
+    // 鍒濆鍖栭粯璁よ疆鎾浘
     const bannerCount = await db.prepare('SELECT COUNT(*) as cnt FROM banners').first();
     if (!bannerCount || bannerCount.cnt === 0) {
         const defaultBanners = [
@@ -362,7 +400,7 @@ export async function initDB(env: Env) {
         }
     }
 
-    // 为旧数据库补充字段（忽略错误）
+    // 涓烘棫鏁版嵁搴撹ˉ鍏呭瓧娈碉紙蹇界暐閿欒锛?
     const alterColumns = [
         'ALTER TABLE users ADD COLUMN last_ip TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_region TEXT DEFAULT ""',
@@ -377,7 +415,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN server_hardware_score INTEGER DEFAULT 0',
         'ALTER TABLE users ADD COLUMN server_assets TEXT DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN server_cpu TEXT DEFAULT "E5-2686 v4"',
-        'ALTER TABLE users ADD COLUMN server_motherboard TEXT DEFAULT "X99 主板"',
+        'ALTER TABLE users ADD COLUMN server_motherboard TEXT DEFAULT "X99 涓绘澘"',
         'ALTER TABLE users ADD COLUMN server_ram TEXT DEFAULT "16GB DDR4"',
         'ALTER TABLE users ADD COLUMN server_storage TEXT DEFAULT "1TB HDD"',
         'ALTER TABLE users ADD COLUMN server_last_collected_at TEXT DEFAULT ""',
@@ -403,12 +441,28 @@ export async function initDB(env: Env) {
         'ALTER TABLE articles ADD COLUMN is_pinned INTEGER DEFAULT 0',
         'ALTER TABLE articles ADD COLUMN is_locked INTEGER DEFAULT 0'
         , 'ALTER TABLE team_competition_requests ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0'
+        , "ALTER TABLE teams ADD COLUMN join_mode TEXT NOT NULL DEFAULT 'application'"
+        , "ALTER TABLE team_creation_requests ADD COLUMN join_mode TEXT NOT NULL DEFAULT 'application'"
+        , "ALTER TABLE team_members ADD COLUMN reason TEXT DEFAULT ''"
     ];
     for (const sql of alterColumns) {
         try { await db.prepare(sql).run(); } catch { }
     }
 
     await db.prepare("UPDATE users SET admin_roles = '[\"unassigned\"]' WHERE admin = 1 AND (admin_roles IS NULL OR admin_roles = '' OR admin_roles = '[]')").run();
+
+    // Keep proposal records created by older deployments usable while adding
+    // category-specific metadata. D1 supports ADD COLUMN but not ALTER COLUMN,
+    // so the nullable reviewer_id is handled by explicitly binding NULL below.
+    const proposalColumns = [
+        "ALTER TABLE oj_proposals ADD COLUMN proposal_category TEXT NOT NULL DEFAULT 'public'",
+        "ALTER TABLE oj_proposals ADD COLUMN problem_id TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE oj_proposals ADD COLUMN team_id INTEGER DEFAULT NULL",
+        "ALTER TABLE oj_proposals ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'",
+    ];
+    for (const sql of proposalColumns) {
+        try { await db.prepare(sql).run(); } catch { }
+    }
 
     const indexes = [
         'CREATE INDEX IF NOT EXISTS idx_articles_pinned_created ON articles (is_pinned, created_at)',
@@ -441,7 +495,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '11';
+const CURRENT_SCHEMA_VERSION = '13';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

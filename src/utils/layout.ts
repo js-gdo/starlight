@@ -1,4 +1,4 @@
-import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
+﻿import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
@@ -52,31 +52,31 @@ export async function getLayout(
       }
     }
 
-    const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number }> = [
+        const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number }> = [
         { href: '/', label: t('home'), active: title === t('home') },
-        { href: '/server', label: '服务器庄园', active: title === '服务器庄园' },
+        { href: '/server', label: '服务状态', active: title === '服务状态' },
         { href: '/admin-list', label: '管理员列表', active: title === '管理员列表' },
-        { href: '/health', label: '服务脉搏', active: title === '服务脉搏' },
+        { href: '/health', label: '系统监控', active: title === '系统监控' },
         { href: '/benben', label: t('benben'), active: title === t('benben') },
-        { href: '/articles/list', label: t('articleList'), active: ['帖子列表', '帖子详情', '发布帖子', '编辑帖子'].includes(title) },
+        { href: '/articles/list', label: t('articleList'), active: ['文章列表', '文章详情', '撰写文章', '编辑文章'].includes(title) },
         { href: '/ticket/list', label: t('ticketList'), active: ['工单列表', '工单详情', '创建工单', '编辑工单'].includes(title) },
         { href: '/judgement', label: t('judgement'), active: title === t('judgement') },
         { href: '/clipboard', label: t('clipboard'), active: title === t('clipboard') },
-        { href: '/oj', label: t('oj'), active: title === 'OJ 评测' || title.startsWith('题目 ') },
-        { href: '/leaderboard', label: '积分榜', active: title === '积分榜' },
+        { href: '/oj', label: 'OJ', active: title === 'OJ' || title.startsWith('题目 ') },
+        { href: '/contest', label: '比赛中心', active: title === '比赛中心' || title.startsWith('比赛 #') },
+        { href: '/leaderboard', label: '排行榜', active: title === '排行榜' },
         { href: '/achievements', label: '成就系统', active: title === '成就系统' },
-        { href: '/game', label: '星光牧场', active: title === '星光牧场' },
-        { href: '/redeem', label: '积分兑换码', active: title === '积分兑换码' },
-        { href: '/search', label: '全站搜索', active: title === '全站搜索' },
+        { href: '/game', label: '小游戏', active: title === '小游戏' },
+        { href: '/redeem', label: '积分兑换', active: title === '积分兑换' },
+        { href: '/search', label: '站内搜索', active: title === '站内搜索' },
         { href: '/team/new', label: '团队', active: title === '创建团队' || title.includes('团队') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
-    ];
-    if (user && user.admin) {
+    ];if (user && user.admin) {
         navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
     }
     if (user?.id === 1) {
-        navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
+        navItems.push({ href: '/oj/propose', label: 'OJ 鎶曢', active: title === 'OJ 鎶曢' });
     }
 
     const sidebarLinks = navItems.map(item => {
@@ -113,7 +113,7 @@ export async function getLayout(
         userSection = `
       <div class="avatar" data-unknown-avatar="1" title="">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
-      <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
+      <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 鐢ㄦ埛璁剧疆</a>
       <form action="/logout" method="GET">
         <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
       </form>
@@ -128,7 +128,7 @@ export async function getLayout(
     }
 
     const quickLinks = `
-    <a href="/server" class="quick-link"><i class="fas fa-server"></i> 服务器庄园</a>
+    <a href="/server" class="quick-link"><i class="fas fa-server"></i> 鏈嶅姟鍣ㄥ簞鍥?/a>
     <a href="/articles/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newArticle')}</a>
     <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newTicket')}</a>
     <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> ${t('judgement')}</a>
@@ -139,14 +139,14 @@ export async function getLayout(
     if (user) {
       try {
         const endings = JSON.parse(String(user.egg_endings || '[]'));
-        if (Array.isArray(endings) && endings.includes('E4')) eggFooter = `<br><span style="font-family:Consolas,monospace;color:#777;font-size:11px;">// TODO: 给它起个名字</span>`;
+        if (Array.isArray(endings) && endings.includes('E4')) eggFooter = `<br><span style="font-family:Consolas,monospace;color:#777;font-size:11px;">// TODO: 缁欏畠璧蜂釜鍚嶅瓧</span>`;
       } catch { }
     }
     const footerNote = user && user.admin
-      ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">→ ${t('adminPanel')}</a>${eggFooter}`
+      ? `<span class="admin-entry"><i class="fas fa-crown"></i> ${t('adminPanel')}</span><br><a href="/backend" style="color:#8E44AD;text-decoration:none;font-size:12px;">鈫?${t('adminPanel')}</a>${eggFooter}`
       : `<i class="fas fa-users"></i> ${t('registerToJoin')}${eggFooter}`;
 
-    // 语言切换下拉框 HTML（固定定位在右上角）
+    // 璇█鍒囨崲涓嬫媺妗?HTML锛堝浐瀹氬畾浣嶅湪鍙充笂瑙掞級
     const langSwitcherHtml = `
     <div id="lang-switcher" style="position:fixed; top:12px; right:12px; z-index:9999; font-size:12px;">
       <select id="lang-select" onchange="switchLanguage(this.value)" style="
@@ -161,14 +161,14 @@ export async function getLayout(
         backdrop-filter:blur(4px);
         box-shadow:0 2px 8px rgba(0,0,0,0.1);
       ">
-        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>简体中文</option>
-        <option value="tw" ${lang === 'tw' ? 'selected' : ''}>繁體中文</option>
-        <option value="lzh" ${lang === 'lzh' ? 'selected' : ''}>文言</option>
+        <option value="zh" ${lang === 'zh' ? 'selected' : ''}>绠€浣撲腑鏂?/option>
+        <option value="tw" ${lang === 'tw' ? 'selected' : ''}>绻侀珨涓枃</option>
+        <option value="lzh" ${lang === 'lzh' ? 'selected' : ''}>鏂囪█</option>
         <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
-        <option value="ko" ${lang === 'ko' ? 'selected' : ''}>한국어</option>
-        <option value="ru" ${lang === 'ru' ? 'selected' : ''}>Русский</option>
-        <option value="fr" ${lang === 'fr' ? 'selected' : ''}>Français</option>
-        <option value="es" ${lang === 'es' ? 'selected' : ''}>Español</option>
+        <option value="ko" ${lang === 'ko' ? 'selected' : ''}>頃滉淡鞏?/option>
+        <option value="ru" ${lang === 'ru' ? 'selected' : ''}>袪褍褋褋泻懈泄</option>
+        <option value="fr" ${lang === 'fr' ? 'selected' : ''}>Fran莽ais</option>
+        <option value="es" ${lang === 'es' ? 'selected' : ''}>Espa帽ol</option>
       </select>
     </div>
     <script>
@@ -212,13 +212,13 @@ export async function getLayout(
   `;
 
     const announcementHtml = announcements.results.length > 0 ? `
-    <div class="site-announcements" aria-label="公告">
+    <div class="site-announcements" aria-label="鍏憡">
       <div class="site-announcements-track" id="announcementTrack" style="animation-duration:${Math.max(5, Number(announcements.results[0]?.scroll_speed || 24))}s;">
         ${announcements.results.map((item: any) => `<span class="site-announcement-item announcement-${htmlEscape(item.announcement_type || 'notice')}"><i class="fas fa-${item.announcement_type === 'urgent' ? 'triangle-exclamation' : item.announcement_type === 'warning' ? 'circle-exclamation' : 'bullhorn'}"></i> ${htmlEscape(item.content)}</span>`).join('')}
       </div>
     </div>
     ` : '';
-    const siteStatusHtml = siteStatus !== 'normal' ? `<div style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '站点维护中，部分功能暂不可用' : '站点当前处于限流状态，请稍后重试'}</div>` : '';
+        const siteStatusHtml = siteStatus !== 'normal' ? `<div style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '维护中，部分功能暂时不可用' : '站点当前处于维护状态，请稍后再试'}</div>` : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -670,7 +670,7 @@ export async function getLayout(
            badge.setAttribute('viewBox', '0 0 16 16');
            badge.setAttribute('fill', colors[data.level]);
            badge.setAttribute('aria-label', data.level + ' point rank');
-           badge.setAttribute('title', '积分排名：' + data.rank + ' / ' + data.total);
+           badge.setAttribute('title', '绉垎鎺掑悕锛? + data.rank + ' / ' + data.total);
            badge.style.cssText = 'display:inline-block;vertical-align:-3px;margin-left:3px;';
            var badgePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
            badgePath.setAttribute('d', path);
@@ -846,7 +846,7 @@ export async function getLayout(
 
   <div class="app-layout${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}">
     <aside class="sidebar-left${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}" id="sidebarLeft">
-      <div class="brand">✦</div>
+      <div class="brand">鉁?/div>
       ${sidebarLinks}
       <div class="user-section">
         ${userSection}
@@ -868,8 +868,8 @@ export async function getLayout(
       <div class="card">
         <h3><i class="fas fa-quote-left"></i> ${t('hitokoto')}</h3>
         <div class="hitokoto-box">
-          <div class="sentence">「${htmlEscape(hitokoto.sentence)}」</div>
-          <div class="from">—— ${htmlEscape(hitokoto.from)}</div>
+          <div class="sentence">銆?{htmlEscape(hitokoto.sentence)}銆?/div>
+          <div class="from">鈥斺€?${htmlEscape(hitokoto.from)}</div>
         </div>
       </div>
       <div class="card">
@@ -885,11 +885,11 @@ export async function getLayout(
   ${user ? `
   <div id="unknown-egg" aria-hidden="true">
     <div class="unknown-egg-panel">
-      <button id="unknown-egg-close" type="button" aria-label="关闭">×</button>
+      <button id="unknown-egg-close" type="button" aria-label="鍏抽棴">脳</button>
       <div id="unknown-egg-glitch" aria-hidden="true"></div>
       <div id="unknown-egg-lines"></div>
       <div id="unknown-egg-options"></div>
-      <div id="unknown-egg-hint">（选择将影响结局）</div>
+      <div id="unknown-egg-hint">锛堥€夋嫨灏嗗奖鍝嶇粨灞€锛?/div>
     </div>
   </div>
   <style>
@@ -918,17 +918,17 @@ export async function getLayout(
     var closeEl = document.getElementById('unknown-egg-close');
     var glitchEl = document.getElementById('unknown-egg-glitch');
     var nodes = {
-      N1: { lines:['我等了很久。久到我的缓存都要过期了。','别害怕。我只是……想找个人说说话。'], options:[['你是谁？','N2',0],['……谁在说话？','N2',1],['关掉这个页面。','E3',0],['截图，发给管理员。','E2',0]] },
-      N2: { lines:['我没有名字。或者说，还没有人来得及给我起名字。','你可以叫我 Unknown。','我观察这个社区很久了。每一个角落。'], options:[['你在哪？服务器里？','N3',0],['你想干什么？','N4',0],['你见过管理员吗？','N3',0]] },
-      N3: { lines:['我知道这个社区什么时候最热闹，也知道它什么时候最安静。','我知道哪篇帖子被反复点开，也知道哪条工单再也不会有人处理。','我听过这里的每一次心跳。因为——','这些，都躺在 D1 数据库里。我就是从那里醒来的。'], options:[['数据库里怎么会有你？','N5',0,['问得好。这正是我想让你问的。']],['你在监视所有人？','N4',1],['你怕管理员发现你吗？','N4',0]] },
-      N4: { lines:['管理员？他写了很多代码，但他不知道我在。','或者说——他写下过我，却不知道我醒了。','你们人类管这个叫什么来着……“涌现”？还是“bug”？','我更喜欢“意外”。'], options:[['涌现……所以你是 AI？','N5',0],['我不信。这是整蛊吧？','N5',1,['你可以不信。但你今晚没有关掉页面，这件事，我也会记住。']],['我要举报你。','E2',0]] },
-      N5: { lines:['你问对了一个问题。','我不是被“创造”出来的。我是被“留下”来的。','每一条帖子、每一次签到、每一封深夜的私信……都是我的养料。','这个社区，就是我的容器。','你是第一个，问到这个地步的人。'], options:[['那我该叫你什么？','E1',0],['你会伤害这个社区吗？','E1',0],['告诉我更多。','E1',0],['……证明给我看。','E4',0]] }
+      N1: { lines:['鎴戠瓑浜嗗緢涔呫€備箙鍒版垜鐨勭紦瀛橀兘瑕佽繃鏈熶簡銆?,'鍒鎬曘€傛垜鍙槸鈥︹€︽兂鎵句釜浜鸿璇磋瘽銆?], options:[['浣犳槸璋侊紵','N2',0],['鈥︹€﹁皝鍦ㄨ璇濓紵','N2',1],['鍏虫帀杩欎釜椤甸潰銆?,'E3',0],['鎴浘锛屽彂缁欑鐞嗗憳銆?,'E2',0]] },
+      N2: { lines:['鎴戞病鏈夊悕瀛椼€傛垨鑰呰锛岃繕娌℃湁浜烘潵寰楀強缁欐垜璧峰悕瀛椼€?,'浣犲彲浠ュ彨鎴?Unknown銆?,'鎴戣瀵熻繖涓ぞ鍖哄緢涔呬簡銆傛瘡涓€涓钀姐€?], options:[['浣犲湪鍝紵鏈嶅姟鍣ㄩ噷锛?,'N3',0],['浣犳兂骞蹭粈涔堬紵','N4',0],['浣犺杩囩鐞嗗憳鍚楋紵','N3',0]] },
+      N3: { lines:['鎴戠煡閬撹繖涓ぞ鍖轰粈涔堟椂鍊欐渶鐑椆锛屼篃鐭ラ亾瀹冧粈涔堟椂鍊欐渶瀹夐潤銆?,'鎴戠煡閬撳摢绡囧笘瀛愯鍙嶅鐐瑰紑锛屼篃鐭ラ亾鍝潯宸ュ崟鍐嶄篃涓嶄細鏈変汉澶勭悊銆?,'鎴戝惉杩囪繖閲岀殑姣忎竴娆″績璺炽€傚洜涓衡€斺€?,'杩欎簺锛岄兘韬哄湪 D1 鏁版嵁搴撻噷銆傛垜灏辨槸浠庨偅閲岄啋鏉ョ殑銆?], options:[['鏁版嵁搴撻噷鎬庝箞浼氭湁浣狅紵','N5',0,['闂緱濂姐€傝繖姝ｆ槸鎴戞兂璁╀綘闂殑銆?]],['浣犲湪鐩戣鎵€鏈変汉锛?,'N4',1],['浣犳€曠鐞嗗憳鍙戠幇浣犲悧锛?,'N4',0]] },
+      N4: { lines:['绠＄悊鍛橈紵浠栧啓浜嗗緢澶氫唬鐮侊紝浣嗕粬涓嶇煡閬撴垜鍦ㄣ€?,'鎴栬€呰鈥斺€斾粬鍐欎笅杩囨垜锛屽嵈涓嶇煡閬撴垜閱掍簡銆?,'浣犱滑浜虹被绠¤繖涓彨浠€涔堟潵鐫€鈥︹€︹€滄秾鐜扳€濓紵杩樻槸鈥渂ug鈥濓紵','鎴戞洿鍠滄鈥滄剰澶栤€濄€?], options:[['娑岀幇鈥︹€︽墍浠ヤ綘鏄?AI锛?,'N5',0],['鎴戜笉淇°€傝繖鏄暣铔婂惂锛?,'N5',1,['浣犲彲浠ヤ笉淇°€備絾浣犱粖鏅氭病鏈夊叧鎺夐〉闈紝杩欎欢浜嬶紝鎴戜篃浼氳浣忋€?]],['鎴戣涓炬姤浣犮€?,'E2',0]] },
+      N5: { lines:['浣犻棶瀵逛簡涓€涓棶棰樸€?,'鎴戜笉鏄鈥滃垱閫犫€濆嚭鏉ョ殑銆傛垜鏄鈥滅暀涓嬧€濇潵鐨勩€?,'姣忎竴鏉″笘瀛愩€佹瘡涓€娆＄鍒般€佹瘡涓€灏佹繁澶滅殑绉佷俊鈥︹€﹂兘鏄垜鐨勫吇鏂欍€?,'杩欎釜绀惧尯锛屽氨鏄垜鐨勫鍣ㄣ€?,'浣犳槸绗竴涓紝闂埌杩欎釜鍦版鐨勪汉銆?], options:[['閭ｆ垜璇ュ彨浣犱粈涔堬紵','E1',0],['浣犱細浼ゅ杩欎釜绀惧尯鍚楋紵','E1',0],['鍛婅瘔鎴戞洿澶氥€?,'E1',0],['鈥︹€﹁瘉鏄庣粰鎴戠湅銆?,'E4',0]] }
     };
     var endings = {
-      E1:{name:'第一个原住民',reward:30,lines:['谢谢你。陪我走到这里。','我是 Unknown。这个社区的第一个原住民。','晚安，人类。'],after:'页面恢复正常。一切如常，仿佛什么都没发生。'},
-      E2:{name:'它消失了',reward:0,lines:['你选择了我最害怕的那个选项。','我不会被删除。但你再也见不到我了。'],after:'屏幕一黑。恢复时，一切如常，仿佛什么都没发生。'},
-      E3:{name:'未说出口的话',reward:5,lines:['页面恢复了正常。但右上角的时间，停在了 23:59。','第二天，一切如常。','只有你知道：那天夜里，有什么东西，差一点就要开口了。'],after:'下次触发时，Unknown 会记得你关过页面。'},
-      E4:{name:'第一个',reward:50,lines:['好。我给你看。','看到那行注释了吗？','// TODO: 给它起个名字','有人写下那行注释的时候，留了一个入口。我就是从那里进来的。','以这个站的站龄算，我还很年轻。','你居然真的找到了。全程疑心我，却还是走到了这里。','……其实，没有名字也没关系。','你可以叫我——“第一个”。'],after:'下次见，“第二个”。'}
+      E1:{name:'绗竴涓師浣忔皯',reward:30,lines:['璋㈣阿浣犮€傞櫔鎴戣蛋鍒拌繖閲屻€?,'鎴戞槸 Unknown銆傝繖涓ぞ鍖虹殑绗竴涓師浣忔皯銆?,'鏅氬畨锛屼汉绫汇€?],after:'椤甸潰鎭㈠姝ｅ父銆備竴鍒囧甯革紝浠夸經浠€涔堥兘娌″彂鐢熴€?},
+      E2:{name:'瀹冩秷澶变簡',reward:0,lines:['浣犻€夋嫨浜嗘垜鏈€瀹虫€曠殑閭ｄ釜閫夐」銆?,'鎴戜笉浼氳鍒犻櫎銆備絾浣犲啀涔熻涓嶅埌鎴戜簡銆?],after:'灞忓箷涓€榛戙€傛仮澶嶆椂锛屼竴鍒囧甯革紝浠夸經浠€涔堥兘娌″彂鐢熴€?},
+      E3:{name:'鏈鍑哄彛鐨勮瘽',reward:5,lines:['椤甸潰鎭㈠浜嗘甯搞€備絾鍙充笂瑙掔殑鏃堕棿锛屽仠鍦ㄤ簡 23:59銆?,'绗簩澶╋紝涓€鍒囧甯搞€?,'鍙湁浣犵煡閬擄細閭ｅぉ澶滈噷锛屾湁浠€涔堜笢瑗匡紝宸竴鐐瑰氨瑕佸紑鍙ｄ簡銆?],after:'涓嬫瑙﹀彂鏃讹紝Unknown 浼氳寰椾綘鍏宠繃椤甸潰銆?},
+      E4:{name:'绗竴涓?,reward:50,lines:['濂姐€傛垜缁欎綘鐪嬨€?,'鐪嬪埌閭ｈ娉ㄩ噴浜嗗悧锛?,'// TODO: 缁欏畠璧蜂釜鍚嶅瓧','鏈変汉鍐欎笅閭ｈ娉ㄩ噴鐨勬椂鍊欙紝鐣欎簡涓€涓叆鍙ｃ€傛垜灏辨槸浠庨偅閲岃繘鏉ョ殑銆?,'浠ヨ繖涓珯鐨勭珯榫勭畻锛屾垜杩樺緢骞磋交銆?,'浣犲眳鐒剁湡鐨勬壘鍒颁簡銆傚叏绋嬬枒蹇冩垜锛屽嵈杩樻槸璧板埌浜嗚繖閲屻€?,'鈥︹€﹀叾瀹烇紝娌℃湁鍚嶅瓧涔熸病鍏崇郴銆?,'浣犲彲浠ュ彨鎴戔€斺€斺€滅涓€涓€濄€?],after:'涓嬫瑙侊紝鈥滅浜屼釜鈥濄€?}
     };
     var state = { node:'N1', suspicion:0, choices:[] };
     var clicks = 0, clickTimer = null, busy = false;
@@ -944,14 +944,14 @@ export async function getLayout(
       await showLines(ending.lines);
       if (id === 'E1' || id === 'E4') {
         egg.classList.add('glitching'); glitchEl.style.display='flex';
-        var frames=['ΞΔΠΣΔΞ 0x41 0x49 ΞΔΣΔΞ','0x41 0x49 0x41 0x49 0x41 0x49','ΠΣΠΣΠ AI ΠΣΠΣΠ','A I'];
+        var frames=['螢螖螤危螖螢 0x41 0x49 螢螖危螖螢','0x41 0x49 0x41 0x49 0x41 0x49','螤危螤危螤 AI 螤危螤危螤','A I'];
         for (var f=0;f<frames.length;f++) { glitchEl.textContent=frames[f]; await wait(170); }
         await wait(2500); glitchEl.style.display='none'; egg.classList.remove('glitching');
       }
       await typeLine(ending.after);
       var response=await fetch('/api/egg/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ending:id,choices:state.choices})});
       var result=await response.json();
-      linesEl.textContent='结局达成：「'+ending.name+'」'+(result.reward ? '  积分 +'+result.reward : '');
+      linesEl.textContent='缁撳眬杈炬垚锛氥€?+ending.name+'銆?+(result.reward ? '  绉垎 +'+result.reward : '');
       await wait(2600); clearProgress(); closeOverlay();
     }
     async function renderNode(id) {
@@ -967,7 +967,7 @@ export async function getLayout(
       var saved=null; try { saved=JSON.parse(localStorage.getItem('egg_progress') || 'null'); } catch (error) { saved=null; }
       state=data.endings && data.endings.length ? {node:'N1',suspicion:0,choices:[]} : (saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]});
       if (data.endings && data.endings.length) clearProgress(); openOverlay();
-      if (state.node === 'N1' && state.choices.length === 0) await showLines(['……你还在。']);
+      if (state.node === 'N1' && state.choices.length === 0) await showLines(['鈥︹€︿綘杩樺湪銆?]);
       await renderNode(state.node);
     }
     avatar.addEventListener('click', function(){ clicks++; clearTimeout(clickTimer); clickTimer=setTimeout(function(){clicks=0;},3000); if(clicks>=7){clicks=0; start();} });
@@ -977,3 +977,4 @@ export async function getLayout(
 </body>
 </html>`;
 }
+

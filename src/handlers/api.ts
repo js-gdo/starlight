@@ -1,4 +1,4 @@
-import { handleAuth } from './auth';
+﻿import { handleAuth } from './auth';
 import { handleArticles } from './articles';
 import { handleTickets } from './tickets';
 import { handleBenben } from './benben';
@@ -17,6 +17,7 @@ import { jsonRes } from '../utils/auth';
 import { handleRedeem } from './redeem';
 import { handleGame } from './game';
 import { handleTeams } from './teams';
+import { handleContests } from './contest';
 import type { Env } from '../env.d';
 
 export async function handleApi(request: Request, env: Env, path: string) {
@@ -32,6 +33,7 @@ export async function handleApi(request: Request, env: Env, path: string) {
     if (path === '/api/redeem') return handleRedeem(request, env, path);
     if (path.startsWith('/api/game/')) return handleGame(request, env, path);
     if (path === '/api/teams' || path.startsWith('/api/teams/')) return handleTeams(request, env, path);
+    if (path === '/api/contests' || path.startsWith('/api/contests/') || path === '/api/contest' || path.startsWith('/api/contest/')) return handleContests(request, env, path);
     if (path === '/api/leaderboard/badge' && request.method === 'GET') {
         const uid = Number(new URL(request.url).searchParams.get('uid'));
         if (!Number.isInteger(uid) || uid <= 0) return jsonRes({ error: 'Invalid user ID' }, 400);
@@ -51,7 +53,7 @@ export async function handleApi(request: Request, env: Env, path: string) {
         return jsonRes({ level, rank, total });
     }
 
-    // 按路径前缀分发
+    // other routes below omitted: unchanged from project
     if (path === '/api/login' || path === '/api/register') {
         return handleAuth(request, env, path);
     }

@@ -308,6 +308,9 @@ export async function renderOjProposal(env: Env, req: Request) {
     if (user?.id !== 1) {
         return getLayout(env, user, 'OJ 投题', '<div class="card"><h2>无权访问</h2><p class="oj-muted">只有 superuser（UID 1）可以提交 OJ 投题。</p></div>', OJ_STYLES, req);
     }
+    const teams = await env.DB.prepare("SELECT id, name FROM teams WHERE status = 'active' ORDER BY name").all<any>();
+    const teamOptions = (teams.results || []).map((team: any) =>
+        `<option value="${team.id}">${htmlEscape(String(team.name))} (#${team.id})</option>`).join('');
     const submitted = new URL(req.url).searchParams.get('submitted') === '1';
     const content = `
         <div class="page-header"><h1><i class="fas fa-file-circle-plus"></i> OJ 投题</h1>
@@ -315,6 +318,14 @@ export async function renderOjProposal(env: Env, req: Request) {
         ${submitted ? '<div class="card" style="color:#18794e;background:#effaf3;">投题已登记，等待 superuser 审核。</div>' : ''}
         <div class="card">
             <form action="/api/oj/proposals" method="POST" class="oj-proposal-form">
+                <label>题目类别<select name="proposal_category" id="ojProposalCategory">
+                    <option value="public">公共题目（ID 以 1 开头）</option>
+                    <option value="team">团队题目（ID 以 5 开头，奇数公开、偶数私有）</option>
+                    <option value="contest">比赛题目（ID 以 6 开头）</option>
+                </select></label>
+                <label>题目 ID<input name="problem_id" maxlength="20" pattern="[0-9]+" required placeholder="例如：1001"></label>
+                <label id="ojProposalTeamField" hidden>所属团队<select name="team_id"><option value="">请选择团队</option>${teamOptions}</select></label>
+                <div id="ojProposalVisibility" class="oj-upload-guidance">公共题目对所有用户可见。</div>
                 <label>题目名称<input name="problem_name" maxlength="120" required placeholder="例如：区间查询"></label>
                 <label>标签<input name="tags" maxlength="300" placeholder="用逗号分隔，例如：数据结构,线段树"></label>
                 <label>5 字母取件码<input name="pickup_code" minlength="5" maxlength="5" pattern="[A-Za-z]{5}" required placeholder="上传后从外部文件服务取得"></label>
@@ -325,11 +336,29 @@ export async function renderOjProposal(env: Env, req: Request) {
                 <button class="oj-submit" type="submit">登记投题</button>
             </form>
         </div>
+        <script>
+            (function () {
+                var category = document.getElementById('ojProposalCategory');
+                var team = document.getElementById('ojProposalTeamField');
+                var visibility = document.getElementById('ojProposalVisibility');
+                var id = document.querySelector('input[name="problem_id"]');
+                function sync() {
+                    var isTeam = category.value === 'team';
+                    team.hidden = !isTeam;
+                    id.placeholder = category.value === 'public' ? '例如：1001' : (category.value === 'team' ? '例如：5001（奇数公开，偶数私有）' : '例如：6001');
+                    visibility.textContent = category.value === 'team' ? '团队题目可见性由 ID 尾数决定：奇数公开，偶数私有。' :
+                        (category.value === 'contest' ? '比赛题目归属于 OJ 比赛。' : '公共题目对所有用户可见。');
+                }
+                category.addEventListener('change', sync);
+                sync();
+            }());
+        </script>
         <style>
             .oj-proposal-form { display:grid; gap:14px; max-width:620px; }
             .oj-proposal-form label { display:grid; gap:6px; color:#555; font-size:13px; font-weight:600; }
             .oj-proposal-form input { padding:9px 10px; border:1px solid #ddd; border-radius:6px; font:inherit; font-weight:400; }
             .oj-upload-guidance { padding:12px; border-radius:6px; background:#fff8dc; border:1px solid #f0d98c; color:#765b14; font-size:12px; line-height:1.7; }
+            .oj-proposal-form select { padding:9px 10px; border:1px solid #ddd; border-radius:6px; font:inherit; font-weight:400; }
         </style>`;
     return getLayout(env, user, 'OJ 投题', content, OJ_STYLES, req);
 }
@@ -353,7 +382,12 @@ export async function renderOjProposalReview(env: Env, req: Request) {
                 return `<article class="oj-proposal-row">
                     <div><strong>${htmlEscape(String(proposal.problem_name))}</strong>
                         <span class="oj-proposal-status status-${htmlEscape(String(proposal.status))}">${htmlEscape(String(proposal.status))}</span>
-                        <div class="oj-muted">#${proposal.id} · ${htmlEscape(String(proposal.proposer_name || '未知'))} · ${htmlEscape(tags.join('、') || '无标签')} · 取件码：${htmlEscape(String(proposal.pickup_code))}</div>
+                        <div class="oj-muted">#${proposal.id} · ${htmlEscape(String(proposal.proposer_name || '未知'))} ·
+                            ${htmlEscape(String(proposal.proposal_category || 'public'))} ·
+                            ${htmlEscape(String(proposal.problem_id || '未分配 ID'))} ·
+                            ${proposal.team_id ? `团队 #${htmlEscape(String(proposal.team_id))} · ` : ''}
+                            ${htmlEscape(String(proposal.visibility || 'public'))} ·
+                            ${htmlEscape(tags.join('、') || '无标签')} · 取件码：${htmlEscape(String(proposal.pickup_code))}</div>
                     </div>
                     <form action="/api/oj/proposals/${proposal.id}" method="POST" class="oj-proposal-review">
                         <select name="status"><option value="pending" ${proposal.status === 'pending' ? 'selected' : ''}>待审核</option><option value="approved" ${proposal.status === 'approved' ? 'selected' : ''}>通过</option><option value="rejected" ${proposal.status === 'rejected' ? 'selected' : ''}>退回</option></select>
