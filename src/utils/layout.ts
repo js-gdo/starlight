@@ -76,7 +76,7 @@ export async function getLayout(
         navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
     }
     if (user?.id === 1) {
-        navItems.push({ href: '/oj/propose', label: 'OJ 鎶曢', active: title === 'OJ 鎶曢' });
+        navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
     }
 
     const sidebarLinks = navItems.map(item => {
