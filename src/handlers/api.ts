@@ -14,6 +14,8 @@ import { handleHealth } from './health';
 import { handleEgg } from './egg';
 import { handleOj } from './oj';
 import { jsonRes } from '../utils/auth';
+import { handleRedeem } from './redeem';
+import { handleGame } from './game';
 import type { Env } from '../env.d';
 
 export async function handleApi(request: Request, env: Env, path: string) {
@@ -26,6 +28,8 @@ export async function handleApi(request: Request, env: Env, path: string) {
     if (path.startsWith('/api/oj/')) {
         return handleOj(request, env, path);
     }
+    if (path === '/api/redeem') return handleRedeem(request, env, path);
+    if (path.startsWith('/api/game/')) return handleGame(request, env, path);
     if (path === '/api/leaderboard/badge' && request.method === 'GET') {
         const uid = Number(new URL(request.url).searchParams.get('uid'));
         if (!Number.isInteger(uid) || uid <= 0) return jsonRes({ error: 'Invalid user ID' }, 400);

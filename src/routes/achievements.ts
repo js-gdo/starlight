@@ -24,7 +24,7 @@ export async function renderAchievements(env: Env, req: Request) {
                         <div class="achievement-icon" style="color:${achievement.color};">${htmlEscape(achievement.icon)}</div>
                         <div>
                             <h3>${htmlEscape(achievement.name)} ${earned.has(achievement.id) ? '<span class="achievement-earned">已获得</span>' : ''}</h3>
-                            <p>${htmlEscape(achievement.description)}</p>
+                            <p>${htmlEscape(achievement.description)}${achievement.prerequisites?.length ? `<br><span class="achievement-prereq">前置：${achievement.prerequisites.map((id) => htmlEscape(ACHIEVEMENTS.find((item) => item.id === id)?.name || id)).join('、')}</span>` : ''}</p>
                         </div>
                     </div>
                 `).join('')}
@@ -43,5 +43,6 @@ export async function renderAchievements(env: Env, req: Request) {
         .achievement-earned { color:#27ae60; font-size:11px; font-weight:500; margin-left:4px; }
         .achievement-summary { margin-top:16px; padding-top:12px; border-top:1px solid #eee; color:#777; font-size:13px; }
         .achievement-badge { display:inline-block; margin-left:3px; font-size:13px; font-weight:700; vertical-align:1px; cursor:help; }
+        .achievement-prereq { color:#a06ab8; font-size:11px; }
     `, req);
 }

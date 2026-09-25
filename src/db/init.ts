@@ -218,6 +218,36 @@ export async function initDB(env: Env) {
       unlocked_at TEXT DEFAULT (datetime('now')),
       PRIMARY KEY (user_id, achievement_id),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS redeem_codes (
+      code TEXT PRIMARY KEY,
+      points INTEGER NOT NULL DEFAULT 0,
+      server_coin REAL NOT NULL DEFAULT 0,
+      max_uses INTEGER NOT NULL DEFAULT 1,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      expires_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+        `CREATE TABLE IF NOT EXISTS redeem_code_uses (
+      code TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      redeemed_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (code, user_id),
+      FOREIGN KEY(code) REFERENCES redeem_codes(code) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS garden_pets (
+      user_id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT 'Star',
+      level INTEGER NOT NULL DEFAULT 1,
+      experience INTEGER NOT NULL DEFAULT 0,
+      energy INTEGER NOT NULL DEFAULT 100,
+      last_fed_at TEXT DEFAULT '',
+      last_trained_at TEXT DEFAULT '',
+      last_explored_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`
     ];
 
@@ -330,7 +360,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '7';
+const CURRENT_SCHEMA_VERSION = '8';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

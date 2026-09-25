@@ -115,6 +115,16 @@ describe("worker routing", () => {
 		expect(html).toContain("社区明星");
 		expect(html).toContain("积分达人");
 		expect(html).toContain('href="/achievements"');
+		expect(html).toContain("前置：");
+	});
+
+	it("renders the redemption and pet game pages", async () => {
+		const redeem = await SELF.fetch("https://example.com/redeem");
+		const game = await SELF.fetch("https://example.com/game");
+		expect(redeem.status).toBe(200);
+		expect(game.status).toBe(200);
+		expect(await redeem.text()).toContain("积分兑换码");
+		expect(await game.text()).toContain("星光牧场");
 	});
 
 	it("renders the site search page and sidebar entry", async () => {
