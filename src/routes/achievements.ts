@@ -12,35 +12,60 @@ export async function renderAchievements(env: Env, req: Request) {
         for (const id of await getUserAchievementIds(env.DB, user.id)) earned.add(id);
     }
 
+    const children = new Map<string, typeof ACHIEVEMENTS>();
+    for (const achievement of ACHIEVEMENTS) {
+        for (const prerequisite of achievement.prerequisites || []) {
+            const branch = children.get(prerequisite) || [];
+            branch.push(achievement);
+            children.set(prerequisite, branch);
+        }
+    }
+    const renderNode = (achievement: typeof ACHIEVEMENTS[number]): string => {
+        const isEarned = earned.has(achievement.id);
+        const descendants = children.get(achievement.id) || [];
+        return `
+            <div class="achievement-branch">
+                <div class="achievement-card${isEarned ? ' is-earned' : ''}${achievement.prerequisites?.length ? '' : ' is-root'}">
+                    <div class="achievement-icon" style="color:${achievement.color};">${htmlEscape(achievement.icon)}</div>
+                    <div class="achievement-copy">
+                        <h3>${htmlEscape(achievement.name)} ${isEarned ? '<span class="achievement-earned">已获得</span>' : '<span class="achievement-locked">未解锁</span>'}</h3>
+                        <p>${htmlEscape(achievement.description)}${achievement.prerequisites?.length ? `<br><span class="achievement-prereq">前置：${achievement.prerequisites.map((id) => htmlEscape(ACHIEVEMENTS.find((item) => item.id === id)?.name || id)).join('、')}</span>` : ''}</p>
+                    </div>
+                </div>
+                ${descendants.length ? `<div class="achievement-children">${descendants.map(renderNode).join('')}</div>` : ''}
+            </div>`;
+    };
+    const roots = ACHIEVEMENTS.filter((achievement) => !achievement.prerequisites?.length);
+
     const content = `
         <div class="page-header">
             <h1><i class="fas fa-medal"></i> 成就系统</h1>
             <p style="margin-top:4px;">记录你在 StarLight 社区留下的足迹。</p>
         </div>
         <div class="card">
-            <div class="achievement-grid">
-                ${ACHIEVEMENTS.map((achievement) => `
-                    <div class="achievement-card${earned.has(achievement.id) ? ' is-earned' : ''}">
-                        <div class="achievement-icon" style="color:${achievement.color};">${htmlEscape(achievement.icon)}</div>
-                        <div>
-                            <h3>${htmlEscape(achievement.name)} ${earned.has(achievement.id) ? '<span class="achievement-earned">已获得</span>' : ''}</h3>
-                            <p>${htmlEscape(achievement.description)}${achievement.prerequisites?.length ? `<br><span class="achievement-prereq">前置：${achievement.prerequisites.map((id) => htmlEscape(ACHIEVEMENTS.find((item) => item.id === id)?.name || id)).join('、')}</span>` : ''}</p>
-                        </div>
-                    </div>
-                `).join('')}
+            <div class="achievement-tree">
+                ${roots.map(renderNode).join('')}
             </div>
             ${user ? `<div class="achievement-summary">你已获得 ${earned.size} / ${ACHIEVEMENTS.length} 项成就 ${await getAchievementBadges(env.DB, user.id)}</div>` : '<div class="achievement-summary">登录后可以查看自己的成就进度。</div>'}
         </div>
     `;
 
     return getLayout(env, user, '成就系统', content, `
-        .achievement-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
-        .achievement-card { display:flex; gap:12px; align-items:flex-start; padding:14px; border:1px solid #eee; border-radius:8px; background:#fafafa; opacity:.58; }
+        .achievement-tree { display:flex; flex-direction:column; gap:16px; overflow-x:auto; padding:8px 4px 14px; }
+        .achievement-branch { display:flex; flex-direction:column; align-items:center; min-width:max-content; }
+        .achievement-children { display:flex; justify-content:center; gap:14px; position:relative; padding-top:24px; }
+        .achievement-children::before { content:""; position:absolute; top:0; left:10%; right:10%; border-top:2px solid #e6d9ed; }
+        .achievement-children > .achievement-branch { position:relative; }
+        .achievement-children > .achievement-branch::before { content:""; position:absolute; top:-24px; height:24px; border-left:2px solid #e6d9ed; }
+        .achievement-card { width:230px; min-height:78px; display:flex; gap:12px; align-items:flex-start; padding:14px; border:1px solid #eee; border-radius:8px; background:#fafafa; opacity:.58; box-sizing:border-box; }
         .achievement-card.is-earned { opacity:1; border-color:#e8d9f1; background:#fdfaff; }
+        .achievement-card.is-root { border-width:2px; border-color:#8E44AD; background:#fdfaff; }
         .achievement-icon { width:34px; height:34px; display:flex; align-items:center; justify-content:center; font-size:25px; font-weight:700; flex-shrink:0; }
+        .achievement-copy { min-width:0; }
         .achievement-card h3 { font-size:14px; margin:0 0 5px; color:#333; }
         .achievement-card p { color:#888; font-size:12px; line-height:1.5; }
         .achievement-earned { color:#27ae60; font-size:11px; font-weight:500; margin-left:4px; }
+        .achievement-locked { color:#999; font-size:11px; font-weight:500; margin-left:4px; }
         .achievement-summary { margin-top:16px; padding-top:12px; border-top:1px solid #eee; color:#777; font-size:13px; }
         .achievement-badge { display:inline-block; margin-left:3px; font-size:13px; font-weight:700; vertical-align:1px; cursor:help; }
         .achievement-prereq { color:#a06ab8; font-size:11px; }

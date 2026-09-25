@@ -116,6 +116,9 @@ describe("worker routing", () => {
 		expect(html).toContain("积分达人");
 		expect(html).toContain('href="/achievements"');
 		expect(html).toContain("前置：");
+		expect(html).toContain("achievement-tree");
+		expect(html).toContain("achievement-children");
+		expect(html).toContain("achievement-card is-root");
 	});
 
 	it("renders the redemption and pet game pages", async () => {
