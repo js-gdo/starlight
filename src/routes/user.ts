@@ -99,6 +99,10 @@ export async function renderUserSettings(env: Env, req: Request) {
                     <option value="classic" ${user.sidebar_mode !== 'hover' ? 'selected' : ''}>经典侧栏：固定显示</option>
                     <option value="hover" ${user.sidebar_mode === 'hover' ? 'selected' : ''}>悬停侧栏：鼠标移入展开</option>
                 </select></label>
+                <label>界面样式<select name="ui_mode" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="classic" ${String(user.ui_mode || 'classic') !== 'modern' ? 'selected' : ''}>旧 UI：经典简洁</option>
+                    <option value="modern" ${String(user.ui_mode || 'classic') === 'modern' ? 'selected' : ''}>新 UI：简约大气</option>
+                </select></label>
                 <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;"><i class="fas fa-save"></i> ${t('updateBio')}</button>
             </form>
         </div>
