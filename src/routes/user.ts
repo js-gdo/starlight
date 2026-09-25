@@ -103,6 +103,14 @@ export async function renderUserSettings(env: Env, req: Request) {
                     <option value="classic" ${String(user.ui_mode || 'classic') !== 'modern' ? 'selected' : ''}>旧 UI：经典简洁</option>
                     <option value="modern" ${String(user.ui_mode || 'classic') === 'modern' ? 'selected' : ''}>新 UI：简约大气</option>
                 </select></label>
+                <label>操作结果返回时间<select name="redirect_delay_seconds" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="5" ${Number(user.redirect_delay_seconds) === 5 || user.redirect_delay_seconds === null || user.redirect_delay_seconds === undefined ? 'selected' : ''}>5 秒</option>
+                    <option value="10" ${Number(user.redirect_delay_seconds) === 10 ? 'selected' : ''}>10 秒</option>
+                    <option value="15" ${Number(user.redirect_delay_seconds) === 15 ? 'selected' : ''}>15 秒</option>
+                    <option value="30" ${Number(user.redirect_delay_seconds) === 30 ? 'selected' : ''}>30 秒</option>
+                    <option value="60" ${Number(user.redirect_delay_seconds) === 60 ? 'selected' : ''}>60 秒</option>
+                    <option value="0" ${Number(user.redirect_delay_seconds) === 0 && user.redirect_delay_seconds !== null && user.redirect_delay_seconds !== undefined ? 'selected' : ''}>不自动返回</option>
+                </select><small style="color:#888;">状态页标题在 3 秒内点击三次，可临时暂停自动返回。</small></label>
                 <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;align-self:flex-start;"><i class="fas fa-save"></i> ${t('updateBio')}</button>
             </form>
         </div>

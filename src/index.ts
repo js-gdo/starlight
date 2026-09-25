@@ -32,6 +32,7 @@ import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
 import { handleApi } from './handlers/api';
 import { renderTeamList, renderTeamNew, renderTeam, renderTeamSettings, renderTeamRequests } from './routes/teams';
+import { renderStatusPage, wantsHtmlNavigation } from './routes/status';
 import type { Env } from './env.d';
 
 export default {
@@ -270,16 +271,25 @@ if (path === '/leaderboard') {
 
             // ============ API 路由 ============
             if (path.startsWith('/api/')) {
-                return await handleApi(request, env, path);
+                const response = await handleApi(request, env, path);
+                if (wantsHtmlNavigation(request) && response.status !== 302 && response.status !== 303) {
+                    return renderStatusPage(
+                        env,
+                        request,
+                        response.status,
+                        response.ok ? '操作完成' : '请求失败',
+                        response.ok ? '接口已正常响应。' : '接口请求未能完成，请返回上一页重试。'
+                    );
+                }
+                return response;
             }
 
-            return new Response('Not Found', { status: 404 });
+            return renderStatusPage(env, request, 404, '页面不存在', '找不到你访问的页面。');
         } catch (e: any) {
             console.error('Worker error:', e);
-            return new Response('Internal Server Error', { status: 500 });
+            return renderStatusPage(env, request, 500, '页面出错了', '服务器暂时无法完成这次请求。');
         }
     },
 } satisfies ExportedHandler<Env>;
-
 
 

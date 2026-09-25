@@ -40,16 +40,26 @@ describe("worker routing", () => {
 		expect(html).toContain('"byId":{}');
 	});
 
-	it("returns 404 for unknown pages", async () => {
+	it("renders an HTML status page for unknown pages", async () => {
 		const response = await SELF.fetch("https://example.com/definitely-not-a-page");
 		expect(response.status).toBe(404);
-		expect(await response.text()).toBe("Not Found");
+		expect(response.headers.get("Content-Type")).toContain("text/html");
+		expect(await response.text()).toContain("页面不存在");
 	});
 
 	it("returns 404 JSON for unknown API paths", async () => {
 		const response = await SELF.fetch("https://example.com/api/nope");
 		expect(response.status).toBe(404);
 		expect(await response.json()).toEqual({ error: "API not found" });
+	});
+
+	it("renders an HTML status page for direct API navigation", async () => {
+		const response = await SELF.fetch("https://example.com/api/nope", {
+			headers: { Accept: "text/html" },
+		});
+		expect(response.status).toBe(404);
+		expect(response.headers.get("Content-Type")).toContain("text/html");
+		expect(await response.text()).toContain("请求失败");
 	});
 
 	it("exposes team creation and isolated team APIs", async () => {
@@ -155,7 +165,8 @@ describe("worker routing", () => {
 		const response = await worker.fetch(request, brokenEnv, ctx);
 		await waitOnExecutionContext(ctx);
 		expect(response.status).toBe(500);
-		expect(await response.text()).toBe("Internal Server Error");
+		expect(response.headers.get("Content-Type")).toContain("text/html");
+		expect(await response.text()).toContain("页面出错了");
 	});
 });
 
