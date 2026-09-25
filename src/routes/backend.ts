@@ -19,6 +19,8 @@ export async function renderBackend(env: Env, req: Request) {
     const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order ASC, id ASC').all();
     const announcements = await db.prepare('SELECT * FROM announcements ORDER BY sort_order ASC, id DESC').all();
     const reports = await db.prepare("SELECT r.*, u.username AS reporter_name FROM reports r LEFT JOIN users u ON r.reporter_id = u.id WHERE r.status = 'pending' ORDER BY r.id DESC LIMIT 50").all();
+    const pendingTeamRequests = await db.prepare("SELECT COUNT(*) AS total FROM team_creation_requests WHERE status = 'pending'").first();
+    const pendingOjProposals = await db.prepare("SELECT COUNT(*) AS total FROM oj_proposals WHERE status = 'pending'").first();
     const auditLogs = await db.prepare('SELECT a.*, u.username AS admin_name FROM audit_logs a LEFT JOIN users u ON a.admin_id = u.id ORDER BY a.id DESC LIMIT 50').all();
     const siteStatusRow = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first();
     const siteStatus = String(siteStatusRow?.setting_value || 'normal');
@@ -306,6 +308,7 @@ export async function renderBackend(env: Env, req: Request) {
         <button class="backend-tab" type="button" data-admin-tab="security">内容安全</button>
         <button class="backend-tab" type="button" data-admin-tab="users">用户</button>
         <button class="backend-tab" type="button" data-admin-tab="content">内容管理</button>
+        <button class="backend-tab" type="button" data-admin-tab="reviews">审核队列</button>
         <button class="backend-tab" type="button" data-admin-tab="site">站点与导出</button>
         <button class="backend-tab" type="button" data-admin-tab="admin-roles">管理员设置</button>
     </div>
@@ -317,6 +320,7 @@ export async function renderBackend(env: Env, req: Request) {
                 <div class="overview-value">${Number(totalUsers?.total || 0)}</div>
                 <div class="overview-sub">当前注册用户总量</div>
             </div>
+
             <div class="overview-card">
                 <div class="overview-label">当前在线</div>
                 <div class="overview-value">${Number(totalActiveUsers?.total || 0)}</div>
@@ -342,6 +346,15 @@ export async function renderBackend(env: Env, req: Request) {
                 <div class="overview-value">${Number(totalTicketsCount?.total || 0)}</div>
                 <div class="overview-sub">今日新工单：${Number(todayTickets?.total || 0)}</div>
             </div>
+        </div>
+    </div>
+
+    <div class="card" data-admin-panel="reviews">
+        <div class="section-title"><i class="fas fa-clipboard-check"></i> 功能审核队列</div>
+        <p class="online-chart-note">团队创建和 OJ 投题审核已统一收纳到后台，侧栏不再展示单独入口。</p>
+        <div class="action-group">
+            ${user.id === 1 ? `<a class="btn-sm btn-outline" href="/team/requests">团队创建审核 <span class="badge">${Number(pendingTeamRequests?.total || 0)}</span></a>
+            <a class="btn-sm btn-outline" href="/oj/proposals">OJ 投题审核 <span class="badge">${Number(pendingOjProposals?.total || 0)}</span></a>` : '<span class="admin-warning">只有 superuser 可以处理团队创建和 OJ 投题审核。</span>'}
         </div>
     </div>
 
