@@ -1,4 +1,4 @@
-import { ensureDB } from './db/init';
+﻿import { ensureDB } from './db/init';
 import { renderHome } from './routes/home';
 import { renderLogin, renderRegister } from './routes/auth';
 import { renderBenben } from './routes/benben';
@@ -23,6 +23,7 @@ import { renderUser, renderUserSettings } from './routes/user';
 import { renderServer } from './routes/server';
 import { renderAdminList } from './routes/admin-list';
 import { renderHealth } from './routes/health';
+import { renderContestList, renderContestDetail } from './routes/contest';
 import { renderOjList, renderOjProblem, renderOjSubmission, renderOjProposal, renderOjProposalReview } from './routes/oj';
 import { renderLeaderboard } from './routes/leaderboard';
 import { renderAchievements } from './routes/achievements';
@@ -41,7 +42,7 @@ export default {
 
             await ensureDB(env);
 
-            // ============ 页面路由 ============
+            // ============ 椤甸潰璺敱 ============
             if (path === '/' || path === '/index.html') {
                 return new Response(await renderHome(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -149,8 +150,19 @@ export default {
                 });
             }
 
-            if (path === '/oj') {
+                        if (path === '/oj') {
                 return new Response(await renderOjList(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/contest') {
+                return new Response(await renderContestList(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+            if (path.startsWith('/contest/') && path.length > '/contest/'.length) {
+                return new Response(await renderContestDetail(env, request, path), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
@@ -171,8 +183,7 @@ export default {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
-
-            if (path === '/leaderboard') {
+if (path === '/leaderboard') {
                 return new Response(await renderLeaderboard(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
@@ -251,7 +262,7 @@ export default {
                 });
             }
 
-            // ============ API 路由 ============
+            // ============ API 璺敱 ============
             if (path.startsWith('/api/')) {
                 return await handleApi(request, env, path);
             }
@@ -263,3 +274,6 @@ export default {
         }
     },
 } satisfies ExportedHandler<Env>;
+
+
+
