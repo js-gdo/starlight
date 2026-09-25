@@ -26,6 +26,8 @@ import { renderHealth } from './routes/health';
 import { renderOjList, renderOjProblem, renderOjSubmission } from './routes/oj';
 import { renderLeaderboard } from './routes/leaderboard';
 import { renderAchievements } from './routes/achievements';
+import { renderRedeem } from './routes/redeem';
+import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
 import { handleApi } from './handlers/api';
 import type { Env } from './env.d';
@@ -168,6 +170,12 @@ export default {
                 return new Response(await renderAchievements(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
+            }
+            if (path === '/redeem') {
+                return new Response(await renderRedeem(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+            if (path === '/game') {
+                return new Response(await renderGame(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
             }
             if (path === '/search') {
                 return new Response(await renderSearch(env, request), {
