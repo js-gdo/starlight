@@ -3,7 +3,9 @@ import type { Env } from '../env.d';
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 const joinModes = new Set(['application', 'free', 'closed']);
+const validRoles = new Set(['owner', 'admin', 'member']);
 const normalizeJoinMode = (value: unknown) => joinModes.has(String(value)) ? String(value) : 'application';
+const normalizeRole = (value: unknown) => validRoles.has(String(value)) ? String(value) : 'member';
 const isSuper = (user: any) => !!user?.admin && (user.id === 1 || String(user.admin_roles || '').includes('super'));
 
 export async function handleTeams(request: Request, env: Env, path: string) {
@@ -82,8 +84,28 @@ export async function handleTeams(request: Request, env: Env, path: string) {
     const member = await env.DB.prepare("SELECT role,status FROM team_members WHERE team_id=? AND user_id=?").bind(Number(post[1]), user.id).first<any>();
     if (!member || member.status !== 'approved' || !['owner', 'admin'].includes(member.role)) return jsonRes({ error: '无权限' }, 403);
     const form = await request.formData();
-    await env.DB.prepare('INSERT INTO team_posts (team_id,author_id,title,content,is_announcement) VALUES (?,?,?,?,?)').bind(Number(post[1]), user.id, String(form.get('title') || '').trim(), String(form.get('content') || ''), form.get('announcement') ? 1 : 0).run();
+    const title = String(form.get('title') || '').trim() || (form.get('announcement') ? '团队公告' : '团队动态');
+    const content = String(form.get('content') || '').trim();
+    if (!content) return jsonRes({ error: '内容不能为空' }, 400);
+    await env.DB.prepare('INSERT INTO team_posts (team_id,author_id,title,content,is_announcement) VALUES (?,?,?,?,?)').bind(Number(post[1]), user.id, title, content, form.get('announcement') ? 1 : 0).run();
     return new Response(null, { status: 302, headers: { Location: `/team/${post[1]}` } });
+  }
+
+  const announcement = path.match(/^\/api\/teams\/(\d+)\/announcement$/);
+  if (announcement && request.method === 'POST') {
+    if (!user) return jsonRes({ error: '请先登录' }, 403);
+    const teamId = Number(announcement[1]);
+    const member = await env.DB.prepare("SELECT role,status FROM team_members WHERE team_id=? AND user_id=?").bind(teamId, user.id).first<any>();
+    if (!member || member.status !== 'approved' || !['owner', 'admin'].includes(member.role)) return jsonRes({ error: '无权限' }, 403);
+    const form = await request.formData();
+    const content = String(form.get('content') || '').trim();
+    const existing = await env.DB.prepare('SELECT id FROM team_posts WHERE team_id=? AND is_announcement=1 ORDER BY created_at DESC LIMIT 1').bind(teamId).first<any>();
+    if (existing) {
+      await env.DB.prepare('UPDATE team_posts SET content=?, created_at=datetime("now") WHERE id=?').bind(content, existing.id).run();
+    } else {
+      await env.DB.prepare('INSERT INTO team_posts (team_id, author_id, title, content, is_announcement) VALUES (?, ?, ?, ?, 1)').bind(teamId, user.id, '团队公告', content, ).run();
+    }
+    return new Response(null, { status: 302, headers: { Location: `/team/${teamId}/settings` } });
   }
 
   const approval = path.match(/^\/api\/teams\/(\d+)\/members\/(\d+)\/(approve|reject)$/);
@@ -92,7 +114,21 @@ export async function handleTeams(request: Request, env: Env, path: string) {
     const member = await env.DB.prepare("SELECT role FROM team_members WHERE team_id=? AND user_id=? AND status='approved'").bind(Number(approval[1]), user.id).first<any>();
     if (!member || !['owner', 'admin'].includes(member.role)) return jsonRes({ error: '无权限' }, 403);
     await env.DB.prepare('UPDATE team_members SET status=? WHERE team_id=? AND user_id=?').bind(approval[3] === 'approve' ? 'approved' : 'rejected', Number(approval[1]), Number(approval[2])).run();
-    return jsonRes({ ok: true });
+    return new Response(null, { status: 302, headers: { Location: `/team/${approval[1]}/settings` } });
+  }
+
+  const roleUpdate = path.match(/^\/api\/teams\/(\d+)\/members\/(\d+)\/role$/);
+  if (roleUpdate && request.method === 'POST') {
+    if (!user) return jsonRes({ error: '请先登录' }, 403);
+    const teamId = Number(roleUpdate[1]);
+    const targetUserId = Number(roleUpdate[2]);
+    const currentMember = await env.DB.prepare("SELECT role FROM team_members WHERE team_id=? AND user_id=? AND status='approved'").bind(teamId, user.id).first<any>();
+    if (!currentMember || currentMember.role !== 'owner') return jsonRes({ error: '只有队长可以管理成员角色' }, 403);
+    const form = await request.formData();
+    const nextRole = normalizeRole(form.get('role'));
+    if (targetUserId === user.id && nextRole !== 'owner') return jsonRes({ error: '队长不能降级' }, 400);
+    await env.DB.prepare('UPDATE team_members SET role=? WHERE team_id=? AND user_id=?').bind(nextRole, teamId, targetUserId).run();
+    return new Response(null, { status: 302, headers: { Location: `/team/${teamId}/settings` } });
   }
 
   const competition = path.match(/^\/api\/teams\/(\d+)\/competitions$/);

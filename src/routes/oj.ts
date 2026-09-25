@@ -308,7 +308,9 @@ export async function renderOjProposal(env: Env, req: Request) {
     if (user?.id !== 1) {
         return getLayout(env, user, 'OJ 投题', '<div class="card"><h2>无权访问</h2><p class="oj-muted">只有 superuser（UID 1）可以提交 OJ 投题。</p></div>', OJ_STYLES, req);
     }
-    const teams = await env.DB.prepare("SELECT id, name FROM teams WHERE status = 'active' ORDER BY name").all<any>();
+    const teams = user
+        ? await env.DB.prepare("SELECT t.id, t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE tm.user_id = ? AND tm.status = 'approved' AND t.status = 'active' ORDER BY t.name").bind(user.id).all<any>()
+        : { results: [] };
     const teamOptions = (teams.results || []).map((team: any) =>
         `<option value="${team.id}">${htmlEscape(String(team.name))} (#${team.id})</option>`).join('');
     const submitted = new URL(req.url).searchParams.get('submitted') === '1';
