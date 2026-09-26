@@ -1,5 +1,13 @@
 import type { Env } from '../env.d';
 
+async function runColumnMigration(db: Env['DB'], sql: string) {
+    try {
+        await db.prepare(sql).run();
+    } catch (error) {
+        if (!/duplicate column name/i.test(String(error))) throw error;
+    }
+}
+
 export async function initDB(env: Env) {
     const db = env.DB;
 
@@ -369,13 +377,7 @@ export async function initDB(env: Env) {
     ];
 
     for (const sql of tables) {
-        try {
-            await db.prepare(sql).run();
-        } catch (e: any) {
-            if (!e.message.includes('already exists')) {
-                console.error('Table creation error:', e);
-            }
-        }
+        await db.prepare(sql).run();
     }
 
     // 创建初始管理员
@@ -450,7 +452,7 @@ export async function initDB(env: Env) {
         , "ALTER TABLE team_members ADD COLUMN reason TEXT DEFAULT ''"
     ];
     for (const sql of alterColumns) {
-        try { await db.prepare(sql).run(); } catch { }
+        await runColumnMigration(db, sql);
     }
 
     await db.prepare("UPDATE users SET admin_roles = '[\"unassigned\"]' WHERE admin = 1 AND (admin_roles IS NULL OR admin_roles = '' OR admin_roles = '[]')").run();
@@ -465,7 +467,7 @@ export async function initDB(env: Env) {
         "ALTER TABLE oj_proposals ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'",
     ];
     for (const sql of proposalColumns) {
-        try { await db.prepare(sql).run(); } catch { }
+        await runColumnMigration(db, sql);
     }
 
     const indexes = [
@@ -493,13 +495,13 @@ export async function initDB(env: Env) {
         , 'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)'
     ];
     for (const sql of indexes) {
-        try { await db.prepare(sql).run(); } catch { }
+        await db.prepare(sql).run();
     }
 
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '14';
+const CURRENT_SCHEMA_VERSION = '15';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
