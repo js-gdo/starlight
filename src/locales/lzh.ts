@@ -170,6 +170,8 @@ export default {
 	read: '已讀',
 	unread: '未讀',
 	notificationType: '工單態變、帖覆、權變等系統訊。',
+	openNotification: '閱相關內容',
+	markAllNotificationsRead: '悉標為已讀',
 	// ==================== 執政 ====================
 	adminPanel: '執政',
 	adminPanel2: '執政者',

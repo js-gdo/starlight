@@ -128,6 +128,67 @@ describe("worker routing", () => {
 		expect(html).toContain("document.execCommand('copy')");
 	});
 
+	it("filters unread notifications and links ticket alerts to their ticket", async () => {
+		await SELF.fetch("https://example.com/");
+		const session = await createSession(env, 1);
+		const ticketResult = await env.DB.prepare(
+			"INSERT INTO tickets (title, content, author_id, status) VALUES (?, ?, ?, 'pending')"
+		).bind('Notification link test', 'Ticket content', 1).run();
+		const ticketId = Number(ticketResult.meta.last_row_id);
+		await env.DB.prepare("INSERT INTO users (username, password) VALUES ('notification-sender', 'unused')").run();
+		const sender = await env.DB.prepare("SELECT id FROM users WHERE username = 'notification-sender'").first<any>();
+		const articleResult = await env.DB.prepare(
+			'INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)'
+		).bind('notification-article', 'Notification article', 'Article content', 1).run();
+		const articleId = Number(articleResult.meta.last_row_id);
+		const unreadResult = await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type, related_id) VALUES (1, 1, 'Ticket update', 'ticket_status', ?)"
+		).bind(ticketId).run();
+		const unreadId = Number(unreadResult.meta.last_row_id);
+		await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type, related_id) VALUES (?, 1, 'New comment', 'comment', ?)"
+		).bind(sender.id, articleId).run();
+		await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type) VALUES (?, 1, 'Private message', 'private')"
+		).bind(sender.id).run();
+		await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type) VALUES (?, 1, 'Permission changed', 'permission_change')"
+		).bind(1).run();
+		await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type, related_id) VALUES (?, 1, 'New report', 'report', 42)"
+		).bind(sender.id).run();
+		await env.DB.prepare(
+			"INSERT INTO messages (from_user_id, to_user_id, content, type, is_read) VALUES (1, 1, 'Old alert', 'permission_change', 1)"
+		).run();
+
+		const response = await worker.fetch(new IncomingRequest('http://example.com/messages?unread=1', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const html = await response.text();
+		expect(response.status).toBe(200);
+		expect(html).toContain('Ticket update');
+		expect(html).toContain(`/ticket/${ticketId}`);
+		expect(html).toContain('/articles/notification-article#comments');
+		expect(html).toContain(`/pm/${sender.id}`);
+		expect(html).toContain('href="/settings"');
+		expect(html).toContain('href="/backend#security-center"');
+		expect(html).not.toContain('Old alert');
+		expect(html).toContain(`openNotification(event, this, ${unreadId})`);
+		expect(html).toContain('href="/messages?unread=1"');
+		expect(html).toContain('href="/messages"');
+		const unread = await env.DB.prepare('SELECT is_read FROM messages WHERE id = ?').bind(unreadId).first<any>();
+		expect(unread.is_read).toBe(0);
+
+		const markRead = await worker.fetch(new IncomingRequest('http://example.com/api/messages/read', {
+			method: 'POST',
+			headers: { Cookie: `uid=${session}`, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ message_id: unreadId }),
+		}), env, createExecutionContext());
+		expect(markRead.status).toBe(200);
+		const marked = await env.DB.prepare('SELECT is_read FROM messages WHERE id = ?').bind(unreadId).first<any>();
+		expect(marked.is_read).toBe(1);
+	});
+
 	it("returns 404 JSON for unknown API paths", async () => {
 		const response = await SELF.fetch("https://example.com/api/nope");
 		expect(response.status).toBe(404);

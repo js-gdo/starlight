@@ -167,6 +167,8 @@ export default {
     read: 'Leído',
     unread: 'No leído',
     notificationType: 'Mensajes del sistema para cambios de estado, respuestas, permisos, etc.',
+    openNotification: 'Ver contenido relacionado',
+    markAllNotificationsRead: 'Marcar todo como leído',
 
     adminPanel: 'Panel de administración',
     adminPanel2: 'Administrador',

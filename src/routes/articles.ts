@@ -262,7 +262,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
       }
     </script>
     <div class="card">
-      <h3 style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> ${t('comments')}</h3>
+      <h3 id="comments" style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> ${t('comments')}</h3>
       ${comments.results.map((c: any) => `
         <div style="padding:8px 0;border-bottom:1px solid #f5f5f5;">
           ${renderUsernameLink(c.username, c.color, c.tag, c.author_id)}

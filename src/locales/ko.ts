@@ -170,6 +170,8 @@ export default {
 	read: '읽음',
 	unread: '안 읽음',
 	notificationType: '티켓 상태 변경, 게시물 답글, 권한 변경 등의 시스템 메시지입니다.',
+	openNotification: '관련 항목 보기',
+	markAllNotificationsRead: '모두 읽음으로 표시',
 	// ==================== 관리자 ====================
 	adminPanel: '관리',
 	adminPanel2: '관리자',

@@ -178,6 +178,8 @@ export default {
 	read: '已讀',
 	unread: '未讀',
 	notificationType: '工單狀態變更、貼文回覆、權限變動等系統訊息。',
+	openNotification: '查看相關內容',
+	markAllNotificationsRead: '全部標記為已讀',
 
 	// ==================== 後台管理 ====================
 	adminPanel: '管理',

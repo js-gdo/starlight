@@ -418,7 +418,7 @@ export async function renderBackend(env: Env, req: Request) {
         `}
     </div>
 
-    <div class="card" data-admin-panel="security">
+    <div id="security-center" class="card" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-shield-halved"></i> 内容安全中心</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv"><i class="fas fa-download"></i> 导出举报</a>

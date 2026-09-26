@@ -170,6 +170,8 @@ export default {
 	read: 'Lu',
 	unread: 'Non lu',
 	notificationType: 'Messages système : changement de statut de ticket, réponse à un article, modification des droits, etc.',
+	openNotification: 'Voir le contenu associé',
+	markAllNotificationsRead: 'Tout marquer comme lu',
 	// ==================== Administration ====================
 	adminPanel: 'Administration',
 	adminPanel2: 'Administrateur',
