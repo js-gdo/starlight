@@ -224,6 +224,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
       </div>
       <div class="markdown-body markdown-content">${htmlEscape(article.content)}</div>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="shareArticleButton" type="button" onclick="copyArticleLink()" style="background:#fff;color:#555;padding:7px 16px;border:1px solid #ddd;border-radius:999px;cursor:pointer;"><i class="fas fa-share-alt"></i> ${t('shareClip')}</button>
         ${user ? `<button id="likeButton" onclick="toggleLike()" style="background:${liked ? '#e74c3c' : '#fff'};color:${liked ? '#fff' : '#e74c3c'};padding:7px 16px;border:1px solid #e74c3c;border-radius:999px;cursor:pointer;"><i class="fas fa-heart"></i> <span id="likeText">${liked ? '已点赞' : '点赞'}</span> <span id="likeCount">${Number(likeCount?.total || 0)}</span></button>` : `<span style="color:#999;font-size:13px;">登录后可以点赞</span>`}
         ${(isAuthor || isAdmin) ? `
           <a href="/articles/${hexId}/edit" style="background:#3498db;color:#fff;padding:4px 14px;border-radius:4px;text-decoration:none;font-size:13px;"><i class="fas fa-edit"></i> ${t('edit')}</a>
@@ -236,6 +237,30 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
         ` : ''}
       </div>
     </div>
+    <script>
+      async function copyArticleLink() {
+        const url = window.location.href;
+        try {
+          if (!navigator.clipboard || !window.isSecureContext) throw new Error('Clipboard API unavailable');
+          await navigator.clipboard.writeText(url);
+        } catch {
+          const input = document.createElement('textarea');
+          input.value = url;
+          input.setAttribute('readonly', '');
+          input.style.position = 'fixed';
+          input.style.opacity = '0';
+          document.body.appendChild(input);
+          input.select();
+          const copied = document.execCommand('copy');
+          input.remove();
+          if (!copied) {
+            window.prompt('${t('shareClip')}', url);
+            return;
+          }
+        }
+        toast('${t('clipShareCopied')}');
+      }
+    </script>
     <div class="card">
       <h3 style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> ${t('comments')}</h3>
       ${comments.results.map((c: any) => `
