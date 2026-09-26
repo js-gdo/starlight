@@ -115,6 +115,25 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("页面不存在");
 	});
 
+	it("downloads administrator exports instead of routing them through SPA", async () => {
+		await SELF.fetch("https://example.com/");
+		const session = await createSession(env, 1);
+		const page = await worker.fetch(new IncomingRequest('http://example.com/backend', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const html = await page.text();
+		const exportLinks = html.match(/<a\b[^>]*href="\/api\/admin\/export\/[^\"]+"[^>]*>/g) || [];
+		expect(exportLinks).toHaveLength(6);
+		expect(exportLinks.every((link) => /\sdownload(?:\s|=|>)/.test(link))).toBe(true);
+
+		const response = await worker.fetch(new IncomingRequest('http://example.com/api/admin/export/audit?format=csv', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Type')).toContain('text/csv');
+		expect(response.headers.get('Content-Disposition')).toContain('attachment; filename="starlight-audit.csv"');
+	});
+
 	it("offers a share action on article detail pages", async () => {
 		await SELF.fetch("https://example.com/");
 		await env.DB.prepare('INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)')

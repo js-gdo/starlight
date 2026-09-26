@@ -421,8 +421,8 @@ export async function renderBackend(env: Env, req: Request) {
     <div id="security-center" class="card" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-shield-halved"></i> 内容安全中心</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv"><i class="fas fa-download"></i> 导出举报</a>
-            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv"><i class="fas fa-file-shield"></i> 导出审计</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv" download><i class="fas fa-download"></i> 导出举报</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv" download><i class="fas fa-file-shield"></i> 导出审计</a>
         </div>
         ${reports.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无待处理举报</div>` : reports.results.map((report: any) => `
             <div class="ticket-item" style="display:block; padding:12px 0;">
@@ -657,10 +657,10 @@ export async function renderBackend(env: Env, req: Request) {
     <div class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-database"></i> 数据导出</div>
         <div class="action-group">
-            <a class="btn-sm btn-outline" href="/api/admin/export/users?format=csv">用户 CSV</a>
-            <a class="btn-sm btn-outline" href="/api/admin/export/tickets?format=csv">工单 CSV</a>
-            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv">举报 CSV</a>
-            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv">审计 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/users?format=csv" download>用户 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/tickets?format=csv" download>工单 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv" download>举报 CSV</a>
+            <a class="btn-sm btn-outline" href="/api/admin/export/audit?format=csv" download>审计 CSV</a>
         </div>
     </div>
 
