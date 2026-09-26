@@ -178,6 +178,8 @@ export default {
     read: 'Read',
     unread: 'Unread',
     notificationType: 'System messages for ticket status changes, post replies, permission changes, etc.',
+    openNotification: 'View related item',
+    markAllNotificationsRead: 'Mark all as read',
 
     // ==================== Admin Panel ====================
     adminPanel: 'Admin Panel',

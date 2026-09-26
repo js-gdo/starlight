@@ -178,6 +178,8 @@ export default {
     read: '已读',
     unread: '未读',
     notificationType: '工单状态变更、帖子回复、权限变动等系统消息。',
+    openNotification: '查看相关内容',
+    markAllNotificationsRead: '全部标为已读',
 
     // ==================== 后台管理 ====================
     adminPanel: '管理',
