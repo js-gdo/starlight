@@ -115,6 +115,19 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("页面不存在");
 	});
 
+	it("offers a share action on article detail pages", async () => {
+		await SELF.fetch("https://example.com/");
+		await env.DB.prepare('INSERT INTO articles (hex_id, title, content, author_id) VALUES (?, ?, ?, ?)')
+			.bind('article-share-test', 'Share test', 'Article body', 1).run();
+
+		const response = await SELF.fetch("https://example.com/articles/article-share-test");
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain('id="shareArticleButton"');
+		expect(html).toContain("navigator.clipboard.writeText(url)");
+		expect(html).toContain("document.execCommand('copy')");
+	});
+
 	it("returns 404 JSON for unknown API paths", async () => {
 		const response = await SELF.fetch("https://example.com/api/nope");
 		expect(response.status).toBe(404);
