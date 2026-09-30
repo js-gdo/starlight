@@ -4,7 +4,7 @@ import {
 	waitOnExecutionContext,
 	SELF,
 } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import worker from "../src/index";
 import { createSession } from "../src/utils/auth";
 import { renderUsernameLink } from "../src/utils/html";
@@ -100,6 +100,21 @@ describe("worker routing", () => {
 		const response = await SELF.fetch("https://example.com");
 		expect(response.status).toBe(200);
 		expect(await response.text()).toContain("StarLight");
+	});
+
+	it("applies a national-day palette during the holiday window", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-10-01T12:00:00+08:00"));
+		try {
+			const response = await SELF.fetch("https://example.com");
+			const html = await response.text();
+			expect(response.status).toBe(200);
+			expect(html).toContain("national-day-theme");
+			expect(html).toContain("theme-default");
+			expect(html).toContain("theme-modern");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("does not dump the full user list into ordinary pages", async () => {

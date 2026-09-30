@@ -186,6 +186,17 @@ export async function getLayout(
       if(!el){ el = document.createElement('style'); el.id='theme-style'; document.head.appendChild(el); }
       el.innerHTML = css || '';
     }
+    function isNationalDayWindow(){
+      const now = new Date();
+      const year = now.getFullYear();
+      const start = new Date(year, 8, 30, 0, 0, 0, 0);
+      const end = new Date(year, 9, 7, 23, 59, 59, 999);
+      return now >= start && now <= end;
+    }
+    function applyHolidayTheme(){
+      const inHolidayWindow = isNationalDayWindow();
+      document.body.classList.toggle('national-day-theme', inHolidayWindow);
+    }
     async function loadThemeFile(theme){
       if(!theme || theme === 'default') { setThemeStyle(''); return; }
       if(themeCache[theme]) { setThemeStyle(themeCache[theme]); return; }
@@ -203,6 +214,7 @@ export async function getLayout(
       if (!theme || theme === 'default') document.body.classList.add('theme-default');
       else if (theme === 'geek') document.body.classList.add('theme-geek');
       else if (theme === 'modern') document.body.classList.add('theme-modern');
+      applyHolidayTheme();
       const sel = document.getElementById('theme-select'); if (sel) sel.value = theme || 'default';
       // load external css
       loadThemeFile(theme);
@@ -292,6 +304,52 @@ export async function getLayout(
     body.ui-modern .sidebar-right .card h3 i,
     body.ui-modern .quick-link i {
       color: #b38a4a;
+    }
+    body.national-day-theme {
+      background: linear-gradient(180deg, #fff7f0 0%, #f8fbff 100%);
+      transition: background 0.3s ease;
+    }
+    body.national-day-theme.theme-default {
+      background: linear-gradient(180deg, #fff7f0 0%, #f4f8ff 100%);
+    }
+    body.national-day-theme.theme-default .sidebar-left {
+      background: linear-gradient(180deg, #b91c1c 0%, #1d4ed8 100%);
+      box-shadow: 0 18px 40px rgba(185, 28, 28, 0.2);
+    }
+    body.national-day-theme.theme-default .sidebar-left a.active {
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+    }
+    body.national-day-theme.theme-default .main-content .card,
+    body.national-day-theme.theme-default .sidebar-right .card {
+      border-color: rgba(29, 78, 216, 0.16);
+      box-shadow: 0 14px 30px rgba(29, 78, 216, 0.08);
+    }
+    body.national-day-theme.theme-default .quick-link i,
+    body.national-day-theme.theme-default .sidebar-right .card h3 i,
+    body.national-day-theme.theme-default .page-header h1 {
+      color: #b91c1c;
+    }
+    body.national-day-theme.theme-modern {
+      background: radial-gradient(circle at top left, rgba(185, 28, 28, 0.12), transparent 26%), linear-gradient(180deg, #fffaf5 0%, #f4f8ff 100%);
+    }
+    body.national-day-theme.theme-modern .sidebar-left {
+      background: linear-gradient(180deg, #1d4ed8 0%, #b91c1c 100%);
+      box-shadow: 0 18px 40px rgba(29, 78, 216, 0.18);
+    }
+    body.national-day-theme.theme-modern .sidebar-left a.active {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+    body.national-day-theme.theme-modern .main-content .card,
+    body.national-day-theme.theme-modern .sidebar-right .card {
+      border-color: rgba(185, 28, 28, 0.14);
+      box-shadow: 0 14px 30px rgba(29, 78, 216, 0.08);
+    }
+    body.national-day-theme.theme-modern .quick-link i,
+    body.national-day-theme.theme-modern .sidebar-right .card h3 i,
+    body.national-day-theme.theme-modern .page-header h1 {
+      color: #b45309;
     }
     .app-layout {
       display: grid;
