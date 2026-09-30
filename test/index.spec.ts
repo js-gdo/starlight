@@ -102,6 +102,18 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("StarLight");
 	});
 
+	it("shows the operations dashboard for admins", async () => {
+		const session = await createSession(env, 1);
+		const response = await worker.fetch(new IncomingRequest('http://example.com/backend', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(response.status).toBe(200);
+		const html = await response.text();
+		expect(html).toContain('运营中心');
+		expect(html).toContain('待处理工单');
+		expect(html).toContain('待审举报');
+	});
+
 	it("applies a national-day palette during the holiday window", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2026-10-01T12:00:00+08:00"));

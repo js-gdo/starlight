@@ -51,6 +51,13 @@ export async function renderBackend(env: Env, req: Request) {
     const todayLogins = await db.prepare("SELECT COUNT(*) as total FROM users WHERE date(last_login_at) = date('now')").first();
     const todayNewUsers = await db.prepare("SELECT COUNT(*) as total FROM users WHERE date(created_at) = date('now')").first();
     const todayTickets = await db.prepare("SELECT COUNT(*) as total FROM tickets WHERE date(created_at) = date('now')").first();
+    const pendingTicketsCount = Number((tickets.results || []).filter((item: any) => String(item.status || 'pending') === 'pending').length || 0);
+    const pendingReportsCount = Number(reports.results.length || 0);
+    const operationalAlerts = [
+        pendingTicketsCount > 0 ? `待处理工单 ${pendingTicketsCount} 个` : '当前无待处理工单',
+        pendingReportsCount > 0 ? `待审举报 ${pendingReportsCount} 个` : '当前无待审举报',
+        siteStatus === 'maintenance' ? '站点正在维护' : '站点运行正常',
+    ];
 
     const activityTrendStart = new Date(statsEnd.getTime() - 29 * 24 * 60 * 60 * 1000);
     const activityTrendRows = await db.prepare(
@@ -283,6 +290,42 @@ export async function renderBackend(env: Env, req: Request) {
             padding: 14px 16px;
             box-shadow: 0 1px 3px rgba(142,68,173,0.04);
         }
+        .ops-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .ops-card {
+            display: block;
+            padding: 12px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #2c1f3d;
+            border: 1px solid #eadcf7;
+            background: linear-gradient(135deg, #f9f4ff 0%, #fff 100%);
+            min-height: 92px;
+        }
+        .ops-card.warn { border-color: #f7d9a4; background: linear-gradient(135deg, #fffaf1 0%, #fff 100%); }
+        .ops-card.critical { border-color: #f4c1c1; background: linear-gradient(135deg, #fff3f3 0%, #fff 100%); }
+        .ops-card .ops-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #7f6f90;
+            margin-bottom: 8px;
+        }
+        .ops-card .ops-value {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            line-height: 1.1;
+        }
+        .ops-card .ops-meta {
+            font-size: 12px;
+            color: #6b5d78;
+        }
         .overview-label {
             font-size: 12px;
             color: #7f6f90;
@@ -314,6 +357,7 @@ export async function renderBackend(env: Env, req: Request) {
     </div>
 
     <div class="card" data-admin-panel="overview">
+        <div class="section-title"><i class="fas fa-chart-pie"></i> 运营中心</div>
         <div class="overview-grid">
             <div class="overview-card">
                 <div class="overview-label">总用户数</div>
@@ -346,6 +390,24 @@ export async function renderBackend(env: Env, req: Request) {
                 <div class="overview-value">${Number(totalTicketsCount?.total || 0)}</div>
                 <div class="overview-sub">今日新工单：${Number(todayTickets?.total || 0)}</div>
             </div>
+        </div>
+
+        <div class="ops-grid">
+            <a class="ops-card" href="#security-center">
+                <div class="ops-title"><span>待审举报</span><i class="fas fa-shield-halved"></i></div>
+                <div class="ops-value">${pendingReportsCount}</div>
+                <div class="ops-meta">进入内容安全中心处理</div>
+            </a>
+            <a class="ops-card warn" href="#reviews">
+                <div class="ops-title"><span>待处理工单</span><i class="fas fa-ticket-alt"></i></div>
+                <div class="ops-value">${pendingTicketsCount}</div>
+                <div class="ops-meta">继续跟进产品/站务反馈</div>
+            </a>
+            <a class="ops-card critical" href="#site">
+                <div class="ops-title"><span>站点状态</span><i class="fas fa-broadcast-tower"></i></div>
+                <div class="ops-value">${siteStatus === 'maintenance' ? '维护' : siteStatus === 'limited' ? '限流' : '正常'}</div>
+                <div class="ops-meta">${operationalAlerts[2]}</div>
+            </a>
         </div>
     </div>
 
