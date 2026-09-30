@@ -674,8 +674,8 @@ export async function getLayout(
     }
     body.spa-loading #spa-page-progress { width: 72%; opacity: 1; }
     body.spa-ready #spa-page-progress { width: 100%; opacity: 0; }
-    ${extraStyles}
   </style>
+  <style id="spa-page-styles">${extraStyles}</style>
   <script>
     window.__mentionUsers = ${JSON.stringify(mentionUserMap)};
 
@@ -889,6 +889,14 @@ export async function getLayout(
         const nextMain = parsed.querySelector(mainSelector);
         const currentMain = document.querySelector(mainSelector);
         if (!nextMain || !currentMain) return false;
+        const nextPageStyles = parsed.querySelector('#spa-page-styles');
+        const currentPageStyles = document.getElementById('spa-page-styles');
+        if (nextPageStyles) {
+          if (currentPageStyles) currentPageStyles.textContent = nextPageStyles.textContent;
+          else document.head.appendChild(nextPageStyles);
+        } else if (currentPageStyles) {
+          currentPageStyles.remove();
+        }
         currentMain.innerHTML = nextMain.innerHTML;
         document.title = parsed.title;
         updateActiveNavigation(url.pathname);

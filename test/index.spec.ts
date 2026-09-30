@@ -102,6 +102,18 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("StarLight");
 	});
 
+	it("keeps route-specific styles available to SPA navigation", async () => {
+		const response = await worker.fetch(new IncomingRequest('http://example.com/achievements', {
+			headers: { 'X-Starlight-SPA': '1' },
+		}), env, createExecutionContext());
+		const html = await response.text();
+		expect(response.status).toBe(200);
+		expect(html).toContain('<style id="spa-page-styles">');
+		expect(html).toContain('.achievement-tree');
+		expect(html).toContain("parsed.querySelector('#spa-page-styles')");
+		expect(html).toContain('currentPageStyles.remove()');
+	});
+
 	it("shows the operations dashboard for admins", async () => {
 		const session = await createSession(env, 1);
 		const response = await worker.fetch(new IncomingRequest('http://example.com/backend', {
