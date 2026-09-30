@@ -411,7 +411,7 @@ export async function renderBackend(env: Env, req: Request) {
         </div>
     </div>
 
-    <div class="card" data-admin-panel="reviews">
+    <div id="reviews" class="card" data-admin-panel="reviews">
         <div class="section-title"><i class="fas fa-clipboard-check"></i> 功能审核队列</div>
         <p class="online-chart-note">团队创建和 OJ 投题审核已统一收纳到后台，侧栏不再展示单独入口。</p>
         <div class="action-group">
@@ -445,7 +445,7 @@ export async function renderBackend(env: Env, req: Request) {
         <div class="online-chart-note">按最近 30 天的活跃用户数统计，展示日活跃趋势变化。</div>
     </div>
 
-    <div class="card" data-admin-panel="site">
+    <div id="site" class="card" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-satellite-dish"></i> 站点状态</div>
         <form action="/api/admin/site-status" method="POST" class="add-banner-form">
             <select name="status" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -736,17 +736,27 @@ export async function renderBackend(env: Env, req: Request) {
         let onlineStatsChart = null;
         let userActivityChart = null;
 
+        function activateAdminTab(selected) {
+            const selectedTab = document.querySelector('[data-admin-tab="' + selected + '"]');
+            if (!selectedTab) return;
+            document.querySelectorAll('[data-admin-tab]').forEach(item => item.classList.toggle('active', item === selectedTab));
+            document.querySelectorAll('[data-admin-panel]').forEach(panel => panel.classList.toggle('is-hidden', panel.dataset.adminPanel !== selected));
+            if (selected === 'overview') {
+                if (onlineStatsChart) onlineStatsChart.resize();
+                if (userActivityChart) userActivityChart.resize();
+            }
+        }
+
+        function activateAdminTabFromHash() {
+            const target = document.getElementById(window.location.hash.slice(1));
+            if (target?.dataset.adminPanel) activateAdminTab(target.dataset.adminPanel);
+        }
+
         document.querySelectorAll('[data-admin-tab]').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const selected = tab.dataset.adminTab;
-                document.querySelectorAll('[data-admin-tab]').forEach(item => item.classList.toggle('active', item === tab));
-                document.querySelectorAll('[data-admin-panel]').forEach(panel => panel.classList.toggle('is-hidden', panel.dataset.adminPanel !== selected));
-                if (selected === 'overview') {
-                    if (onlineStatsChart) onlineStatsChart.resize();
-                    if (userActivityChart) userActivityChart.resize();
-                }
-            });
+            tab.addEventListener('click', () => activateAdminTab(tab.dataset.adminTab));
         });
+        activateAdminTabFromHash();
+        window.addEventListener('hashchange', activateAdminTabFromHash);
 
         function buildDateGroups(points) {
             const dateGroups = [];
