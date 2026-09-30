@@ -112,6 +112,10 @@ describe("worker routing", () => {
 		expect(html).toContain('运营中心');
 		expect(html).toContain('待处理工单');
 		expect(html).toContain('待审举报');
+		expect(html).toContain('id="security-center"');
+		expect(html).toContain('id="reviews"');
+		expect(html).toContain('id="site"');
+		expect(html).toContain('function activateAdminTabFromHash()');
 	});
 
 	it("applies a national-day palette during the holiday window", async () => {
