@@ -41,6 +41,7 @@ export async function initDB(env: Env) {
       sidebar_mode TEXT DEFAULT 'classic',
       ui_mode TEXT DEFAULT 'classic',
       redirect_delay_seconds INTEGER DEFAULT 5,
+      session_version INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
@@ -373,6 +374,14 @@ export async function initDB(env: Env) {
       last_explored_at TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS login_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      ip_address TEXT NOT NULL DEFAULT '',
+      user_agent TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`
     ];
 
@@ -430,6 +439,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN sidebar_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN ui_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN redirect_delay_seconds INTEGER DEFAULT 5',
+        'ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN permission TEXT DEFAULT ""',
         'ALTER TABLE tickets ADD COLUMN permission_action TEXT DEFAULT ""',
@@ -489,6 +499,7 @@ export async function initDB(env: Env) {
         'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_article_likes_user ON article_likes (user_id)',
         'CREATE INDEX IF NOT EXISTS idx_users_server_rank ON users (server_hardware_score DESC, server_coin DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_login_history_user_created ON login_history (user_id, id DESC)',
         'CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members (user_id, status)',
         'CREATE INDEX IF NOT EXISTS idx_team_posts_team ON team_posts (team_id, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_team_creation_requests_status ON team_creation_requests (status, created_at)'
@@ -501,7 +512,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '15';
+const CURRENT_SCHEMA_VERSION = '16';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

@@ -5,7 +5,23 @@ import { getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import { ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import { getAchievementBadges } from '../utils/achievements';
+import { formatTimeToChina } from '../utils/time';
 import type { Env } from '../env.d';
+
+function getLoginDeviceLabel(userAgent: string): string {
+    const browser = /Edg\//.test(userAgent) ? 'Edge'
+        : /Firefox\//.test(userAgent) ? 'Firefox'
+        : /Chrome\//.test(userAgent) ? 'Chrome'
+        : /Safari\//.test(userAgent) && !/Chrome\//.test(userAgent) ? 'Safari'
+        : '未知浏览器';
+    const platform = /Windows/i.test(userAgent) ? 'Windows'
+        : /Android/i.test(userAgent) ? 'Android'
+        : /iPhone|iPad|iPod/i.test(userAgent) ? 'iOS'
+        : /Mac OS/i.test(userAgent) ? 'macOS'
+        : /Linux/i.test(userAgent) ? 'Linux'
+        : '未知设备';
+    return `${browser} · ${platform}`;
+}
 
 export async function renderUser(env: Env, req: Request, path: string) {
     const t = getTranslator(req);
@@ -84,6 +100,9 @@ export async function renderUserSettings(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (!user) return t('apiNotLoggedIn');
+    const loginHistory = await env.DB.prepare(
+        'SELECT ip_address, user_agent, created_at FROM login_history WHERE user_id = ? ORDER BY id DESC LIMIT 10'
+    ).bind(user.id).all<any>();
 
     const content = `
         <div class="page-header"><h1><i class="fas fa-user-cog"></i> 用户设置</h1></div>
@@ -116,6 +135,21 @@ export async function renderUserSettings(env: Env, req: Request) {
         </div>
         <div class="card" style="max-width:720px;margin-top:14px;">
             <h3 style="font-size:16px;margin-bottom:12px;">账号安全</h3>
+            <div style="margin-bottom:18px;padding:12px;background:#f7f8fa;border-radius:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div><strong>登录设备</strong><div style="font-size:12px;color:#777;margin-top:4px;">最多保留最近 10 次登录。退出其他设备会保留当前设备。</div></div>
+                    <button id="revokeOtherSessions" type="button" style="background:#fff;color:#b42318;padding:7px 12px;border:1px solid #f0b8b3;border-radius:4px;cursor:pointer;"><i class="fas fa-right-from-bracket"></i> 退出其他设备</button>
+                </div>
+                <div id="sessionStatus" role="status" style="font-size:13px;margin-top:8px;"></div>
+                <div style="margin-top:10px;">
+                    ${loginHistory.results.length ? loginHistory.results.map((record: any) => `
+                        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:9px 0;border-top:1px solid #e5e7eb;font-size:13px;">
+                            <div><strong>${htmlEscape(getLoginDeviceLabel(String(record.user_agent || '')))}</strong><div style="color:#777;margin-top:3px;">IP：${htmlEscape(String(record.ip_address || '未知'))}</div></div>
+                            <time style="color:#777;">${htmlEscape(formatTimeToChina(record.created_at))}</time>
+                        </div>
+                    `).join('') : '<div style="padding:10px 0;color:#777;font-size:13px;">暂无登录记录</div>'}
+                </div>
+            </div>
             <form id="passwordForm" style="display:flex;flex-direction:column;gap:10px;">
                 <input name="current_password" type="password" autocomplete="current-password" placeholder="当前密码" required style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
                 <input name="new_password" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="新密码（至少 6 位）" required style="padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -124,6 +158,23 @@ export async function renderUserSettings(env: Env, req: Request) {
             </form>
         </div>
         <script>
+            document.getElementById('revokeOtherSessions').addEventListener('click', async function() {
+                if (!confirm('退出其他设备的登录状态？当前设备会保持登录。')) return;
+                const button = this;
+                const status = document.getElementById('sessionStatus');
+                button.disabled = true;
+                try {
+                    const response = await fetch('/api/user/sessions/revoke-others', { method: 'POST' });
+                    const data = await response.json();
+                    status.textContent = data.message || data.error || '操作完成';
+                    status.style.color = response.ok ? '#16803c' : '#b42318';
+                } catch {
+                    status.textContent = '请求失败，请稍后重试';
+                    status.style.color = '#b42318';
+                } finally {
+                    button.disabled = false;
+                }
+            });
             document.getElementById('passwordForm').addEventListener('submit', async function(event) {
                 event.preventDefault();
                 var status = document.getElementById('passwordStatus');

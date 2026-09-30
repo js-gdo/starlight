@@ -118,6 +118,39 @@ describe("worker routing", () => {
 		expect(html).toContain('function activateAdminTabFromHash()');
 	});
 
+	it("shows login history and revokes older sessions while keeping the current one", async () => {
+		const session = await createSession(env, 1);
+		await env.DB.prepare('INSERT INTO login_history (user_id, ip_address, user_agent, created_at) VALUES (1, ?, ?, ?)')
+			.bind('203.0.113.12', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0', '2026-09-30T10:00:00.000Z').run();
+
+		const settings = await worker.fetch(new IncomingRequest('http://example.com/settings', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const html = await settings.text();
+		expect(settings.status).toBe(200);
+		expect(html).toContain('退出其他设备');
+		expect(html).toContain('203.0.113.12');
+		expect(html).toContain('Chrome · Windows');
+
+		const revoke = await worker.fetch(new IncomingRequest('http://example.com/api/user/sessions/revoke-others', {
+			method: 'POST',
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(revoke.status).toBe(200);
+		const renewedSession = revoke.headers.get('Set-Cookie')?.match(/^uid=([^;]+)/)?.[1];
+		expect(renewedSession).toBeTruthy();
+		expect(await revoke.json()).toEqual({ ok: true, message: '其他设备已退出登录' });
+		const currentSession = await worker.fetch(new IncomingRequest('http://example.com/api/login', {
+			headers: { Cookie: `uid=${renewedSession}` },
+		}), env, createExecutionContext());
+		expect(currentSession.status).toBe(200);
+
+		const oldSession = await worker.fetch(new IncomingRequest('http://example.com/api/login', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(oldSession.status).toBe(403);
+	});
+
 	it("applies a national-day palette during the holiday window", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2026-10-01T12:00:00+08:00"));
