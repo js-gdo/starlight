@@ -48,6 +48,10 @@ export async function handleAuth(request: Request, env: Env, path: string) {
 
         await db.prepare('UPDATE users SET last_ip = ?, last_region = ?, last_city = ?, last_login_at = ? WHERE id = ?')
             .bind(loginIp, loginRegion, loginCity, loginTime, dbUser.id).run();
+        await db.prepare('INSERT INTO login_history (user_id, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?)')
+            .bind(dbUser.id, loginIp, (request.headers.get('User-Agent') || '').slice(0, 500), loginTime).run();
+        await db.prepare('DELETE FROM login_history WHERE user_id = ? AND id NOT IN (SELECT id FROM login_history WHERE user_id = ? ORDER BY id DESC LIMIT 10)')
+            .bind(dbUser.id, dbUser.id).run();
 
         return new Response(JSON.stringify({
             message: t('apiLoginSuccess'),

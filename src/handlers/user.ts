@@ -1,4 +1,4 @@
-import { getSessionUser, jsonRes } from '../utils/auth';
+import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl } from '../utils/profile';
@@ -18,8 +18,26 @@ export async function handleUser(request: Request, env: Env, path: string) {
         if (body.new_password.length < 6 || body.new_password.length > 128) return jsonRes({ error: '新密码长度应为 6-128 位' }, 400);
         const current = await db.prepare('SELECT password FROM users WHERE id = ?').bind(user.id).first<any>();
         if (!current || current.password !== await sha256(body.current_password)) return jsonRes({ error: '当前密码错误' }, 400);
-        await db.prepare('UPDATE users SET password = ? WHERE id = ?').bind(await sha256(body.new_password), user.id).run();
-        return jsonRes({ ok: true, message: '密码已更新，请重新登录' });
+        await db.prepare('UPDATE users SET password = ?, session_version = session_version + 1 WHERE id = ?').bind(await sha256(body.new_password), user.id).run();
+        const session = await createSession(env, user.id);
+        return new Response(JSON.stringify({ ok: true, message: '密码已更新，其他设备已退出' }), {
+            headers: {
+                'Content-Type': 'application/json',
+                'Set-Cookie': `uid=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`,
+            },
+        });
+    }
+
+    if (path === '/api/user/sessions/revoke-others' && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        await db.prepare('UPDATE users SET session_version = session_version + 1 WHERE id = ?').bind(user.id).run();
+        const session = await createSession(env, user.id);
+        return new Response(JSON.stringify({ ok: true, message: '其他设备已退出登录' }), {
+            headers: {
+                'Content-Type': 'application/json',
+                'Set-Cookie': `uid=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`,
+            },
+        });
     }
 
     if (path === '/api/user/bio' && method === 'POST') {

@@ -44,24 +44,33 @@ export function getSessionMaxAge(): number {
 /**
  * 签发会话 Cookie 值，格式为 uid.expires.signature
  */
-export async function createSession(env: Env, uid: number): Promise<string> {
+export async function createSession(env: Env, uid: number, version?: number): Promise<string> {
     const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-    const payload = `${uid}.${expires}`;
+    let sessionVersion = version;
+    if (sessionVersion === undefined) {
+        const user = await env.DB.prepare('SELECT session_version FROM users WHERE id = ?').bind(uid).first<Record<string, any>>();
+        sessionVersion = Number(user?.session_version || 0);
+    }
+    const payload = `${uid}.${expires}.${Math.max(0, Math.trunc(sessionVersion))}`;
     return `${payload}.${await hmacSha256(await getSessionSecret(env), payload)}`;
 }
 
 /**
  * 校验会话 Cookie 值并取出 uid，签名不符或已过期返回 null
  */
-async function verifySession(env: Env, value: string | null): Promise<number | null> {
+async function verifySession(env: Env, value: string | null): Promise<{ uid: number; version: number } | null> {
     if (!value) return null;
     const parts = value.split('.');
-    if (parts.length !== 3) return null;
-    const uid = parseInt(parts[0], 10);
-    const expires = parseInt(parts[1], 10);
+    if (parts.length !== 3 && parts.length !== 4) return null;
+    const uid = Number.parseInt(parts[0], 10);
+    const expires = Number.parseInt(parts[1], 10);
+    const version = parts.length === 4 ? Number.parseInt(parts[2], 10) : 0;
+    const payload = parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}` : `${parts[0]}.${parts[1]}`;
+    const signature = parts[parts.length - 1];
     if (!uid || !expires || expires < Math.floor(Date.now() / 1000)) return null;
-    const expected = await hmacSha256(await getSessionSecret(env), `${parts[0]}.${parts[1]}`);
-    return expected === parts[2] ? uid : null;
+    if (!Number.isSafeInteger(version) || version < 0) return null;
+    const expected = await hmacSha256(await getSessionSecret(env), payload);
+    return expected === signature ? { uid, version } : null;
 }
 
 /**
@@ -69,10 +78,11 @@ async function verifySession(env: Env, value: string | null): Promise<number | n
  * 同时会节流更新用户的 last_active_at 字段（距上次更新超过 60 秒）
  */
 export async function getSessionUser(env: Env, req: Request): Promise<any | null> {
-    const uid = await verifySession(env, getCookie(req, SESSION_COOKIE));
-    if (!uid) return null;
+    const session = await verifySession(env, getCookie(req, SESSION_COOKIE));
+    if (!session) return null;
     try {
-        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(uid).first<Record<string, any>>();
+        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(session.uid).first<Record<string, any>>();
+        if (user && Number(user.session_version || 0) !== session.version) return null;
         if (user && user.use) {
             const now = new Date();
             const lastActive = user.last_active_at ? new Date(user.last_active_at) : null;
