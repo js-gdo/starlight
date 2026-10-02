@@ -60,7 +60,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `uid=${await createSession(env, dbUser.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`
+                'Set-Cookie': `uid=${await createSession(env, dbUser.id, Number((dbUser as any).session_version || 0))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`
             }
         });
     }

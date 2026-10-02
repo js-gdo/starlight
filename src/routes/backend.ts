@@ -411,7 +411,7 @@ export async function renderBackend(env: Env, req: Request) {
         </div>
     </div>
 
-    <div id="reviews" class="card" data-admin-panel="reviews">
+    <div id="reviews" class="card is-hidden" data-admin-panel="reviews">
         <div class="section-title"><i class="fas fa-clipboard-check"></i> 功能审核队列</div>
         <p class="online-chart-note">团队创建和 OJ 投题审核已统一收纳到后台，侧栏不再展示单独入口。</p>
         <div class="action-group">
@@ -445,7 +445,7 @@ export async function renderBackend(env: Env, req: Request) {
         <div class="online-chart-note">按最近 30 天的活跃用户数统计，展示日活跃趋势变化。</div>
     </div>
 
-    <div id="site" class="card" data-admin-panel="site">
+    <div id="site" class="card is-hidden" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-satellite-dish"></i> 站点状态</div>
         <form action="/api/admin/site-status" method="POST" class="add-banner-form">
             <select name="status" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -457,7 +457,7 @@ export async function renderBackend(env: Env, req: Request) {
         </form>
     </div>
 
-    <div class="card" data-admin-panel="admin-roles">
+    <div class="card is-hidden" data-admin-panel="admin-roles">
         <div class="section-title"><i class="fas fa-user-shield"></i> 管理员分类设置</div>
         ${user.id !== 1 ? `<div class="admin-warning">只有 UID 1 的 superuser 可以修改管理员分类。当前页面仍可查看分类，完整展示见 <a href="/admin-list">管理员列表</a>。</div>` : `
             <div class="admin-warning">可批量选择管理员并统一切换分类。管理员可以身兼多个分类，提交时必须填写操作理由。</div>
@@ -480,7 +480,7 @@ export async function renderBackend(env: Env, req: Request) {
         `}
     </div>
 
-    <div id="security-center" class="card" data-admin-panel="security">
+    <div id="security-center" class="card is-hidden" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-shield-halved"></i> 内容安全中心</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
             <a class="btn-sm btn-outline" href="/api/admin/export/reports?format=csv" download><i class="fas fa-download"></i> 导出举报</a>
@@ -511,14 +511,14 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card" data-admin-panel="security">
+    <div class="card is-hidden" data-admin-panel="security">
         <div class="section-title"><i class="fas fa-file-shield"></i> 管理员操作审计</div>
         ${auditLogs.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">暂无审计记录</div>` : auditLogs.results.map((log: any) => `
             <div class="ticket-item"><div><strong>${htmlEscape(log.action)}</strong><span class="meta"> · ${htmlEscape(log.admin_name || '未知')} · ${formatTimeToChina(log.created_at)}</span></div><span class="meta">${htmlEscape(log.details || '')}</span></div>
         `).join('')}
     </div>
 
-    <div class="card" data-admin-panel="users">
+    <div class="card is-hidden" data-admin-panel="users">
         <div class="section-title"><i class="fas fa-users"></i> ${t('userManagement')}</div>
         <div class="table-wrap">
             <table class="admin-table">
@@ -604,7 +604,7 @@ export async function renderBackend(env: Env, req: Request) {
         </div>
     </div>
 
-    <div class="card" data-admin-panel="content">
+    <div class="card is-hidden" data-admin-panel="content">
         <div class="section-title"><i class="fas fa-file-alt"></i> ${t('articleManagement')}</div>
         <form id="bulkArticleForm" action="/api/admin/articles/bulk" method="POST" class="add-banner-form" onsubmit="return confirmBulkArticleAction();">
             <select name="action" id="bulkArticleAction" onchange="toggleBulkCategory()" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
@@ -643,7 +643,7 @@ export async function renderBackend(env: Env, req: Request) {
         ${articles.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">${t('noArticles')}</div>` : ''}
     </div>
 
-    <div class="card" data-admin-panel="content">
+    <div class="card is-hidden" data-admin-panel="content">
         <div class="section-title"><i class="fas fa-ticket-alt"></i> ${t('ticketManagement')}</div>
         ${tickets.results.map((ticket: any) => {
             const statusInfo = getTicketStatus(ticket.status);
@@ -666,7 +666,7 @@ export async function renderBackend(env: Env, req: Request) {
         ${tickets.results.length === 0 ? `<div style="color:#999;padding:12px 0;text-align:center;">${t('noTickets')}</div>` : ''}
     </div>
 
-    <div class="card" data-admin-panel="site">
+    <div class="card is-hidden" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-images"></i> ${t('bannerManagement')}</div>
         <form action="/api/admin/banner/add" method="POST" class="add-banner-form">
             <input type="url" name="image_url" placeholder="${t('imageUrl')}" required>
@@ -692,7 +692,7 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card" data-admin-panel="site">
+    <div class="card is-hidden" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-bullhorn"></i> 公告管理</div>
         <form action="/api/admin/announcement/add" method="POST" class="add-banner-form">
             <input type="text" name="content" placeholder="公告内容" required>
@@ -716,7 +716,7 @@ export async function renderBackend(env: Env, req: Request) {
         `).join('')}
     </div>
 
-    <div class="card" data-admin-panel="site">
+    <div class="card is-hidden" data-admin-panel="site">
         <div class="section-title"><i class="fas fa-database"></i> 数据导出</div>
         <div class="action-group">
             <a class="btn-sm btn-outline" href="/api/admin/export/users?format=csv" download>用户 CSV</a>
@@ -749,7 +749,7 @@ export async function renderBackend(env: Env, req: Request) {
 
         function activateAdminTabFromHash() {
             const target = document.getElementById(window.location.hash.slice(1));
-            if (target?.dataset.adminPanel) activateAdminTab(target.dataset.adminPanel);
+            activateAdminTab(target?.dataset.adminPanel || 'overview');
         }
 
         document.querySelectorAll('[data-admin-tab]').forEach(tab => {

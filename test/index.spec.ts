@@ -108,10 +108,12 @@ describe("worker routing", () => {
 		}), env, createExecutionContext());
 		const html = await response.text();
 		expect(response.status).toBe(200);
-		expect(html).toContain('<style id="spa-page-styles">');
+		expect(html).toContain('<style id="spa-page-styles" data-spa-page-style>');
 		expect(html).toContain('.achievement-tree');
-		expect(html).toContain("parsed.querySelector('#spa-page-styles')");
-		expect(html).toContain('currentPageStyles.remove()');
+		expect(html).toContain("parsed.querySelectorAll('[data-spa-page-style]')");
+		expect(html).toContain("nextMain.querySelectorAll('style')");
+		expect(html).toContain("document.querySelectorAll('[data-spa-page-style]')");
+		expect(html).toContain('document.head.appendChild(pageStyle)');
 	});
 
 	it("shows the operations dashboard for admins", async () => {
@@ -124,13 +126,15 @@ describe("worker routing", () => {
 		expect(html).toContain('运营中心');
 		expect(html).toContain('待处理工单');
 		expect(html).toContain('待审举报');
-		expect(html).toContain('id="security-center"');
+		expect(html).toContain('id="security-center" class="card is-hidden"');
 		expect(html).toContain('id="reviews"');
 		expect(html).toContain('id="site"');
+		expect(html).toContain('class="card is-hidden" data-admin-panel="users"');
 		expect(html).toContain('function activateAdminTabFromHash()');
 	});
 
 	it("shows login history and revokes older sessions while keeping the current one", async () => {
+		await SELF.fetch("https://example.com/");
 		const session = await createSession(env, 1);
 		await env.DB.prepare('INSERT INTO login_history (user_id, ip_address, user_agent, created_at) VALUES (1, ?, ?, ?)')
 			.bind('203.0.113.12', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0', '2026-09-30T10:00:00.000Z').run();

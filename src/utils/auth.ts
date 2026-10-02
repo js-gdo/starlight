@@ -46,12 +46,8 @@ export function getSessionMaxAge(): number {
  */
 export async function createSession(env: Env, uid: number, version?: number): Promise<string> {
     const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-    let sessionVersion = version;
-    if (sessionVersion === undefined) {
-        const user = await env.DB.prepare('SELECT session_version FROM users WHERE id = ?').bind(uid).first<Record<string, any>>();
-        sessionVersion = Number(user?.session_version || 0);
-    }
-    const payload = `${uid}.${expires}.${Math.max(0, Math.trunc(sessionVersion))}`;
+    const sessionVersion = Math.max(0, Math.trunc(version ?? 0));
+    const payload = `${uid}.${expires}.${sessionVersion}`;
     return `${payload}.${await hmacSha256(await getSessionSecret(env), payload)}`;
 }
 
