@@ -108,10 +108,10 @@ describe("worker routing", () => {
 		}), env, createExecutionContext());
 		const html = await response.text();
 		expect(response.status).toBe(200);
-		expect(html).toContain('<style id="spa-page-styles">');
+		expect(html).toContain('<style id="spa-page-styles" data-spa-route-style="true">');
 		expect(html).toContain('.achievement-tree');
-		expect(html).toContain("parsed.querySelector('#spa-page-styles')");
-		expect(html).toContain('currentPageStyles.remove()');
+		expect(html).toContain("querySelectorAll('style[data-spa-route-style]')");
+		expect(html).toContain('document.head.querySelectorAll(\'style[data-spa-route-style]\')');
 	});
 
 	it("shows the operations dashboard for admins", async () => {
