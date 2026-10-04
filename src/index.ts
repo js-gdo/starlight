@@ -30,6 +30,7 @@ import { renderAchievements } from './routes/achievements';
 import { renderRedeem } from './routes/redeem';
 import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
+import { renderOS } from './routes/os';
 import { handleApi } from './handlers/api';
 import { renderTeamList, renderTeamNew, renderTeam, renderTeamSettings, renderTeamRequests } from './routes/teams';
 import { renderStatusPage, wantsHtmlNavigation } from './routes/status';
@@ -46,6 +47,12 @@ export default {
             // ============ 页面路由 ============
             if (path === '/' || path === '/index.html') {
                 return new Response(await renderHome(env, request), {
+                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                });
+            }
+
+            if (path === '/os') {
+                return new Response(await renderOS(env, request), {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
