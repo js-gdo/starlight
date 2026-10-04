@@ -111,7 +111,12 @@ export async function getLayout(
         navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });
     }
 
-    const sidebarLinks = navItems.map(item => {
+    const primaryNavPaths = new Set(['/', '/benben', '/articles/list', '/ticket/list', '/oj', '/contest', '/team', '/messages', '/pm']);
+    const primaryNavItems = navItems.filter(item => primaryNavPaths.has(item.href));
+    const moreNavItems = navItems.filter(item => !primaryNavPaths.has(item.href));
+    const moreNavIsActive = moreNavItems.some(item => item.active);
+    const moreNavBadgeCount = moreNavItems.reduce((total, item) => total + (item.badge || 0), 0);
+    const renderSidebarItem = (item: typeof navItems[number]) => {
         const badgeHtml = item.badge ? `<span class="badge">${item.badge}</span>` : '';
         const onclickAttr = item.onclick ? ` onclick="${item.onclick}"` : '';
         const iconMap: Record<string, string> = {
@@ -139,11 +144,12 @@ export async function getLayout(
         };
         const icon = iconMap[item.href] || 'fa-link';
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
-    }).join('');
+    };
+    const sidebarLinks = [
+        ...primaryNavItems.map(renderSidebarItem),
+        `<details class="sidebar-more" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}"><span class="icon"><i class="fas fa-ellipsis"></i></span><span class="nav-text">其他</span>${moreNavBadgeCount ? `<span class="badge">${moreNavBadgeCount}</span>` : ''}</summary>${moreNavItems.map(renderSidebarItem).join('')}</details>`,
+    ].join('');
 
-    const primaryNavPaths = new Set(['/', '/os', '/articles/list', '/ticket/list', '/oj', '/contest', '/leaderboard', '/achievements', '/game']);
-    const primaryNavItems = navItems.filter(item => primaryNavPaths.has(item.href));
-    const moreNavItems = navItems.filter(item => !primaryNavPaths.has(item.href));
     const renderTopNavItem = (item: typeof navItems[number], mobile = false) => {
       const icons: Record<string, string> = {
         '/': 'fa-home', '/os': 'fa-desktop', '/articles/list': 'fa-file-alt', '/ticket/list': 'fa-ticket-alt', '/oj': 'fa-code',
@@ -160,11 +166,11 @@ export async function getLayout(
         <div class="starlight-topbar-inner">
           <a class="starlight-brand" href="/"><span class="starlight-brand-mark"><i class="fas fa-star"></i></span><span>StarLight<small>社区</small></span></a>
           <nav class="starlight-primary-nav" aria-label="主导航">${primaryNavItems.map(item => renderTopNavItem(item)).join('')}</nav>
-          <details class="starlight-more-nav"><summary>更多 <i class="fas fa-chevron-down"></i></summary><div class="starlight-more-menu">${moreNavItems.map(item => renderTopNavItem(item)).join('')}</div></details>
+          <details class="starlight-more-nav" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}">其他 <i class="fas fa-chevron-down"></i>${moreNavBadgeCount ? `<span class="top-nav-badge">${moreNavBadgeCount}</span>` : ''}</summary><div class="starlight-more-menu">${moreNavItems.map(item => renderTopNavItem(item)).join('')}</div></details>
           <div class="starlight-top-actions">${user ? `<a class="starlight-user" href="/user/${user.id}" title="${htmlEscape(user.username)}">${renderAvatar(user, 30)}<span>${htmlEscape(user.username)}</span></a><a class="starlight-icon-link" href="/settings" title="用户设置" aria-label="用户设置"><i class="fas fa-user-cog"></i></a><form action="/logout" method="GET"><button class="starlight-icon-link" type="submit" title="${t('logout')}" aria-label="${t('logout')}"><i class="fas fa-sign-out-alt"></i></button></form>` : `<a href="/login">${t('login')}</a><a class="starlight-login" href="/register">${t('register')}</a>`}</div>
           <button class="starlight-menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" onclick="toggleStarlightMenu()"><i class="fas fa-bars"></i></button>
         </div>
-        <nav class="starlight-mobile-drawer" id="starlightMobileDrawer" aria-label="移动端导航">${navItems.map(item => renderTopNavItem(item, true)).join('')}</nav>
+        <nav class="starlight-mobile-drawer" id="starlightMobileDrawer" aria-label="移动端导航">${primaryNavItems.map(item => renderTopNavItem(item, true)).join('')}<details class="starlight-mobile-more" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}"><i class="fas fa-ellipsis"></i><span>其他</span>${moreNavBadgeCount ? `<span class="top-nav-badge">${moreNavBadgeCount}</span>` : ''}</summary><div class="starlight-mobile-more-menu">${moreNavItems.map(item => renderTopNavItem(item, true)).join('')}</div></details></nav>
       </header>
     ` : '';
     const starlightHero = layoutMode === 'starlight' && currentPath === '/' ? `
@@ -447,6 +453,8 @@ export async function getLayout(
     }
     .sidebar-left.sidebar-hover-mode:hover a { flex-direction: row; gap: 9px; padding: 8px 14px; font-size: 12px; text-align: left; }
     .sidebar-left.sidebar-hover-mode:hover a .icon { width: 18px; text-align: center; margin-bottom: 0; }
+    .sidebar-left.sidebar-hover-mode:hover .sidebar-more summary { flex-direction: row; gap: 9px; padding: 8px 14px; font-size: 12px; text-align: left; }
+    .sidebar-left.sidebar-hover-mode:hover .sidebar-more summary .icon { width: 18px; text-align: center; margin-bottom: 0; }
     .sidebar-left.sidebar-hover-mode:hover .brand { text-align: left; padding-left: 14px; }
     .sidebar-left.sidebar-hover-mode:hover .user-section { text-align: left; padding-left: 14px; padding-right: 14px; }
     .sidebar-left.sidebar-hover-mode:hover .user-section .avatar { margin-left: 0; }
@@ -456,6 +464,8 @@ export async function getLayout(
     .sidebar-left.sidebar-hover-mode:not(:hover) .user-name,
     .sidebar-left.sidebar-hover-mode:not(:hover) .user-section > a,
     .sidebar-left.sidebar-hover-mode:not(:hover) .user-section > form { display: none; }
+    .sidebar-left.sidebar-hover-mode:not(:hover) .sidebar-more .nav-text { display: none; }
+    .sidebar-left.sidebar-hover-mode:not(:hover) .sidebar-more .badge { display: none; }
     .sidebar-left .brand {
       color: #fff;
       font-size: 14px;
@@ -486,6 +496,38 @@ export async function getLayout(
       width: 100%;
       text-align: center;
       position: relative;
+    }
+    .sidebar-left .sidebar-more { width: 100%; }
+    .sidebar-left .sidebar-more summary {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      padding: 5px 0;
+      border-radius: 6px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 9px;
+      list-style: none;
+      position: relative;
+      text-align: center;
+    }
+    .sidebar-left .sidebar-more summary::-webkit-details-marker { display: none; }
+    .sidebar-left .sidebar-more summary:hover,
+    .sidebar-left .sidebar-more summary.active { color: #fff; background: rgba(255,255,255,0.12); }
+    .sidebar-left .sidebar-more summary .icon { font-size: 14px; margin-bottom: 1px; }
+    .sidebar-left .sidebar-more .badge {
+      position: absolute;
+      top: 2px;
+      right: 8px;
+      background: #e74c3c;
+      color: #fff;
+      font-size: 9px;
+      border-radius: 50%;
+      padding: 1px 5px;
+      min-width: 16px;
+      text-align: center;
+      line-height: 1.4;
     }
     .sidebar-left a:hover {
       color: #fff;
@@ -731,6 +773,7 @@ export async function getLayout(
     body.layout-starlight .top-nav-badge { min-width:16px; padding:0 4px; border-radius:9px; background:#d64545; color:#fff; text-align:center; font-size:10px; }
     body.layout-starlight .starlight-more-nav { position:relative; flex:none; }
     body.layout-starlight .starlight-more-nav summary { padding:8px; border-radius:7px; color:#6b6672; cursor:pointer; font-size:12px; list-style:none; white-space:nowrap; }
+    body.layout-starlight .starlight-more-nav summary:hover, body.layout-starlight .starlight-more-nav summary.active { background:#f6edfa; color:#6c3483; }
     body.layout-starlight .starlight-more-nav summary::-webkit-details-marker { display:none; }
     body.layout-starlight .starlight-more-menu { position:absolute; top:calc(100% + 8px); right:0; display:grid; min-width:190px; max-height:70vh; overflow:auto; padding:6px; border:1px solid #e8e6ef; border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(34,26,58,.14); }
     body.layout-starlight .starlight-more-menu .top-nav-link { padding:9px 10px; }
@@ -775,7 +818,6 @@ export async function getLayout(
     body.layout-starlight #lang-switcher { right:max(16px,calc((100vw - 1280px)/2)); top:68px; z-index:450; }
     body.layout-starlight #lang-switcher select { color:#45414d !important; background:rgba(255,255,255,.94) !important; border-color:#e8e6ef !important; }
     @media (max-width:1100px) {
-      body.layout-starlight .starlight-primary-nav .top-nav-link:nth-child(n+7) { display:none; }
       body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr) 260px; }
       body.layout-starlight .home-row-bottom { grid-template-columns:minmax(0,1fr); }
     }
@@ -789,6 +831,11 @@ export async function getLayout(
       body.layout-starlight .starlight-mobile-drawer.open { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
       body.layout-starlight .starlight-drawer-link { display:flex; align-items:center; gap:9px; padding:10px; border-radius:7px; color:#45414d; font-size:13px; text-decoration:none; }
       body.layout-starlight .starlight-drawer-link.active, body.layout-starlight .starlight-drawer-link:hover { color:#6c3483; background:#f6edfa; }
+      body.layout-starlight .starlight-mobile-more { grid-column:1 / -1; }
+      body.layout-starlight .starlight-mobile-more summary { display:flex; align-items:center; gap:9px; padding:10px; border-radius:7px; color:#45414d; cursor:pointer; font-size:13px; list-style:none; }
+      body.layout-starlight .starlight-mobile-more summary::-webkit-details-marker { display:none; }
+      body.layout-starlight .starlight-mobile-more summary.active, body.layout-starlight .starlight-mobile-more summary:hover { color:#6c3483; background:#f6edfa; }
+      body.layout-starlight .starlight-mobile-more-menu { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
       body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr); padding:14px 14px 30px; }
       body.layout-starlight .sidebar-right { position:static; display:flex; flex-direction:row; flex-wrap:wrap; }
       body.layout-starlight .sidebar-right .card { flex:1 1 220px; }
@@ -1160,9 +1207,14 @@ export async function getLayout(
         document.querySelectorAll('.sidebar-left a, .top-nav-link, .starlight-drawer-link').forEach(link => {
           const href = link.getAttribute('href');
           if (!href || href === '#') return;
-          link.classList.toggle('active', href === pathname || (href !== '/' && pathname.startsWith(href)));
+          link.classList.toggle('active', href === pathname || (href !== '/' && pathname.startsWith(href)) || (href.startsWith('/backend') && pathname.startsWith('/backend')));
         });
-        document.querySelectorAll('.starlight-more-nav[open]').forEach(menu => menu.removeAttribute('open'));
+        document.querySelectorAll('details[data-nav-group]').forEach(menu => {
+          const active = Boolean(menu.querySelector('a.active'));
+          menu.open = active;
+          const summary = menu.querySelector('summary');
+          if (summary) summary.classList.toggle('active', active);
+        });
         closeStarlightMenu();
       }
 

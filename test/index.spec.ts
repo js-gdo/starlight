@@ -125,6 +125,20 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("StarLight");
 	});
 
+	it("groups secondary sidebar links under 其他 while retaining primary navigation", async () => {
+		const response = await SELF.fetch("https://example.com");
+		const html = await response.text();
+		const groupStart = html.indexOf('<details class="sidebar-more"');
+		const groupEnd = html.indexOf('</details>', groupStart);
+		expect(groupStart).toBeGreaterThanOrEqual(0);
+		expect(groupEnd).toBeGreaterThan(groupStart);
+		const otherLinks = html.slice(groupStart, groupEnd);
+		expect(otherLinks).toContain('其他');
+		expect(otherLinks).toContain('href="/server"');
+		expect(otherLinks).toContain('href="/health"');
+		expect(otherLinks).not.toContain('href="/articles/list"');
+		expect(html).toContain('href="/articles/list"');
+		expect(html).toContain('href="/messages"');
 	it("does not block the initial page with optional CDN assets", async () => {
 		const response = await worker.fetch(new IncomingRequest("http://example.com/"), env, createExecutionContext());
 		const html = await response.text();
