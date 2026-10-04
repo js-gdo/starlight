@@ -688,6 +688,7 @@ export async function getLayout(
     .markdown-body input[type="checkbox"] { margin-right: 6px; }
     @media (max-width: 1024px) {
       .app-layout { grid-template-columns: 1fr; }
+      .app-layout.sidebar-hover-mode { grid-template-columns: minmax(0, 1fr); }
       .sidebar-left { display: none; }
       .sidebar-right { display: none; }
       .mobile-menu-toggle { display: flex !important; }
