@@ -293,7 +293,7 @@ export async function getLayout(
       </div>
     </div>
     ` : '';
-        const siteStatusHtml = siteStatus !== 'normal' ? `<div style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '维护中，部分功能暂时不可用' : '站点当前处于维护状态，请稍后再试'}</div>` : '';
+        const siteStatusHtml = siteStatus !== 'normal' ? `<div class="site-status-banner" style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '维护中，部分功能暂时不可用' : '站点当前处于维护状态，请稍后再试'}</div>` : '';
 
     return `<!DOCTYPE html>
 <html>
@@ -724,7 +724,7 @@ export async function getLayout(
       border-radius: 0 8px 8px 0;
     }
     body.layout-starlight { padding:0; background-color:#f4f3f7; color:#2c2a33; }
-    body.layout-starlight .starlight-topbar { position:sticky; top:0; z-index:500; min-height:60px; background:rgba(255,255,255,.94); border-bottom:1px solid #e8e6ef; backdrop-filter:blur(12px); }
+    body.layout-starlight .starlight-topbar { position:sticky; top:0; z-index:500; min-height:60px; background:rgba(255,255,255,.94); border-bottom:1px solid #e8e6ef; backdrop-filter:blur(12px); box-shadow:0 8px 20px rgba(34,26,58,.04); }
     body.layout-starlight .starlight-topbar-inner { max-width:1280px; min-height:60px; margin:0 auto; padding:0 20px; display:flex; align-items:center; gap:12px; }
     body.layout-starlight .starlight-brand { display:flex; align-items:center; gap:8px; flex:none; color:#6c3483; font-size:15px; font-weight:700; text-decoration:none; }
     body.layout-starlight .starlight-brand small { margin-left:7px; color:#8b8796; font-size:11px; font-weight:500; }
@@ -748,14 +748,14 @@ export async function getLayout(
     body.layout-starlight .starlight-icon-link:hover { background:#f6edfa; color:#6c3483; }
     body.layout-starlight .starlight-login { padding:6px 10px; border-radius:6px; color:#fff; background:#8e44ad; }
     body.layout-starlight .starlight-menu-toggle, body.layout-starlight .starlight-mobile-drawer { display:none; }
-    body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr) 300px; gap:20px; max-width:1280px; min-height:calc(100vh - 60px); padding:0 20px 36px; align-items:start; }
+    body.layout-starlight .app-layout { width:min(1280px, calc(100vw - 32px)); grid-template-columns:minmax(0, 1.75fr) minmax(260px, 0.8fr); gap:20px; max-width:1280px; min-height:calc(100vh - 60px); padding:0 0 36px; align-items:start; margin:0 auto; }
     body.layout-starlight .sidebar-left, body.layout-starlight .mobile-menu-toggle, body.layout-starlight .mobile-overlay { display:none !important; }
-    body.layout-starlight .main-content { gap:18px; min-width:0; }
+    body.layout-starlight .main-content { gap:18px; min-width:0; width:100%; }
     body.layout-starlight .main-content .card, body.layout-starlight .sidebar-right .card { border:1px solid #e8e6ef; border-radius:12px; box-shadow:0 1px 2px rgba(34,26,58,.04),0 6px 20px rgba(34,26,58,.06); }
-    body.layout-starlight .sidebar-right { position:sticky; top:78px; display:flex; gap:14px; align-self:start; }
+    body.layout-starlight .sidebar-right { position:sticky; top:78px; display:flex; gap:14px; align-self:start; width:100%; }
     body.layout-starlight .sidebar-right .card { padding:16px; }
     body.layout-starlight .sidebar-right .time-display .time { color:#6c3483; }
-    body.layout-starlight .starlight-home-hero { position:relative; display:flex; align-items:center; justify-content:space-between; max-width:1240px; min-height:224px; overflow:hidden; margin:20px auto 18px; padding:30px 36px; border-radius:14px; color:#fff; background:radial-gradient(120% 160% at 12% 0%,#3a2a63 0%,#241a44 45%,#161030 100%); box-shadow:0 8px 26px rgba(34,26,58,.16); }
+    body.layout-starlight .starlight-home-hero { position:relative; display:flex; align-items:center; justify-content:space-between; width:min(1240px, calc(100vw - 32px)); min-height:224px; overflow:hidden; margin:20px auto 18px; padding:clamp(22px, 3vw, 36px); border-radius:14px; color:#fff; background:radial-gradient(120% 160% at 12% 0%,#3a2a63 0%,#241a44 45%,#161030 100%); box-shadow:0 8px 26px rgba(34,26,58,.16); }
     body.layout-starlight .starlight-hero-inner { position:relative; z-index:1; max-width:620px; }
     body.layout-starlight .starlight-hero-kicker { color:#c9b8e6; font-size:11px; font-weight:600; letter-spacing:2px; }
     body.layout-starlight .starlight-home-hero h1 { margin-top:7px; color:#fff; font-size:28px; line-height:1.3; }
@@ -765,7 +765,9 @@ export async function getLayout(
     body.layout-starlight .starlight-hero-primary { background:#8e44ad; box-shadow:0 4px 12px rgba(142,68,173,.3); }
     body.layout-starlight .starlight-hero-secondary { border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); }
     body.layout-starlight .starlight-hero-mark { position:absolute; right:7%; color:rgba(255,255,255,.08); font-size:150px; transform:rotate(-12deg); }
-    body.layout-starlight .site-announcements, body.layout-starlight [style*="max-width:1360px"] { max-width:1240px; }
+    body.layout-starlight .site-announcements { width:min(1240px, calc(100vw - 32px)); max-width:1240px; margin:12px auto 0; }
+    body.layout-starlight .site-status-banner { width:min(1240px, calc(100vw - 32px)); max-width:1240px; margin:12px auto 0; }
+    body.layout-starlight [style*="max-width:1360px"] { max-width:1240px; }
     body.layout-starlight .home-grid { gap:16px; }
     body.layout-starlight .home-row-top { grid-template-columns:minmax(0,1.8fr) minmax(230px,1fr); gap:14px; }
     body.layout-starlight .home-row-middle { gap:12px; }
@@ -1114,10 +1116,7 @@ export async function getLayout(
 </head>
 <body class="ui-${uiMode} layout-${layoutMode}">
   ${langSwitcherHtml}
-  ${announcementHtml}
-  ${siteStatusHtml}
-  ${starlightTopbar}
-  ${starlightHero}
+  ${layoutMode === 'starlight' ? `${starlightTopbar}${announcementHtml}${siteStatusHtml}${starlightHero}` : `${announcementHtml}${siteStatusHtml}${starlightTopbar}${starlightHero}`}
 
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>
