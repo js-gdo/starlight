@@ -139,6 +139,23 @@ describe("worker routing", () => {
 		expect(otherLinks).not.toContain('href="/articles/list"');
 		expect(html).toContain('href="/articles/list"');
 		expect(html).toContain('href="/messages"');
+	});
+
+	it("renders the redesigned D1 archive interface for signed-in users", async () => {
+		const session = await createSession(env, 1);
+		const response = await worker.fetch(new IncomingRequest("http://example.com/", {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const html = await response.text();
+		expect(response.status).toBe(200);
+		expect(html).toContain('role="dialog" aria-modal="true" aria-label="D1 私密档案"');
+		expect(html).toContain('class="unknown-egg-layout"');
+		expect(html).toContain('SYSTEM DIAGNOSTICS');
+		expect(html).toContain('RECOVERED CLUES');
+		expect(html).toContain('EVENT LOG');
+		expect(html).toContain("prefers-reduced-motion: reduce");
+	});
+
 	it("does not block the initial page with optional CDN assets", async () => {
 		const response = await worker.fetch(new IncomingRequest("http://example.com/"), env, createExecutionContext());
 		const html = await response.text();
