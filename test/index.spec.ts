@@ -9,7 +9,7 @@ import worker from "../src/index";
 import { createSession } from "../src/utils/auth";
 import { renderUsernameLink } from "../src/utils/html";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
-import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl } from "../src/utils/profile";
+import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from "../src/utils/profile";
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
 
 // For now, you'll need to do something like this to get a correctly-typed
@@ -61,6 +61,9 @@ describe("database migrations", () => {
 		form.set('avatar_url', '');
 		form.set('sidebar_mode', 'classic');
 		form.set('ui_mode', 'modern');
+		form.set('layout_mode', 'starlight');
+		form.set('background_url', 'https://images.example.com/community.jpg');
+		form.set('background_mode', 'stretch');
 		form.set('redirect_delay_seconds', '10');
 		const ctx = createExecutionContext();
 		const response = await worker.fetch(new IncomingRequest('http://example.com/api/user/bio', {
@@ -72,16 +75,34 @@ describe("database migrations", () => {
 
 		expect(response.status).toBe(302);
 		expect(response.headers.get('Location')).toBe('/user/1');
-		const user = await env.DB.prepare('SELECT real_name, location, profile_link, ui_mode, redirect_delay_seconds FROM users WHERE id = 1').first<any>();
+		const user = await env.DB.prepare('SELECT real_name, location, profile_link, ui_mode, layout_mode, background_url, background_mode, redirect_delay_seconds FROM users WHERE id = 1').first<any>();
 		expect(user).toEqual({
 			real_name: 'Migration Test',
 			location: 'Beijing',
 			profile_link: 'https://example.com',
 			ui_mode: 'modern',
+			layout_mode: 'starlight',
+			background_url: 'https://images.example.com/community.jpg',
+			background_mode: 'stretch',
 			redirect_delay_seconds: 10,
 		});
+		const home = await worker.fetch(new IncomingRequest('http://example.com/', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const homeHtml = await home.text();
+		expect(homeHtml).toContain('class="ui-modern layout-starlight"');
+		expect(homeHtml).toContain('starlight-topbar');
+		expect(homeHtml).toContain('community.jpg');
+		expect(homeHtml).toContain('background-size: 100% 100% !important');
 		const permissions = await env.DB.prepare('SELECT admin_permissions FROM users WHERE id = 1').first<any>();
 		expect(JSON.parse(permissions.admin_permissions)).toEqual(['*']);
+
+		const invalidForm = new FormData();
+		invalidForm.set('background_url', 'javascript:alert(1)');
+		const invalidBackground = await worker.fetch(new IncomingRequest('http://example.com/api/user/bio', {
+			method: 'POST', headers: { Cookie: `uid=${session}` }, body: invalidForm,
+		}), env, createExecutionContext());
+		expect(invalidBackground.status).toBe(400);
 	});
 });
 
@@ -480,6 +501,12 @@ describe("profile field normalization", () => {
 		expect(validateAvatarUrl("ftp://example.com/avatar.png")).toBe(false);
 		expect(validateProfileUrl("https://example.com/profile")).toBe(true);
 		expect(validateProfileUrl("javascript:alert(1)")).toBe(false);
+		expect(validateBackgroundUrl('https://images.example.com/background.webp')).toBe(true);
+		expect(validateBackgroundUrl('javascript:alert(1)')).toBe(false);
+		expect(validateBackgroundUrl('https://user:pass@example.com/background.png')).toBe(false);
+		expect(normalizeBackgroundMode('tile')).toBe('tile');
+		expect(normalizeBackgroundMode('stretch')).toBe('stretch');
+		expect(normalizeBackgroundMode('unexpected')).toBe('cover');
 	});
 });
 

@@ -1,7 +1,7 @@
 import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
-import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl } from '../utils/profile';
+import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from '../utils/profile';
 import { sha256 } from '../utils/crypto';
 import type { Env } from '../env.d';
 
@@ -54,6 +54,9 @@ export async function handleUser(request: Request, env: Env, path: string) {
         };
         const sidebarMode = String(form.get('sidebar_mode') || 'classic') === 'hover' ? 'hover' : 'classic';
         const uiMode = String(form.get('ui_mode') || 'classic') === 'modern' ? 'modern' : 'classic';
+        const layoutMode = String(form.get('layout_mode') || 'classic') === 'starlight' ? 'starlight' : 'classic';
+        const backgroundUrl = String(form.get('background_url') || '').trim();
+        const backgroundMode = normalizeBackgroundMode(form.get('background_mode'));
         const redirectDelayValue = Number.parseInt(String(form.get('redirect_delay_seconds') || '5'), 10);
         const redirectDelay = redirectDelayValue === 0 || redirectDelayValue >= 5 ? Math.min(redirectDelayValue, 300) : 5;
         const normalized = normalizeProfileFields(raw);
@@ -66,11 +69,15 @@ export async function handleUser(request: Request, env: Env, path: string) {
             return jsonRes({ error: '个人主页链接无效' }, 400);
         }
 
+        if (!validateBackgroundUrl(backgroundUrl)) {
+            return jsonRes({ error: '背景图片 URL 无效，请使用有效的 HTTP 或 HTTPS 图片链接' }, 400);
+        }
+
         const violation = await checkViolation(normalized.bio);
         if (violation.violated) return violationErrorPage(violation, t);
 
-        await db.prepare('UPDATE users SET bio = ?, avatar_url = ?, location = ?, profile_link = ?, real_name = ?, sidebar_mode = ?, ui_mode = ?, redirect_delay_seconds = ? WHERE id = ?')
-            .bind(normalized.bio, normalized.avatar_url, normalized.location, normalized.profile_link, normalized.real_name, sidebarMode, uiMode, redirectDelay, user.id)
+        await db.prepare('UPDATE users SET bio = ?, avatar_url = ?, location = ?, profile_link = ?, real_name = ?, sidebar_mode = ?, ui_mode = ?, layout_mode = ?, background_url = ?, background_mode = ?, redirect_delay_seconds = ? WHERE id = ?')
+            .bind(normalized.bio, normalized.avatar_url, normalized.location, normalized.profile_link, normalized.real_name, sidebarMode, uiMode, layoutMode, backgroundUrl, backgroundMode, redirectDelay, user.id)
             .run();
         return new Response(null, { status: 302, headers: { Location: `/user/${user.id}` } });
     }

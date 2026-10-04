@@ -122,6 +122,17 @@ export async function renderUserSettings(env: Env, req: Request) {
                     <option value="classic" ${String(user.ui_mode || 'classic') !== 'modern' ? 'selected' : ''}>旧 UI：经典简洁</option>
                     <option value="modern" ${String(user.ui_mode || 'classic') === 'modern' ? 'selected' : ''}>新 UI：简约大气</option>
                 </select></label>
+                <label>页面布局<select name="layout_mode" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="classic" ${String(user.layout_mode || 'classic') !== 'starlight' ? 'selected' : ''}>经典侧栏布局</option>
+                    <option value="starlight" ${String(user.layout_mode || 'classic') === 'starlight' ? 'selected' : ''}>StarLight 新布局：顶部导航与信息栏</option>
+                </select></label>
+                <label>自定义背景图片 URL<input type="url" name="background_url" value="${htmlEscape(String(user.background_url || ''))}" maxlength="2048" placeholder="https://example.com/background.jpg" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"><small style="color:#888;display:block;margin-top:4px;">留空恢复默认背景。请使用可公开访问的 HTTP 或 HTTPS 图片链接。</small></label>
+                <label>背景显示方式<select name="background_mode" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="tile" ${String(user.background_mode || 'cover') === 'tile' ? 'selected' : ''}>平铺：原始尺寸重复</option>
+                    <option value="cover" ${String(user.background_mode || 'cover') === 'cover' ? 'selected' : ''}>等比伸展：铺满并裁切多余部分</option>
+                    <option value="stretch" ${String(user.background_mode || 'cover') === 'stretch' ? 'selected' : ''}>不等比延展：拉伸至整个窗口</option>
+                </select></label>
+                <div id="backgroundPreview" role="img" aria-label="背景图片预览" style="height:120px;display:grid;place-items:center;overflow:hidden;border:1px solid #ddd;border-radius:6px;background-color:#f4f3f7;background-image:linear-gradient(45deg,#e8e6ef 25%,transparent 25%),linear-gradient(-45deg,#e8e6ef 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e8e6ef 75%),linear-gradient(-45deg,transparent 75%,#e8e6ef 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0;color:#777;font-size:12px;">背景预览</div>
                 <label>操作结果返回时间<select name="redirect_delay_seconds" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
                     <option value="5" ${Number(user.redirect_delay_seconds) === 5 || user.redirect_delay_seconds === null || user.redirect_delay_seconds === undefined ? 'selected' : ''}>5 秒</option>
                     <option value="10" ${Number(user.redirect_delay_seconds) === 10 ? 'selected' : ''}>10 秒</option>
@@ -158,6 +169,28 @@ export async function renderUserSettings(env: Env, req: Request) {
             </form>
         </div>
         <script>
+            (function() {
+                var form = document.querySelector('form[action="/api/user/bio"]');
+                var input = form && form.querySelector('[name="background_url"]');
+                var mode = form && form.querySelector('[name="background_mode"]');
+                var preview = document.getElementById('backgroundPreview');
+                if (!input || !mode || !preview) return;
+                function updatePreview() {
+                    try {
+                        var url = new URL(input.value);
+                        if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('Invalid image URL');
+                        preview.style.backgroundImage = 'url("' + url.href + '")';
+                    } catch {
+                        preview.style.backgroundImage = 'linear-gradient(135deg,#f2edf5,#e9eff5)';
+                    }
+                    preview.style.backgroundRepeat = mode.value === 'tile' ? 'repeat' : 'no-repeat';
+                    preview.style.backgroundSize = mode.value === 'tile' ? 'auto' : mode.value === 'stretch' ? '100% 100%' : 'cover';
+                    preview.textContent = input.value ? '' : '背景预览';
+                }
+                input.addEventListener('input', updatePreview);
+                mode.addEventListener('change', updatePreview);
+                updatePreview();
+            })();
             document.getElementById('revokeOtherSessions').addEventListener('click', async function() {
                 if (!confirm('退出其他设备的登录状态？当前设备会保持登录。')) return;
                 const button = this;
