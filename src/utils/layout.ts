@@ -417,7 +417,7 @@ export async function getLayout(
     }
     .app-layout {
       display: grid;
-      grid-template-columns: 60px 1fr 200px;
+      grid-template-columns: 60px minmax(0, 1fr) 200px;
       gap: 16px;
       max-width: 1360px;
       margin: 0 auto;
@@ -568,6 +568,7 @@ export async function getLayout(
       display: flex;
       flex-direction: column;
       gap: 16px;
+      min-width: 0;
     }
     .main-content .card {
       background: #fff;
@@ -810,6 +811,20 @@ export async function getLayout(
       body.layout-starlight .home-row-bottom { grid-template-columns:minmax(0,1fr); }
       body.layout-starlight .starlight-home-hero { min-height:190px; padding:20px; }
       body.layout-starlight .starlight-hero-mark { right:-4%; font-size:110px; }
+    }
+    @media (min-width:1025px) and (max-aspect-ratio:16/10) {
+      body:not(.layout-starlight) .app-layout { grid-template-columns:60px minmax(0,1fr); }
+      body:not(.layout-starlight) .sidebar-right {
+        grid-column:2;
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+        align-self:start;
+      }
+      body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr); }
+      body.layout-starlight .sidebar-right {
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+      }
     }
     @media (max-width:640px) {
       html { -webkit-text-size-adjust:100%; }
