@@ -5,6 +5,7 @@ import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 import { writeAudit } from '../utils/audit';
 import { normalizeAdminRoles } from '../utils/adminRoles';
+import { hasAdminPermission, normalizeAdminPermissions } from '../utils/adminPermissions';
 
 export async function handleAdmin(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -13,6 +14,56 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     const user = await getSessionUser(env, request);
 
     if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+
+    const userEditMatch = path.match(/^\/api\/admin\/user\/\d+$/);
+    const bulkArticleAction = path === '/api/admin/articles/bulk' && method === 'POST'
+        ? String((await request.clone().formData()).get('action') || '')
+        : '';
+    const userEditMode = userEditMatch && method === 'POST'
+        ? String((await request.clone().formData()).get('mode') || 'profile')
+        : '';
+    const requiredPermission = path === '/api/admin/roles' || path === '/api/admin/permissions'
+        ? 'admin.permissions.manage'
+        : userEditMatch
+            ? userEditMode === 'permission' ? 'admin.users.permissions.edit' : 'admin.users.profile.edit'
+            : /^\/api\/admin\/user\/\d+\/delete$/.test(path)
+                ? 'admin.users.delete'
+                : /^\/api\/admin\/user\/\d+\/avatar\/delete$/.test(path)
+                    ? 'admin.users.avatar.clear'
+                    : /\/article\/\d+\/category$/.test(path)
+                        ? 'admin.content.articles.edit'
+                        : /\/article\/\d+\/(?:pin|lock)$/.test(path)
+                            ? 'admin.content.articles.moderate'
+                            : /\/article\/\d+\/delete$/.test(path) || (path === '/api/admin/articles/bulk' && bulkArticleAction === 'delete')
+                                ? 'admin.content.articles.delete'
+                                : path === '/api/admin/articles/bulk'
+                                    ? bulkArticleAction === 'category' ? 'admin.content.articles.edit' : 'admin.content.articles.moderate'
+                                    : /^\/api\/admin\/ticket\/\d+\/delete$/.test(path)
+                                        ? 'admin.content.tickets.delete'
+                                        : path === '/api/admin/site-status'
+                                            ? 'admin.site.settings.edit'
+                                            : path === '/api/admin/banner/add' || /^\/api\/admin\/banner\/\d+\/delete$/.test(path)
+                                                ? 'admin.site.banners.manage'
+                                                : path === '/api/admin/announcement/add' || /^\/api\/admin\/announcement\/\d+\/delete$/.test(path)
+                                                    ? 'admin.site.announcements.manage'
+                                                    : /^\/api\/admin\/export\/(users|tickets|audit|reports)$/.test(path)
+                                                        ? 'admin.site.export'
+                                                        : 'admin.dashboard.view';
+    if (!hasAdminPermission(user, requiredPermission)) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+
+    if (path === '/api/admin/permissions' && method === 'POST') {
+        if (user.id !== 1) return jsonRes({ error: '只有 UID 1 可以分配管理员权限节点' }, 403);
+        const form = await request.formData();
+        const targetId = Number(form.get('user_id'));
+        if (!Number.isInteger(targetId) || targetId <= 1) return jsonRes({ error: '目标管理员无效' }, 400);
+        const target = await db.prepare('SELECT id FROM users WHERE id = ? AND admin = 1').bind(targetId).first<any>();
+        if (!target) return jsonRes({ error: '目标账号不是管理员' }, 404);
+        const customNodes = String(form.get('custom_permissions') || '').split(/[\s,]+/).filter(Boolean);
+        const permissions = normalizeAdminPermissions([...form.getAll('permission'), ...customNodes]);
+        await db.prepare('UPDATE users SET admin_permissions = ? WHERE id = ?').bind(JSON.stringify(permissions), targetId).run();
+        await writeAudit(env, user.id, '修改管理员权限节点', 'admin_permissions', targetId, permissions.join(', ') || '清空全部节点');
+        return new Response(null, { status: 302, headers: { Location: '/backend/permissions' } });
+    }
 
     if (path === '/api/admin/roles' && method === 'POST') {
         if (user.id !== 1) return jsonRes({ error: '只有 superuser（UID 1）可以修改管理员分类' }, 403);

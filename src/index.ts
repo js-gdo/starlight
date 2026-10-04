@@ -233,8 +233,10 @@ if (path === '/leaderboard') {
                 });
             }
 
-            if (path === '/backend') {
-                return new Response(await renderBackend(env, request), {
+            if (path === '/backend' || path.startsWith('/backend/')) {
+                const backendResponse = await renderBackend(env, request);
+                if (backendResponse instanceof Response) return backendResponse;
+                return new Response(backendResponse, {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }

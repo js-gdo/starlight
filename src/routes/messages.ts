@@ -68,7 +68,7 @@ export async function renderMessages(env: Env, req: Request) {
             return `/pm/${Number(message.from_user_id)}`;
         }
         if (message.type === 'permission_change') return '/settings';
-        if (message.type === 'report' && user.admin) return '/backend#security-center';
+        if (message.type === 'report' && user.admin) return '/backend/security';
         return null;
     };
 

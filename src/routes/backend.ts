@@ -6,8 +6,13 @@ import { getUserColor, getTicketStatus } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 import { ADMIN_ROLE_KEYS, ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
+import { renderBackendConsole } from './backendConsole';
 
-export async function renderBackend(env: Env, req: Request) {
+export async function renderBackend(env: Env, req: Request): Promise<string | Response> {
+    return renderBackendConsole(env, req);
+}
+
+async function renderLegacyBackend(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (!user || !user.admin) return t('permissionDenied');

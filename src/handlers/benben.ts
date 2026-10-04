@@ -3,6 +3,7 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import type { Env } from '../env.d';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 export async function handleBenben(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -36,7 +37,7 @@ export async function handleBenben(request: Request, env: Env, path: string) {
         const id = parseInt(match[1]);
         const benben = await db.prepare('SELECT * FROM benben WHERE id = ?').bind(id).first<any>();
         if (!benben) return jsonRes({ error: t('apiBenbenNotFound') }, 404);
-        if (user.id !== benben.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+        if (user.id !== benben.author_id && !hasAdminPermission(user, 'admin.content.benben.delete')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
         await db.prepare('DELETE FROM benben WHERE id = ?').bind(id).run();
         return new Response(null, { status: 302, headers: { Location: '/benben' } });
     }
