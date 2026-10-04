@@ -81,9 +81,11 @@ export async function renderOS(env: Env, req: Request) {
       .desktop-grid {
         position: relative;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+        grid-auto-flow: column;
+        grid-template-rows: repeat(auto-fill, minmax(96px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
         gap: 14px 12px;
-        padding: 18px 18px 90px;
+        padding: 18px 18px 96px;
         align-content: start;
       }
       .desktop-app {
@@ -186,16 +188,22 @@ export async function renderOS(env: Env, req: Request) {
         gap: 8px;
       }
       .window-control {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
         border: none;
         cursor: pointer;
-        background: #d1d5db;
+        background: rgba(148, 163, 184, 0.18);
+        display: inline-grid;
+        place-items: center;
+        color: #ffffff;
+        font-size: 12px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
       }
       .window-control.close { background: #ef4444; }
-      .window-control.minimize { background: #fbbf24; }
+      .window-control.minimize { background: #fbbf24; color: #3b2f00; }
       .window-control.maximize { background: #22c55e; }
+      .window-control i { pointer-events: none; }
       .window-body {
         flex: 1;
         background: rgba(255,255,255,0.3);
@@ -207,11 +215,10 @@ export async function renderOS(env: Env, req: Request) {
         background: #fff;
       }
       .taskbar {
-        position: sticky;
+        position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
-        margin-top: -58px;
         height: 58px;
         display: flex;
         align-items: center;
@@ -406,7 +413,7 @@ export async function renderOS(env: Env, req: Request) {
 
         const win = document.createElement('div');
         win.className = 'window';
-        win.innerHTML = '<div class="window-header"><div class="window-header-left"><div class="desktop-app-icon" style="width: 22px; height: 22px; margin: 0; border-radius: 8px; font-size: 11px; background: linear-gradient(135deg, ' + app.color + ', rgba(255,255,255,0.25));"><i class="fas ' + app.icon + '"></i></div><span class="window-title">' + app.name + '</span></div><div class="window-controls"><button class="window-control minimize" type="button" aria-label="最小化" title="最小化"></button><button class="window-control maximize" type="button" aria-label="最大化" title="最大化"></button><button class="window-control close" type="button" aria-label="关闭" title="关闭"></button></div></div><div class="window-body"><iframe src="' + app.src + '" title="' + app.name + '"></iframe></div>';
+        win.innerHTML = '<div class="window-header"><div class="window-header-left"><div class="desktop-app-icon" style="width: 22px; height: 22px; margin: 0; border-radius: 8px; font-size: 11px; background: linear-gradient(135deg, ' + app.color + ', rgba(255,255,255,0.25));"><i class="fas ' + app.icon + '"></i></div><span class="window-title">' + app.name + '</span></div><div class="window-controls"><button class="window-control minimize" type="button" aria-label="最小化" title="最小化"><i class="fas fa-minus"></i></button><button class="window-control maximize" type="button" aria-label="最大化" title="最大化"><i class="fas fa-window-maximize"></i></button><button class="window-control close" type="button" aria-label="关闭" title="关闭"><i class="fas fa-xmark"></i></button></div></div><div class="window-body"><iframe src="' + app.src + '" title="' + app.name + '"></iframe></div>';
 
         const frame = win.querySelector('iframe');
         frame.addEventListener('load', function () {
@@ -449,9 +456,15 @@ export async function renderOS(env: Env, req: Request) {
         });
 
         const maximizeBtn = win.querySelector('.window-control.maximize');
+        const updateMaximizeButton = function () {
+          const icon = state.maximized ? 'fa-window-restore' : 'fa-window-maximize';
+          maximizeBtn.innerHTML = '<i class="fas ' + icon + '"></i>';
+        };
+        updateMaximizeButton();
         maximizeBtn.addEventListener('click', function () {
           state.maximized = !state.maximized;
           win.classList.toggle('maximized', state.maximized);
+          updateMaximizeButton();
         });
 
         win.addEventListener('pointerdown', function () {
