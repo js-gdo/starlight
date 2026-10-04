@@ -3,6 +3,7 @@ import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
 import { hasAdminPermission } from './adminPermissions';
+import { validateBackgroundUrl, normalizeBackgroundMode } from './profile';
 import type { Env } from '../env.d';
 
 export async function getLayout(
@@ -20,6 +21,23 @@ export async function getLayout(
 
     const chinaTime = getChinaTime();
     const currentPath = request ? new URL(request.url).pathname : '/';
+    const layoutMode = String(user?.layout_mode || 'classic') === 'starlight' ? 'starlight' : 'classic';
+    const storedBackgroundUrl = String(user?.background_url || '').trim();
+    const backgroundUrl = storedBackgroundUrl && validateBackgroundUrl(storedBackgroundUrl)
+      ? new URL(storedBackgroundUrl).href
+      : '';
+    const backgroundMode = normalizeBackgroundMode(user?.background_mode);
+    const backgroundSize = backgroundMode === 'tile' ? 'auto' : backgroundMode === 'stretch' ? '100% 100%' : 'cover';
+    const backgroundRepeat = backgroundMode === 'tile' ? 'repeat' : 'no-repeat';
+    const backgroundCss = backgroundUrl ? `
+      body, body.ui-modern, body.national-day-theme {
+        background-image: url(${JSON.stringify(backgroundUrl)}) !important;
+        background-size: ${backgroundSize} !important;
+        background-repeat: ${backgroundRepeat} !important;
+        background-position: ${backgroundMode === 'tile' ? 'top left' : 'center center'} !important;
+        background-attachment: fixed !important;
+      }
+    ` : '';
     const adminEntry = user?.admin ? [
       ['admin.dashboard.view', '/backend'],
       ['admin.users.view', '/backend/user'],
@@ -122,6 +140,36 @@ export async function getLayout(
         const icon = iconMap[item.href] || 'fa-link';
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
     }).join('');
+
+    const primaryNavPaths = new Set(['/', '/articles/list', '/ticket/list', '/oj', '/contest', '/leaderboard', '/achievements', '/game']);
+    const primaryNavItems = navItems.filter(item => primaryNavPaths.has(item.href));
+    const moreNavItems = navItems.filter(item => !primaryNavPaths.has(item.href));
+    const renderTopNavItem = (item: typeof navItems[number], mobile = false) => {
+      const icons: Record<string, string> = {
+        '/': 'fa-home', '/articles/list': 'fa-file-alt', '/ticket/list': 'fa-ticket-alt', '/oj': 'fa-code',
+        '/contest': 'fa-trophy', '/leaderboard': 'fa-ranking-star', '/achievements': 'fa-medal', '/game': 'fa-gamepad',
+        '/server': 'fa-server', '/admin-list': 'fa-user-shield', '/health': 'fa-heart-pulse', '/benben': 'fa-comment',
+        '/judgement': 'fa-gavel', '/clipboard': 'fa-clipboard', '/redeem': 'fa-ticket', '/search': 'fa-search',
+        '/team': 'fa-users', '/messages': 'fa-bell', '/pm': 'fa-envelope', '/backend': 'fa-cog', '/oj/propose': 'fa-file-circle-plus',
+      };
+      const badge = item.badge ? `<span class="top-nav-badge">${item.badge}</span>` : '';
+      return `<a href="${item.href}" class="${mobile ? 'starlight-drawer-link' : 'top-nav-link'}${item.active ? ' active' : ''}"${mobile ? ' onclick="closeStarlightMenu()"' : ''}><i class="fas ${icons[item.href] || 'fa-link'}"></i><span>${item.label}</span>${badge}</a>`;
+    };
+    const starlightTopbar = layoutMode === 'starlight' ? `
+      <header class="starlight-topbar">
+        <div class="starlight-topbar-inner">
+          <a class="starlight-brand" href="/"><span class="starlight-brand-mark"><i class="fas fa-star"></i></span><span>StarLight<small>社区</small></span></a>
+          <nav class="starlight-primary-nav" aria-label="主导航">${primaryNavItems.map(item => renderTopNavItem(item)).join('')}</nav>
+          <details class="starlight-more-nav"><summary>更多 <i class="fas fa-chevron-down"></i></summary><div class="starlight-more-menu">${moreNavItems.map(item => renderTopNavItem(item)).join('')}</div></details>
+          <div class="starlight-top-actions">${user ? `<a class="starlight-user" href="/user/${user.id}" title="${htmlEscape(user.username)}">${renderAvatar(user, 30)}<span>${htmlEscape(user.username)}</span></a><a class="starlight-icon-link" href="/settings" title="用户设置" aria-label="用户设置"><i class="fas fa-user-cog"></i></a><form action="/logout" method="GET"><button class="starlight-icon-link" type="submit" title="${t('logout')}" aria-label="${t('logout')}"><i class="fas fa-sign-out-alt"></i></button></form>` : `<a href="/login">${t('login')}</a><a class="starlight-login" href="/register">${t('register')}</a>`}</div>
+          <button class="starlight-menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" onclick="toggleStarlightMenu()"><i class="fas fa-bars"></i></button>
+        </div>
+        <nav class="starlight-mobile-drawer" id="starlightMobileDrawer" aria-label="移动端导航">${navItems.map(item => renderTopNavItem(item, true)).join('')}</nav>
+      </header>
+    ` : '';
+    const starlightHero = layoutMode === 'starlight' && currentPath === '/' ? `
+      <section class="starlight-home-hero"><div class="starlight-hero-inner"><div class="starlight-hero-kicker">STARLIGHT COMMUNITY</div><h1>${user ? `欢迎回来，${htmlEscape(user.username)}` : '欢迎来到 StarLight'}</h1><p>写文章、开工单、刷 OJ、组团队，在这里分享你的想法和作品。</p><div class="starlight-hero-actions"><a class="starlight-hero-primary" href="${user ? '/articles/new' : '/register'}"><i class="fas ${user ? 'fa-pen-to-square' : 'fa-user-plus'}"></i> ${user ? t('newArticle') : t('register')}</a><a class="starlight-hero-secondary" href="/articles/list"><i class="fas fa-book-open"></i> ${t('articleList')}</a></div></div><div class="starlight-hero-mark" aria-hidden="true"><i class="fas fa-star"></i></div></section>
+    ` : '';
 
     let userSection = '';
     if (user) {
@@ -675,6 +723,90 @@ export async function getLayout(
       z-index: 100;
       border-radius: 0 8px 8px 0;
     }
+    body.layout-starlight { padding:0; background-color:#f4f3f7; color:#2c2a33; }
+    body.layout-starlight .starlight-topbar { position:sticky; top:0; z-index:500; min-height:60px; background:rgba(255,255,255,.94); border-bottom:1px solid #e8e6ef; backdrop-filter:blur(12px); }
+    body.layout-starlight .starlight-topbar-inner { max-width:1280px; min-height:60px; margin:0 auto; padding:0 20px; display:flex; align-items:center; gap:12px; }
+    body.layout-starlight .starlight-brand { display:flex; align-items:center; gap:8px; flex:none; color:#6c3483; font-size:15px; font-weight:700; text-decoration:none; }
+    body.layout-starlight .starlight-brand small { margin-left:7px; color:#8b8796; font-size:11px; font-weight:500; }
+    body.layout-starlight .starlight-brand-mark { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; color:#fff; background:linear-gradient(135deg,#8e44ad,#6c3483); }
+    body.layout-starlight .starlight-primary-nav { display:flex; align-items:center; gap:2px; flex:1; min-width:0; overflow-x:auto; scrollbar-width:none; }
+    body.layout-starlight .starlight-primary-nav::-webkit-scrollbar { display:none; }
+    body.layout-starlight .top-nav-link { display:inline-flex; align-items:center; gap:6px; padding:8px 9px; border-radius:7px; color:#45414d; text-decoration:none; font-size:12px; white-space:nowrap; }
+    body.layout-starlight .top-nav-link:hover, body.layout-starlight .top-nav-link.active { background:#f6edfa; color:#6c3483; }
+    body.layout-starlight .top-nav-link.active { font-weight:650; }
+    body.layout-starlight .top-nav-badge { min-width:16px; padding:0 4px; border-radius:9px; background:#d64545; color:#fff; text-align:center; font-size:10px; }
+    body.layout-starlight .starlight-more-nav { position:relative; flex:none; }
+    body.layout-starlight .starlight-more-nav summary { padding:8px; border-radius:7px; color:#6b6672; cursor:pointer; font-size:12px; list-style:none; white-space:nowrap; }
+    body.layout-starlight .starlight-more-nav summary::-webkit-details-marker { display:none; }
+    body.layout-starlight .starlight-more-menu { position:absolute; top:calc(100% + 8px); right:0; display:grid; min-width:190px; max-height:70vh; overflow:auto; padding:6px; border:1px solid #e8e6ef; border-radius:8px; background:#fff; box-shadow:0 12px 30px rgba(34,26,58,.14); }
+    body.layout-starlight .starlight-more-menu .top-nav-link { padding:9px 10px; }
+    body.layout-starlight .starlight-top-actions { display:flex; align-items:center; gap:5px; flex:none; }
+    body.layout-starlight .starlight-top-actions form { display:flex; }
+    body.layout-starlight .starlight-user { display:flex; align-items:center; gap:7px; color:#45414d; text-decoration:none; font-size:12px; }
+    body.layout-starlight .starlight-user img { width:30px; height:30px; object-fit:cover; border-radius:50%; }
+    body.layout-starlight .starlight-icon-link { display:grid; place-items:center; width:34px; height:34px; border-radius:8px; color:#77717f; text-decoration:none; }
+    body.layout-starlight .starlight-icon-link:hover { background:#f6edfa; color:#6c3483; }
+    body.layout-starlight .starlight-login { padding:6px 10px; border-radius:6px; color:#fff; background:#8e44ad; }
+    body.layout-starlight .starlight-menu-toggle, body.layout-starlight .starlight-mobile-drawer { display:none; }
+    body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr) 300px; gap:20px; max-width:1280px; min-height:calc(100vh - 60px); padding:0 20px 36px; align-items:start; }
+    body.layout-starlight .sidebar-left, body.layout-starlight .mobile-menu-toggle, body.layout-starlight .mobile-overlay { display:none !important; }
+    body.layout-starlight .main-content { gap:18px; min-width:0; }
+    body.layout-starlight .main-content .card, body.layout-starlight .sidebar-right .card { border:1px solid #e8e6ef; border-radius:12px; box-shadow:0 1px 2px rgba(34,26,58,.04),0 6px 20px rgba(34,26,58,.06); }
+    body.layout-starlight .sidebar-right { position:sticky; top:78px; display:flex; gap:14px; align-self:start; }
+    body.layout-starlight .sidebar-right .card { padding:16px; }
+    body.layout-starlight .sidebar-right .time-display .time { color:#6c3483; }
+    body.layout-starlight .starlight-home-hero { position:relative; display:flex; align-items:center; justify-content:space-between; max-width:1240px; min-height:224px; overflow:hidden; margin:20px auto 18px; padding:30px 36px; border-radius:14px; color:#fff; background:radial-gradient(120% 160% at 12% 0%,#3a2a63 0%,#241a44 45%,#161030 100%); box-shadow:0 8px 26px rgba(34,26,58,.16); }
+    body.layout-starlight .starlight-hero-inner { position:relative; z-index:1; max-width:620px; }
+    body.layout-starlight .starlight-hero-kicker { color:#c9b8e6; font-size:11px; font-weight:600; letter-spacing:2px; }
+    body.layout-starlight .starlight-home-hero h1 { margin-top:7px; color:#fff; font-size:28px; line-height:1.3; }
+    body.layout-starlight .starlight-home-hero p { margin-top:8px; color:#d6cbe8; font-size:13px; }
+    body.layout-starlight .starlight-hero-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:18px; }
+    body.layout-starlight .starlight-hero-actions a { display:inline-flex; align-items:center; gap:7px; padding:8px 13px; border-radius:7px; color:#fff; font-size:12px; font-weight:600; text-decoration:none; }
+    body.layout-starlight .starlight-hero-primary { background:#8e44ad; box-shadow:0 4px 12px rgba(142,68,173,.3); }
+    body.layout-starlight .starlight-hero-secondary { border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); }
+    body.layout-starlight .starlight-hero-mark { position:absolute; right:7%; color:rgba(255,255,255,.08); font-size:150px; transform:rotate(-12deg); }
+    body.layout-starlight .site-announcements, body.layout-starlight [style*="max-width:1360px"] { max-width:1240px; }
+    body.layout-starlight .home-grid { gap:16px; }
+    body.layout-starlight .home-row-top { grid-template-columns:minmax(0,1.8fr) minmax(230px,1fr); gap:14px; }
+    body.layout-starlight .home-row-middle { gap:12px; }
+    body.layout-starlight .home-row-middle .card { display:flex; align-items:center; justify-content:center; min-height:104px; }
+    body.layout-starlight .home-row-middle .stat-box .num { color:#6c3483; font-size:25px; }
+    body.layout-starlight .home-row-bottom { gap:14px; grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr); }
+    body.layout-starlight .home-row-bottom > div { min-width:0; }
+    body.layout-starlight .home-row-bottom .card { padding:16px; }
+    body.layout-starlight .card h3 i, body.layout-starlight .quick-link i { color:#8e44ad; }
+    body.layout-starlight .online-user-item { background:#faf9fc; border-color:#f0eef5; }
+    body.layout-starlight #lang-switcher { right:max(16px,calc((100vw - 1280px)/2)); top:68px; z-index:450; }
+    body.layout-starlight #lang-switcher select { color:#45414d !important; background:rgba(255,255,255,.94) !important; border-color:#e8e6ef !important; }
+    @media (max-width:1100px) {
+      body.layout-starlight .starlight-primary-nav .top-nav-link:nth-child(n+7) { display:none; }
+      body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr) 260px; }
+      body.layout-starlight .home-row-bottom { grid-template-columns:minmax(0,1fr); }
+    }
+    @media (max-width:860px) {
+      body.layout-starlight .starlight-topbar-inner { padding:0 14px; }
+      body.layout-starlight .starlight-primary-nav, body.layout-starlight .starlight-more-nav { display:none; }
+      body.layout-starlight .starlight-top-actions { margin-left:auto; }
+      body.layout-starlight .starlight-user span { display:none; }
+      body.layout-starlight .starlight-menu-toggle { display:grid; place-items:center; width:36px; height:36px; border-radius:8px; color:#5c5662; }
+      body.layout-starlight .starlight-mobile-drawer { position:absolute; top:100%; left:0; right:0; display:none; max-height:calc(100vh - 60px); overflow:auto; padding:9px 14px 14px; border-bottom:1px solid #e8e6ef; background:#fff; box-shadow:0 12px 28px rgba(34,26,58,.12); }
+      body.layout-starlight .starlight-mobile-drawer.open { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
+      body.layout-starlight .starlight-drawer-link { display:flex; align-items:center; gap:9px; padding:10px; border-radius:7px; color:#45414d; font-size:13px; text-decoration:none; }
+      body.layout-starlight .starlight-drawer-link.active, body.layout-starlight .starlight-drawer-link:hover { color:#6c3483; background:#f6edfa; }
+      body.layout-starlight .app-layout { grid-template-columns:minmax(0,1fr); padding:14px 14px 30px; }
+      body.layout-starlight .sidebar-right { position:static; display:flex; flex-direction:row; flex-wrap:wrap; }
+      body.layout-starlight .sidebar-right .card { flex:1 1 220px; }
+      body.layout-starlight .starlight-home-hero { min-height:200px; margin:14px 14px 0; padding:24px; }
+      body.layout-starlight .starlight-home-hero h1 { font-size:24px; }
+      body.layout-starlight #lang-switcher { top:68px; right:12px; }
+    }
+    @media (max-width:560px) {
+      body.layout-starlight .home-row-top, body.layout-starlight .home-row-middle { grid-template-columns:1fr 1fr; }
+      body.layout-starlight .home-row-top > .card:first-child { grid-column:1 / -1; }
+      body.layout-starlight .home-row-bottom { grid-template-columns:minmax(0,1fr); }
+      body.layout-starlight .starlight-home-hero { min-height:190px; padding:20px; }
+      body.layout-starlight .starlight-hero-mark { right:-4%; font-size:110px; }
+    }
     #spa-page-progress {
       position: fixed;
       top: 0;
@@ -689,6 +821,7 @@ export async function getLayout(
     body.spa-loading #spa-page-progress { width: 72%; opacity: 1; }
     body.spa-ready #spa-page-progress { width: 100%; opacity: 0; }
   </style>
+  <style id="user-background-style">${backgroundCss}</style>
   <style id="spa-page-styles" data-spa-route-style="true">${extraStyles}</style>
   <script>
     window.__mentionUsers = ${JSON.stringify(mentionUserMap)};
@@ -807,6 +940,19 @@ export async function getLayout(
       document.getElementById('sidebarLeft').classList.remove('mobile-open');
       document.getElementById('mobileOverlay').classList.remove('show');
     }
+    function toggleStarlightMenu() {
+      const drawer = document.getElementById('starlightMobileDrawer');
+      const button = document.querySelector('.starlight-menu-toggle');
+      if (!drawer || !button) return;
+      const open = drawer.classList.toggle('open');
+      button.setAttribute('aria-expanded', String(open));
+    }
+    function closeStarlightMenu() {
+      const drawer = document.getElementById('starlightMobileDrawer');
+      const button = document.querySelector('.starlight-menu-toggle');
+      if (drawer) drawer.classList.remove('open');
+      if (button) button.setAttribute('aria-expanded', 'false');
+    }
     function updateClock() {
       const now = new Date();
       const chinaTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -891,11 +1037,13 @@ export async function getLayout(
       }
 
       function updateActiveNavigation(pathname) {
-        document.querySelectorAll('.sidebar-left a').forEach(link => {
+        document.querySelectorAll('.sidebar-left a, .top-nav-link, .starlight-drawer-link').forEach(link => {
           const href = link.getAttribute('href');
           if (!href || href === '#') return;
           link.classList.toggle('active', href === pathname || (href !== '/' && pathname.startsWith(href)));
         });
+        document.querySelectorAll('.starlight-more-nav[open]').forEach(menu => menu.removeAttribute('open'));
+        closeStarlightMenu();
       }
 
       function replaceMain(html, url, pushState) {
@@ -964,10 +1112,12 @@ export async function getLayout(
     })();
   </script>
 </head>
-<body class="ui-${uiMode}">
+<body class="ui-${uiMode} layout-${layoutMode}">
   ${langSwitcherHtml}
   ${announcementHtml}
   ${siteStatusHtml}
+  ${starlightTopbar}
+  ${starlightHero}
 
   <button class="mobile-menu-toggle" onclick="toggleMobileMenu()"><i class="fas fa-bars"></i></button>
   <div class="mobile-overlay" onclick="closeMobileMenu()" id="mobileOverlay"></div>

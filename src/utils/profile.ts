@@ -41,3 +41,19 @@ export function validateProfileUrl(value: string): boolean {
         return false;
     }
 }
+
+export function validateBackgroundUrl(value: string): boolean {
+    if (!value) return true;
+    if (value.length > 2048 || /[\u0000-\u0020"'<>\\]/.test(value)) return false;
+    try {
+        const url = new URL(value);
+        return (url.protocol === 'http:' || url.protocol === 'https:') && !!url.hostname && !url.username && !url.password;
+    } catch {
+        return false;
+    }
+}
+
+export function normalizeBackgroundMode(value: unknown): 'tile' | 'cover' | 'stretch' {
+    const mode = String(value || 'cover');
+    return mode === 'tile' || mode === 'stretch' ? mode : 'cover';
+}

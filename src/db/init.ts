@@ -41,6 +41,9 @@ export async function initDB(env: Env) {
       egg_locked INTEGER DEFAULT 0,
       sidebar_mode TEXT DEFAULT 'classic',
       ui_mode TEXT DEFAULT 'classic',
+      layout_mode TEXT NOT NULL DEFAULT 'classic',
+      background_url TEXT NOT NULL DEFAULT '',
+      background_mode TEXT NOT NULL DEFAULT 'cover',
       redirect_delay_seconds INTEGER DEFAULT 5,
       session_version INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
@@ -440,6 +443,9 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN admin_permissions TEXT NOT NULL DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN sidebar_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN ui_mode TEXT DEFAULT "classic"',
+        'ALTER TABLE users ADD COLUMN layout_mode TEXT NOT NULL DEFAULT "classic"',
+        'ALTER TABLE users ADD COLUMN background_url TEXT NOT NULL DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN background_mode TEXT NOT NULL DEFAULT "cover"',
         'ALTER TABLE users ADD COLUMN redirect_delay_seconds INTEGER DEFAULT 5',
         'ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE tickets ADD COLUMN is_private INTEGER DEFAULT 0',
@@ -514,7 +520,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '17';
+const CURRENT_SCHEMA_VERSION = '18';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
