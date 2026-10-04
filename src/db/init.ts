@@ -20,6 +20,7 @@ export async function initDB(env: Env) {
       speak INTEGER DEFAULT 1,
       admin INTEGER DEFAULT 0,
       admin_roles TEXT DEFAULT '["unassigned"]',
+      admin_permissions TEXT NOT NULL DEFAULT '[]',
       color TEXT DEFAULT 'red',
       tag TEXT DEFAULT '',
       avatar_url TEXT DEFAULT '',
@@ -436,6 +437,7 @@ export async function initDB(env: Env) {
         'ALTER TABLE users ADD COLUMN egg_endings TEXT DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN egg_locked INTEGER DEFAULT 0',
         'ALTER TABLE users ADD COLUMN admin_roles TEXT DEFAULT "[]"',
+        'ALTER TABLE users ADD COLUMN admin_permissions TEXT NOT NULL DEFAULT "[]"',
         'ALTER TABLE users ADD COLUMN sidebar_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN ui_mode TEXT DEFAULT "classic"',
         'ALTER TABLE users ADD COLUMN redirect_delay_seconds INTEGER DEFAULT 5',
@@ -512,7 +514,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '16';
+const CURRENT_SCHEMA_VERSION = '17';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
@@ -527,6 +529,7 @@ export async function ensureDB(env: Env) {
         }
     } catch { }
     await initDB(env);
+    await env.DB.prepare("UPDATE users SET admin_permissions = '[\"*\"]' WHERE admin = 1 AND (admin_permissions IS NULL OR admin_permissions = '' OR admin_permissions = '[]')").run();
     await env.DB.prepare(
         "INSERT INTO site_settings (setting_key, setting_value) VALUES ('schema_version', ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value"
       ).bind(CURRENT_SCHEMA_VERSION).run();

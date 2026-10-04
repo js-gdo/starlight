@@ -5,6 +5,7 @@ import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import { buildProblemArticleTitle, buildProblemArticleContent, fetchProblemList } from '../utils/problem';
 import type { Env } from '../env.d';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 export async function handleArticles(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -73,7 +74,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const article = await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first();
             if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
-            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+            if (user.id !== article.author_id && !hasAdminPermission(user, 'admin.content.articles.edit')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             if (!user.speak) return jsonRes({ error: t('apiMuted', { action: t('editArticle') }) }, 403);
 
             let title = String(form.get('title') ?? '').trim();
@@ -106,7 +107,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const article = await db.prepare('SELECT * FROM articles WHERE id = ?').bind(id).first();
             if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
-            if (user.id !== article.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+            if (user.id !== article.author_id && !hasAdminPermission(user, 'admin.content.articles.delete')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
             await db.prepare('DELETE FROM article_likes WHERE article_id = ?').bind(id).run();
             await db.prepare('DELETE FROM articles WHERE id = ?').bind(id).run();
@@ -128,7 +129,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const targetArticle = await db.prepare('SELECT is_locked, author_id FROM articles WHERE id = ?')
             .bind(article_id).first<any>();
         if (!targetArticle) return jsonRes({ error: t('apiArticleNotFound') }, 404);
-        if (targetArticle.is_locked && !user.admin) return jsonRes({ error: t('lockedCannotComment') }, 403);
+        if (targetArticle.is_locked && !hasAdminPermission(user, 'admin.content.articles.moderate')) return jsonRes({ error: t('lockedCannotComment') }, 403);
 
         if (parent_id) {
             const parentComment = await db.prepare('SELECT id FROM comments WHERE id = ? AND article_id = ?')
@@ -164,7 +165,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             const id = parseInt(commentMatch[1]);
             const comment = await db.prepare('SELECT * FROM comments WHERE id = ?').bind(id).first();
             if (!comment) return jsonRes({ error: t('apiCommentDeleted') }, 404);
-            if (user.id !== comment.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+            if (user.id !== comment.author_id && !hasAdminPermission(user, 'admin.content.comments.delete')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             await db.prepare('DELETE FROM comments WHERE id = ?').bind(id).run();
             const referer = request.headers.get('referer') || '/articles/list';
             return new Response(null, { status: 302, headers: { Location: referer } });

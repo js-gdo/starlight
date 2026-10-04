@@ -2,6 +2,7 @@ import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
 import { getChinaTime, getHitokoto } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
+import { hasAdminPermission } from './adminPermissions';
 import type { Env } from '../env.d';
 
 export async function getLayout(
@@ -19,7 +20,20 @@ export async function getLayout(
 
     const chinaTime = getChinaTime();
     const currentPath = request ? new URL(request.url).pathname : '/';
-    const announcementScope = currentPath === '/backend' ? 'backend' : currentPath === '/' ? 'home' : 'all';
+    const adminEntry = user?.admin ? [
+      ['admin.dashboard.view', '/backend'],
+      ['admin.users.view', '/backend/user'],
+      ['admin.content.articles.view', '/backend/content'],
+      ['admin.content.tickets.view', '/backend/content'],
+      ['admin.security.reports.view', '/backend/security'],
+      ['admin.security.audit.view', '/backend/security'],
+      ['admin.site.settings.edit', '/backend/site'],
+      ['admin.site.banners.manage', '/backend/site'],
+      ['admin.site.announcements.manage', '/backend/site'],
+      ['admin.permissions.view', '/backend/permissions'],
+      ['admin.permissions.manage', '/backend/permissions'],
+    ].find(([permission]) => hasAdminPermission(user, permission)) : undefined;
+    const announcementScope = currentPath.startsWith('/backend') ? 'backend' : currentPath === '/' ? 'home' : 'all';
 
     const [unreadCounts, hitokoto, announcements, siteStatusRow] = await Promise.all([
       (user && env?.DB)
@@ -73,8 +87,8 @@ export async function getLayout(
         { href: '/team', label: '团队', active: title === '创建团队' || title.includes('团队') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
-    ];if (user && user.admin) {
-        navItems.push({ href: '/backend', label: t('adminPanel'), active: title === t('adminPanel') });
+    ];if (adminEntry) {
+      navItems.push({ href: adminEntry[1], label: t('adminPanel'), active: currentPath.startsWith('/backend') });
     }
     if (user?.id === 1) {
         navItems.push({ href: '/oj/propose', label: 'OJ 投题', active: title === 'OJ 投题' });

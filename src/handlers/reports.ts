@@ -3,6 +3,7 @@ import { getTranslator } from '../utils/i18n';
 import { sendNotification } from '../utils/notification';
 import { writeAudit } from '../utils/audit';
 import type { Env } from '../env.d';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 const targetTypes = new Set(['user', 'avatar', 'article', 'comment', 'ticket']);
 
@@ -64,7 +65,7 @@ export async function handleReports(request: Request, env: Env, path: string) {
 
     const decisionMatch = path.match(/^\/api\/reports\/(\d+)\/decision$/);
     if (decisionMatch && request.method === 'POST') {
-        if (!user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+        if (!hasAdminPermission(user, 'admin.security.reports.resolve')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
         const id = Number(decisionMatch[1]);
         const form = await request.formData();
         const status = String(form.get('status') || '');

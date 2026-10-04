@@ -5,6 +5,7 @@ import { getTicketStatus } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import type { Env } from '../env.d';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 export async function handleTickets(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -44,7 +45,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
 
     const permissionMatch = path.match(/^\/api\/tickets\/(\d+)\/permission$/);
     if (permissionMatch && method === 'POST') {
-        if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+        if (!hasAdminPermission(user, 'admin.users.permissions.edit')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
         const id = parseInt(permissionMatch[1]);
         const decision = String((await request.formData()).get('decision') || '');
         if (!['approve', 'reject'].includes(decision)) return jsonRes({ error: '无效的处理结果' }, 400);
@@ -96,7 +97,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
             const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first();
             if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
-            if (user.id !== ticket.author_id && !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+            if (user.id !== ticket.author_id && !hasAdminPermission(user, 'admin.content.tickets.manage')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
 
             const title = form.get('title');
             const content = form.get('content');
@@ -113,7 +114,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
             return new Response(null, { status: 302, headers: { Location: `/ticket/${id}` } });
         } else {
             // 指派处理人
-            if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+            if (!hasAdminPermission(user, 'admin.content.tickets.manage')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             const assignee_id = parseInt(String(form.get('assignee_id'))) || 0;
             await db.prepare('UPDATE tickets SET assignee_id = ? WHERE id = ?').bind(assignee_id, id).run();
             if (assignee_id > 0 && assignee_id !== user.id) {
@@ -136,7 +137,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
     // 更新状态
     const statusMatch = path.match(/^\/api\/tickets\/(\d+)\/status$/);
     if (statusMatch && method === 'POST') {
-        if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
+        if (!hasAdminPermission(user, 'admin.content.tickets.manage')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
         const id = parseInt(statusMatch[1]);
         const form = await request.formData();
         const status = String(form.get('status') || '');
@@ -165,7 +166,7 @@ export async function handleTickets(request: Request, env: Env, path: string) {
         const id = parseInt(replyMatch[1]);
         const ticket = await db.prepare('SELECT * FROM tickets WHERE id = ?').bind(id).first<any>();
         if (!ticket) return jsonRes({ error: t('apiTicketNotFound') }, 404);
-        if (ticket.is_private && ticket.author_id !== user.id && !user.admin) {
+        if (ticket.is_private && ticket.author_id !== user.id && !hasAdminPermission(user, 'admin.content.tickets.view')) {
             return jsonRes({ error: t('apiPermissionDenied') }, 403);
         }
         const form = await request.formData();

@@ -80,6 +80,8 @@ describe("database migrations", () => {
 			ui_mode: 'modern',
 			redirect_delay_seconds: 10,
 		});
+		const permissions = await env.DB.prepare('SELECT admin_permissions FROM users WHERE id = 1').first<any>();
+		expect(JSON.parse(permissions.admin_permissions)).toEqual(['*']);
 	});
 });
 
@@ -121,13 +123,39 @@ describe("worker routing", () => {
 		}), env, createExecutionContext());
 		expect(response.status).toBe(200);
 		const html = await response.text();
-		expect(html).toContain('运营中心');
-		expect(html).toContain('待处理工单');
-		expect(html).toContain('待审举报');
-		expect(html).toContain('id="security-center"');
-		expect(html).toContain('id="reviews"');
-		expect(html).toContain('id="site"');
-		expect(html).toContain('function activateAdminTabFromHash()');
+		expect(html).toContain('运营仪表盘');
+		expect(html).toContain('站点概况');
+		expect(html).toContain('href="/backend/user"');
+		expect(html).not.toContain('data-admin-panel');
+
+		const userPage = await worker.fetch(new IncomingRequest('http://example.com/backend/user', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(userPage.status).toBe(200);
+		expect(await userPage.text()).toContain('账号目录');
+	});
+
+	it("limits console sections and admin mutations to assigned permission nodes", async () => {
+		const username = `limited-admin-${Date.now()}`;
+		const insert = await env.DB.prepare('INSERT INTO users (username, password, admin, admin_permissions) VALUES (?, ?, 1, ?)')
+			.bind(username, 'unused', JSON.stringify(['admin.users.view'])).run();
+		const adminId = Number(insert.meta.last_row_id);
+		const session = await createSession(env, adminId);
+		const headers = { Cookie: `uid=${session}` };
+
+		const userPage = await worker.fetch(new IncomingRequest('http://example.com/backend/user', { headers }), env, createExecutionContext());
+		expect(userPage.status).toBe(200);
+		expect(await userPage.text()).toContain('账号目录');
+
+		const sitePage = await worker.fetch(new IncomingRequest('http://example.com/backend/site', { headers }), env, createExecutionContext());
+		expect(sitePage.status).toBe(403);
+
+		const form = new FormData();
+		form.set('status', 'maintenance');
+		const updateSite = await worker.fetch(new IncomingRequest('http://example.com/api/admin/site-status', {
+			method: 'POST', headers, body: form,
+		}), env, createExecutionContext());
+		expect(updateSite.status).toBe(403);
 	});
 
 	it("shows login history and revokes older sessions while keeping the current one", async () => {
@@ -175,8 +203,20 @@ describe("worker routing", () => {
 			expect(html).toContain("theme-modern");
 		} finally {
 			vi.useRealTimers();
+		import { hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 		}
 	});
+
+		describe('admin permission nodes', () => {
+			it('matches exact nodes and terminal wildcards without crossing sibling branches', () => {
+				const scopedAdmin = { id: 2, admin: 1, admin_permissions: JSON.stringify(['admin.users.*']) };
+				expect(hasAdminPermission(scopedAdmin, 'admin.users.profile.edit')).toBe(true);
+				expect(hasAdminPermission(scopedAdmin, 'admin.users')).toBe(false);
+				expect(hasAdminPermission(scopedAdmin, 'admin.content.articles.delete')).toBe(false);
+				expect(hasAdminPermission({ ...scopedAdmin, admin_permissions: JSON.stringify(['admin.users.view']) }, 'admin.users.profile.edit')).toBe(false);
+				expect(normalizeAdminPermissions(['admin.users.*', 'bad node', '*'])).toEqual(['admin.users.*', '*']);
+			});
+		});
 
 	it("does not dump the full user list into ordinary pages", async () => {
 		const response = await SELF.fetch("https://example.com");
