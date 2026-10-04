@@ -72,20 +72,24 @@ export async function renderOS(env: Env, req: Request) {
         background: linear-gradient(180deg, #cfe4ff 0%, #dfe9f7 14%, #eef3fb 100%);
       }
       .os-shell {
-        position: relative;
-        min-height: calc(100vh - 120px);
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
         overflow: hidden;
-        border-radius: 18px;
+        border-radius: 0;
         background: linear-gradient(180deg, rgba(12, 26, 52, 0.18), rgba(12,26,52,0.04));
       }
       .desktop-grid {
-        position: relative;
+        position: absolute;
+        inset: 0 0 58px;
         display: grid;
         grid-auto-flow: column;
-        grid-template-rows: repeat(auto-fill, minmax(96px, 1fr));
-        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+        grid-template-rows: repeat(auto-fill, 96px);
+        grid-auto-columns: 92px;
         gap: 14px 12px;
-        padding: 18px 18px 96px;
+        padding: 18px;
         align-content: start;
       }
       .desktop-app {
@@ -126,7 +130,7 @@ export async function renderOS(env: Env, req: Request) {
       }
       .window-layer {
         position: absolute;
-        inset: 0;
+        inset: 0 0 58px;
         pointer-events: none;
       }
       .window {
@@ -138,6 +142,9 @@ export async function renderOS(env: Env, req: Request) {
         transform: translate(-50%, -50%);
         width: var(--app-w);
         height: var(--app-h);
+        max-width: calc(100% - 24px);
+        max-height: calc(100% - 24px);
+        box-sizing: border-box;
         background: rgba(255,255,255,0.78);
         border: 1px solid rgba(148, 163, 184, 0.35);
         border-radius: 18px;
@@ -156,10 +163,12 @@ export async function renderOS(env: Env, req: Request) {
         display: none;
       }
       .window.maximized {
-        width: calc(100vw - 80px);
-        height: calc(100vh - 160px);
-        left: 50%;
-        top: 50%;
+        inset: 0;
+        width: auto;
+        height: auto;
+        max-width: none;
+        max-height: none;
+        transform: none;
       }
       .window-header {
         height: 42px;
@@ -220,6 +229,7 @@ export async function renderOS(env: Env, req: Request) {
         right: 0;
         bottom: 0;
         height: 58px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -280,6 +290,13 @@ export async function renderOS(env: Env, req: Request) {
         color: #334155;
         font-size: 12px;
         font-weight: 700;
+        line-height: 1.35;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .tray-date,
+      .tray-time {
+        display: block;
       }
       .start-menu {
         position: absolute;
@@ -320,8 +337,10 @@ export async function renderOS(env: Env, req: Request) {
       }
       @media (max-width: 720px) {
         .desktop-grid {
-          grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
-          padding: 16px 12px 80px;
+          grid-template-rows: repeat(auto-fill, 88px);
+          grid-auto-columns: 82px;
+          gap: 10px 8px;
+          padding: 16px 12px;
         }
         .desktop-app-icon {
           width: 44px;
@@ -329,12 +348,8 @@ export async function renderOS(env: Env, req: Request) {
           font-size: 20px;
         }
         .window {
-          --app-w: calc(100vw - 18px);
+          --app-w: calc(100% - 18px);
           --app-h: min(78vh, 540px);
-        }
-        .window.maximized {
-          width: calc(100vw - 20px);
-          height: calc(100vh - 140px);
         }
       }
     </style>
@@ -350,7 +365,7 @@ export async function renderOS(env: Env, req: Request) {
         <div class="taskbar-bar">
           <button class="start-button" type="button" id="startButton">开始</button>
           <div class="taskbar-apps" id="taskbarApps"></div>
-          <div class="tray">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          <div class="tray"><span class="tray-date" id="trayDate"></span><span class="tray-time" id="trayTime"></span></div>
         </div>
       </div>
 
@@ -463,6 +478,9 @@ export async function renderOS(env: Env, req: Request) {
         updateMaximizeButton();
         maximizeBtn.addEventListener('click', function () {
           state.maximized = !state.maximized;
+          win.style.left = '';
+          win.style.top = '';
+          win.style.transform = '';
           win.classList.toggle('maximized', state.maximized);
           updateMaximizeButton();
         });
@@ -524,13 +542,31 @@ export async function renderOS(env: Env, req: Request) {
         }
       });
 
-      const timeTray = document.querySelector('.tray');
-      const updateTrayTime = function () {
-        if (timeTray) {
-          timeTray.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const trayDate = document.getElementById('trayDate');
+      const trayTime = document.getElementById('trayTime');
+      const updateTrayClock = function () {
+        const now = new Date();
+        const dateParts = new Intl.DateTimeFormat('zh-CN', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(now);
+        const dateValues = Object.fromEntries(dateParts.map(function (part) { return [part.type, part.value]; }));
+        if (trayDate) {
+          trayDate.textContent = dateValues.year + '/' + dateValues.month + '/' + dateValues.day;
+        }
+        if (trayTime) {
+          trayTime.textContent = new Intl.DateTimeFormat('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+          }).format(now);
         }
       };
-      setInterval(updateTrayTime, 15000);
+      updateTrayClock();
+      setInterval(updateTrayClock, 1000);
     </script>
     `;
 
