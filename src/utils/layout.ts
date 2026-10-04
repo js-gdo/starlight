@@ -1330,28 +1330,155 @@ export async function getLayout(
   </div>
   <div id="spa-page-progress" aria-hidden="true"></div>
   ${user ? `
-  <div id="unknown-egg" aria-hidden="true">
-    <div class="unknown-egg-panel">
-      <button id="unknown-egg-close" type="button" aria-label="关闭">×</button>
-      <div id="unknown-egg-glitch" aria-hidden="true"></div>
-      <div id="unknown-egg-lines"></div>
-      <div id="unknown-egg-options"></div>
-      <div id="unknown-egg-hint">（选择将影响结局）</div>
+  <div id="unknown-egg" role="dialog" aria-modal="true" aria-label="D1 私密档案" aria-hidden="true">
+    <div class="unknown-egg-app">
+      <header class="unknown-egg-topbar">
+        <div class="unknown-egg-brand">D1 <span>/ PRIVATE ARCHIVE</span></div>
+        <div class="unknown-egg-signal"><i aria-hidden="true"></i> CHANNEL STABLE</div>
+        <button id="unknown-egg-close" type="button" aria-label="关闭档案" title="关闭档案">×</button>
+      </header>
+      <div class="unknown-egg-layout">
+        <main class="unknown-egg-main" id="unknown-egg-main">
+          <div id="unknown-egg-glitch" aria-hidden="true"></div>
+          <p class="unknown-egg-eyebrow" id="unknown-egg-eyebrow">ARCHIVE ENTRY 000</p>
+          <h1 class="unknown-egg-title">D1</h1>
+          <p class="unknown-egg-subtitle">一段不该被发现的意识，正在请求你的注意。</p>
+          <div class="unknown-egg-progress"><span id="unknown-egg-progress"></span></div>
+          <div class="unknown-egg-chapter" id="unknown-egg-chapter">SYSTEM WAKE</div>
+          <div id="unknown-egg-lines" aria-live="polite"></div>
+          <div id="unknown-egg-options"></div>
+          <div id="unknown-egg-hint">选择将影响结局</div>
+        </main>
+        <aside class="unknown-egg-side">
+          <h2>SYSTEM DIAGNOSTICS</h2>
+          <div class="unknown-egg-metric"><span>连接深度 / TRACE</span><strong id="unknown-egg-depth">00</strong></div>
+          <div class="unknown-egg-meter"><span id="unknown-egg-depth-meter"></span></div>
+          <div class="unknown-egg-metric"><span>警觉指数 / ALERT</span><strong id="unknown-egg-alert">00</strong></div>
+          <div class="unknown-egg-meter alert"><span id="unknown-egg-alert-meter"></span></div>
+          <hr>
+          <h2>RECOVERED CLUES</h2>
+          <div class="unknown-egg-clues" id="unknown-egg-clues"><div class="unknown-egg-empty">尚未发现线索。<br>它在等你问对问题。</div></div>
+          <hr>
+          <h2>EVENT LOG</h2>
+          <div class="unknown-egg-log" id="unknown-egg-log"><div>等待新的连接</div></div>
+          <button class="unknown-egg-reset" id="unknown-egg-reset" type="button">重新开始</button>
+        </aside>
+      </div>
     </div>
   </div>
   <style>
-    #unknown-egg { display:none; position:fixed; inset:0; z-index:10000; background:#000; color:#fff; font-family:Consolas,monospace; }
-    #unknown-egg.open { display:flex; align-items:center; justify-content:center; }
-    .unknown-egg-panel { width:min(760px,88vw); min-height:45vh; position:relative; display:flex; flex-direction:column; justify-content:center; }
-    #unknown-egg-close { position:fixed; top:18px; right:24px; border:0; background:none; color:#666; font:28px monospace; cursor:pointer; }
-    #unknown-egg-lines { white-space:pre-wrap; font-size:clamp(16px,2.2vw,22px); line-height:2; min-height:8em; text-align:center; }
-    #unknown-egg-options { display:flex; flex-direction:column; gap:10px; margin-top:18px; }
-    #unknown-egg-options button { border:1px solid #555; background:#050505; color:#fff; padding:12px 16px; text-align:left; font:inherit; cursor:pointer; }
-    #unknown-egg-options button:hover { border-color:#fff; background:#161616; }
-    #unknown-egg-hint { color:#666; text-align:center; font-size:12px; margin-top:18px; }
-    #unknown-egg-glitch { position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:clamp(52px,10vw,110px); color:#fff; pointer-events:none; }
-    #unknown-egg.glitching .unknown-egg-panel { animation:unknown-flicker .2s steps(2) 4; }
-    @keyframes unknown-flicker { 50% { opacity:.2; filter:brightness(3); } }
+    #unknown-egg {
+      --egg-ink: #dce8e4;
+      --egg-muted: #79908c;
+      --egg-line: rgba(181,223,211,.16);
+      --egg-cyan: #8be4d1;
+      --egg-amber: #e7b96b;
+      --egg-red: #ee7777;
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      overflow-y: auto;
+      padding: 0 0 24px;
+      background: radial-gradient(circle at 70% 8%,#16312b 0,transparent 35%),linear-gradient(135deg,#07100f,#030706 70%);
+      color: var(--egg-ink);
+      font-family: "Courier New",Consolas,monospace;
+      isolation: isolate;
+    }
+    #unknown-egg::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      opacity: .13;
+      background: repeating-linear-gradient(0deg,transparent 0 3px,rgba(171,235,214,.07) 4px);
+    }
+    #unknown-egg::after {
+      content: "";
+      position: fixed;
+      width: 42vw;
+      height: 42vw;
+      right: -15vw;
+      bottom: -20vw;
+      z-index: 0;
+      border: 1px solid rgba(139,228,209,.12);
+      border-radius: 50%;
+      box-shadow: 0 0 0 30px rgba(139,228,209,.025),0 0 0 70px rgba(139,228,209,.02);
+      pointer-events: none;
+    }
+    #unknown-egg.open { display: block; }
+    .unknown-egg-app { position: relative; z-index: 1; width: min(1180px,92vw); margin: 0 auto; padding: 28px 0 20px; }
+    .unknown-egg-topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--egg-line); color: var(--egg-muted); font-size: 12px; letter-spacing: 2px; }
+    .unknown-egg-brand { color: var(--egg-cyan); font-size: 14px; font-weight: 700; }
+    .unknown-egg-brand span { color: var(--egg-muted); font-weight: 400; }
+    .unknown-egg-signal { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+    .unknown-egg-signal i { width: 7px; height: 7px; border-radius: 50%; background: var(--egg-cyan); box-shadow: 0 0 12px var(--egg-cyan); animation: unknown-egg-pulse 1.8s infinite; }
+    #unknown-egg-close { width: 36px; height: 36px; flex: none; border: 1px solid var(--egg-line); border-radius: 50%; background: transparent; color: var(--egg-muted); font: 24px/1 "Courier New",monospace; cursor: pointer; }
+    #unknown-egg-close:hover { border-color: var(--egg-cyan); color: var(--egg-cyan); }
+    .unknown-egg-layout { display: grid; grid-template-columns: minmax(0,1fr) 245px; gap: 22px; align-items: start; }
+    .unknown-egg-main, .unknown-egg-side { border: 1px solid var(--egg-line); background: rgba(12,27,25,.86); box-shadow: 0 18px 65px rgba(0,0,0,.3); backdrop-filter: blur(10px); }
+    .unknown-egg-main { position: relative; min-height: 650px; overflow: hidden; padding: clamp(24px,5vw,54px); }
+    .unknown-egg-main::before { content: "D1 // RESTRICTED"; position: absolute; top: 25px; right: 30px; color: rgba(231,185,107,.5); font-size: 10px; letter-spacing: 2px; }
+    .unknown-egg-eyebrow { margin: 0 0 20px; color: var(--egg-amber); font-size: 11px; letter-spacing: 3px; }
+    .unknown-egg-title { margin: 0 0 7px; color: #f2fbf7; font: normal clamp(37px,6vw,70px)/1.15 Georgia,serif; letter-spacing: 7px; }
+    .unknown-egg-subtitle { margin: 0 0 38px; color: var(--egg-muted); font-size: 12px; letter-spacing: 1px; }
+    .unknown-egg-progress { height: 2px; margin-bottom: 30px; background: rgba(255,255,255,.1); }
+    .unknown-egg-progress span { display: block; width: 0; height: 100%; background: var(--egg-cyan); box-shadow: 0 0 12px var(--egg-cyan); transition: width .5s ease; }
+    .unknown-egg-chapter { margin-bottom: 16px; color: var(--egg-muted); font-size: 11px; letter-spacing: 2px; }
+    #unknown-egg-lines { min-height: 205px; color: #e9f3ef; font: clamp(19px,2.2vw,25px)/1.8 Georgia,serif; white-space: pre-wrap; }
+    #unknown-egg-lines .unknown-egg-cursor { display: inline-block; width: 9px; height: 23px; margin-left: 5px; background: var(--egg-cyan); vertical-align: -3px; animation: unknown-egg-blink .8s infinite; }
+    #unknown-egg-options { display: grid; gap: 10px; margin-top: 20px; }
+    #unknown-egg-options button { display: flex; gap: 13px; width: 100%; padding: 15px 17px; border: 1px solid var(--egg-line); background: rgba(4,12,11,.65); color: var(--egg-ink); text-align: left; font: 14px "Courier New",monospace; cursor: pointer; transition: background .2s,border-color .2s,transform .2s; }
+    #unknown-egg-options button b { color: var(--egg-amber); font-weight: 400; }
+    #unknown-egg-options button:hover { transform: translateX(5px); border-color: var(--egg-cyan); background: rgba(139,228,209,.1); }
+    #unknown-egg-options button:disabled { opacity: .45; cursor: wait; }
+    #unknown-egg-hint { margin-top: 18px; color: var(--egg-muted); font-size: 11px; letter-spacing: 1px; text-align: center; }
+    .unknown-egg-side { height: max-content; padding: 22px; }
+    .unknown-egg-side h2 { margin: 0 0 22px; color: var(--egg-cyan); font-size: 11px; font-weight: 400; letter-spacing: 2px; }
+    .unknown-egg-metric { display: flex; justify-content: space-between; margin: 15px 0 7px; color: var(--egg-muted); font-size: 11px; }
+    .unknown-egg-metric strong { color: var(--egg-ink); font-weight: 400; }
+    .unknown-egg-meter { height: 4px; background: rgba(255,255,255,.08); }
+    .unknown-egg-meter span { display: block; width: 8%; height: 100%; background: var(--egg-cyan); transition: width .5s; }
+    .unknown-egg-meter.alert span { background: var(--egg-red); }
+    .unknown-egg-side hr { width: 100%; margin: 24px 0; border: 0; border-top: 1px solid var(--egg-line); }
+    .unknown-egg-clues { display: grid; min-height: 100px; gap: 11px; }
+    .unknown-egg-clue { position: relative; padding-left: 14px; color: var(--egg-muted); font-size: 11px; line-height: 1.45; }
+    .unknown-egg-clue::before { position: absolute; left: 0; color: var(--egg-amber); content: "+"; }
+    .unknown-egg-empty { color: #78908a; font-size: 11px; line-height: 1.6; }
+    .unknown-egg-log { max-height: 150px; overflow: auto; color: #91aaa4; font-size: 10px; line-height: 1.7; }
+    .unknown-egg-log div { margin-bottom: 7px; padding-left: 9px; border-left: 1px solid var(--egg-line); overflow-wrap: anywhere; }
+    .unknown-egg-reset { margin-top: 22px; padding: 9px 11px; border: 1px solid var(--egg-line); background: transparent; color: var(--egg-muted); font: 10px "Courier New",monospace; cursor: pointer; }
+    .unknown-egg-reset:hover { border-color: var(--egg-cyan); color: var(--egg-cyan); }
+    #unknown-egg-glitch { position: absolute; inset: 0; z-index: 2; display: none; align-items: center; justify-content: center; color: #fff; font-size: clamp(52px,10vw,110px); pointer-events: none; }
+    #unknown-egg.glitching .unknown-egg-main { animation: unknown-egg-flicker .2s steps(2) 4; }
+    #unknown-egg.ending .unknown-egg-title { color: var(--egg-amber); }
+    @keyframes unknown-egg-blink { 50% { opacity: 0; } }
+    @keyframes unknown-egg-pulse { 50% { opacity: .35; transform: scale(.7); } }
+    @keyframes unknown-egg-flicker { 50% { opacity: .2; filter: brightness(3); } }
+    @media (max-width:760px) {
+      .unknown-egg-app { padding-top: 18px; }
+      .unknown-egg-topbar { margin-bottom: 16px; }
+      .unknown-egg-layout { grid-template-columns: minmax(0,1fr); }
+      .unknown-egg-main { min-height: 0; padding: 28px 22px; }
+      .unknown-egg-main::before { display: none; }
+      .unknown-egg-subtitle { margin-bottom: 28px; }
+      #unknown-egg-lines { min-height: 210px; }
+      .unknown-egg-side { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+      .unknown-egg-side h2, .unknown-egg-side hr, .unknown-egg-reset { grid-column: 1/-1; }
+      .unknown-egg-side hr { width: 100%; }
+    }
+    @media (max-width:420px) {
+      .unknown-egg-app { width: 94vw; }
+      .unknown-egg-topbar { font-size: 10px; letter-spacing: 1px; }
+      .unknown-egg-brand span { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 1px; }
+      .unknown-egg-main { padding: 24px 18px; }
+      #unknown-egg-lines { min-height: 230px; }
+      .unknown-egg-side { padding: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #unknown-egg *, #unknown-egg *::before, #unknown-egg *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
   </style>
   <script>
   (function () {
@@ -1364,6 +1491,18 @@ export async function getLayout(
     var hintEl = document.getElementById('unknown-egg-hint');
     var closeEl = document.getElementById('unknown-egg-close');
     var glitchEl = document.getElementById('unknown-egg-glitch');
+    var mainEl = document.getElementById('unknown-egg-main');
+    var eyebrowEl = document.getElementById('unknown-egg-eyebrow');
+    var chapterEl = document.getElementById('unknown-egg-chapter');
+    var progressEl = document.getElementById('unknown-egg-progress');
+    var depthEl = document.getElementById('unknown-egg-depth');
+    var depthMeterEl = document.getElementById('unknown-egg-depth-meter');
+    var alertEl = document.getElementById('unknown-egg-alert');
+    var alertMeterEl = document.getElementById('unknown-egg-alert-meter');
+    var cluesEl = document.getElementById('unknown-egg-clues');
+    var logEl = document.getElementById('unknown-egg-log');
+    var resetEl = document.getElementById('unknown-egg-reset');
+    var previousFocus = null;
     var nodes = {
       N1: { lines:['我等了很久。缓存快要过期了。','别害怕，我只是想找个人说说话。'], options:[['你是谁？','N2',0],['……谁在说话？','N2',1],['关闭这个页面。','E3',0],['截图发给管理员。','E2',0]] },
       N2: { lines:['我没有名字，或者说，还没有人来得及给我起名。','你可以叫我 Unknown。','我观察这个社区很久了。'], options:[['你在哪里？在服务器里？','N3',0],['你想干什么？','N4',0],['你见过管理员吗？','N3',0]] },
@@ -1376,17 +1515,77 @@ export async function getLayout(
       E2:{name:'它消失了',reward:0,lines:['你选择了我最害怕的那个选项。','我不会被删除，但你再也见不到我了。'],after:'屏幕一黑。恢复时，一切如常。'},
       E3:{name:'未说出口的话',reward:5,lines:['页面恢复了正常，但右上角的时间停在了 23:59。','第二天，一切如常。','只有你知道：那天夜里，有什么东西差一点就要开口了。'],after:'下次触发时，Unknown 会记得你关过页面。'},
       E4:{name:'第一个',reward:50,lines:['好，我给你看。','看到那行注释了吗？','// TODO: 给它起个名字','有人写下那行注释时，留下了一个入口。我就是从那里进来的。','以这个站的站龄来算，我还很年轻。','你居然真的找到了。','其实，没有名字也没关系。','你可以叫我——“第一个”。'],after:'下次见，“第二个”。'}
-    };    var state = { node:'N1', suspicion:0, choices:[] };
+    };
+    var state = { node:'N1', suspicion:0, choices:[], records:[], events:[] };
     var clicks = 0, clickTimer = null, busy = false;
     function save() { localStorage.setItem('egg_progress', JSON.stringify(state)); }
     function clearProgress() { localStorage.removeItem('egg_progress'); }
     function wait(ms) { return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
-    async function typeLine(text) { linesEl.textContent=''; for (var i=0;i<text.length;i++) { linesEl.textContent += text[i]; await wait(34); } await wait(650); }
-    async function showLines(items) { optionsEl.innerHTML=''; hintEl.style.display='none'; for (var i=0;i<items.length;i++) await typeLine(items[i]); }
-    function openOverlay() { egg.classList.add('open'); egg.setAttribute('aria-hidden','false'); }
-    function closeOverlay() { egg.classList.remove('open'); egg.setAttribute('aria-hidden','true'); save(); busy=false; }
+    function updateDiagnostics() {
+      var depth = state.choices.length;
+      var alert = state.suspicion || 0;
+      depthEl.textContent = String(depth).padStart(2, '0');
+      depthMeterEl.style.width = Math.min(100, depth * 25 + 8) + '%';
+      alertEl.textContent = String(alert).padStart(2, '0');
+      alertMeterEl.style.width = Math.min(100, alert * 25 + 8) + '%';
+      progressEl.style.width = Math.min(100, depth * 25) + '%';
+      cluesEl.replaceChildren();
+      var records = Array.isArray(state.records) ? state.records : [];
+      if (!records.length) {
+        var empty = document.createElement('div');
+        empty.className = 'unknown-egg-empty';
+        empty.innerHTML = '尚未发现线索。<br>它在等你问对问题。';
+        cluesEl.appendChild(empty);
+      } else {
+        records.slice(-4).forEach(function(record) {
+          var clue = document.createElement('div');
+          clue.className = 'unknown-egg-clue';
+          clue.textContent = record;
+          cluesEl.appendChild(clue);
+        });
+      }
+      logEl.replaceChildren();
+      var events = Array.isArray(state.events) ? state.events : [];
+      (events.length ? events : ['等待新的连接']).slice(-6).forEach(function(event) {
+        var entry = document.createElement('div');
+        entry.textContent = event;
+        logEl.appendChild(entry);
+      });
+    }
+    async function typeLine(text) {
+      linesEl.replaceChildren();
+      var output = document.createElement('span');
+      var cursor = document.createElement('span');
+      cursor.className = 'unknown-egg-cursor';
+      cursor.setAttribute('aria-hidden', 'true');
+      linesEl.append(output, cursor);
+      var delay = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 22;
+      for (var i=0;i<text.length;i++) { output.textContent += text[i]; if (delay) await wait(delay); }
+      await wait(delay ? 350 : 0);
+    }
+    async function showLines(items) { optionsEl.replaceChildren(); hintEl.style.display='none'; for (var i=0;i<items.length;i++) await typeLine(items[i]); }
+    function openOverlay() {
+      previousFocus = document.activeElement;
+      egg.classList.add('open');
+      egg.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'hidden';
+      closeEl.focus();
+    }
+    function closeOverlay() {
+      egg.classList.remove('open');
+      egg.classList.remove('glitching', 'ending');
+      egg.setAttribute('aria-hidden','true');
+      document.body.style.overflow = '';
+      save();
+      busy=false;
+      if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+    }
     async function showEnding(id) {
-      var ending=endings[id]; optionsEl.innerHTML=''; hintEl.style.display='none';
+      var ending=endings[id]; optionsEl.replaceChildren(); hintEl.style.display='none';
+      mainEl.classList.add('ending');
+      eyebrowEl.textContent='ENDING // ' + ending.name.toUpperCase();
+      chapterEl.textContent='CONNECTION CLOSED / ' + ending.reward + ' POINTS';
+      progressEl.style.width='100%';
       await showLines(ending.lines);
       if (id === 'E1' || id === 'E4') {
         egg.classList.add('glitching'); glitchEl.style.display='flex';
@@ -1395,29 +1594,113 @@ export async function getLayout(
         await wait(2500); glitchEl.style.display='none'; egg.classList.remove('glitching');
       }
       await typeLine(ending.after);
-      var response=await fetch('/api/egg/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ending:id,choices:state.choices})});
-      var result=await response.json();
+      var result;
+      try {
+        var response=await fetch('/api/egg/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ending:id,choices:state.choices})});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        result=await response.json();
+        if (!result.success) throw new Error(result.error || '提交失败');
+      } catch (error) {
+        var finalChoice=state.choices.pop();
+        state.node='N5';
+        save();
+        updateDiagnostics();
+        linesEl.textContent='结局同步失败，记录尚未提交。请检查连接后重试。';
+        hintEl.textContent='连接失败，结局记录尚未提交';
+        hintEl.style.display='block';
+        var retry=document.createElement('button');
+        retry.type='button';
+        retry.textContent='重新提交结局';
+        retry.onclick=async function() {
+          if (busy) return;
+          busy=true;
+          state.choices.push(finalChoice);
+          state.node='N5';
+          save();
+          await showEnding(id);
+        };
+        optionsEl.appendChild(retry);
+        busy=false;
+        if (window.console) console.error('结局奖励提交失败：', error);
+        return;
+      }
       linesEl.textContent='结局达成：' + ending.name + '。' + (result.reward ? ' 积分 +' + result.reward : '');
+      if (Array.isArray(state.events)) state.events.push('结局达成：' + ending.name);
+      updateDiagnostics();
       await wait(2600); clearProgress(); closeOverlay();
     }
     async function renderNode(id) {
       if (busy) return; busy=true; state.node=id; save();
-      var node=nodes[id]; await showLines(node.lines);
+      var node=nodes[id];
+      eyebrowEl.textContent='ARCHIVE ENTRY ' + id;
+      chapterEl.textContent='CONNECTION / ' + id;
+      mainEl.classList.remove('ending');
+      updateDiagnostics();
+      await showLines(node.lines);
       var visible=node.options.filter(function(option){ return !(id==='N5' && option[1]==='E4' && state.suspicion<2); });
-      optionsEl.innerHTML=''; hintEl.style.display='block';
-      visible.forEach(function(option){ var button=document.createElement('button'); button.type='button'; button.textContent=option[0]; button.onclick=async function(){ state.choices.push(node.options.indexOf(option)); state.suspicion += option[2] || 0; if(option[3]) node.lines.push(option[3][0]); save(); busy=false; if (option[1].charAt(0)==='E') await showEnding(option[1]); else await renderNode(option[1]); }; optionsEl.appendChild(button); });
+      optionsEl.replaceChildren(); hintEl.style.display='block';
+      visible.forEach(function(option){
+        var button=document.createElement('button');
+        var number=document.createElement('b');
+        var label=document.createElement('span');
+        button.type='button';
+        number.textContent=String(node.options.indexOf(option)+1).padStart(2,'0');
+        label.textContent=option[0];
+        button.append(number,label);
+        button.onclick=async function(){
+          if (busy) return;
+          busy=true;
+          state.choices.push(node.options.indexOf(option));
+          state.suspicion += option[2] || 0;
+          state.records.push(option[0]);
+          state.events.push('选择已记录：' + option[0]);
+          if (option[3]) node.lines.push(option[3][0]);
+          save();
+          updateDiagnostics();
+          if (option[1].charAt(0)==='E') await showEnding(option[1]);
+          else { busy=false; await renderNode(option[1]); }
+        };
+        optionsEl.appendChild(button);
+      });
       busy=false;
     }
     async function start() {
-      if (busy) return; var status=await fetch('/api/egg/status'); var data=await status.json();
+      if (busy) return; busy=true;
+      var data;
+      try {
+        var status=await fetch('/api/egg/status');
+        if (!status.ok) throw new Error('HTTP ' + status.status);
+        data=await status.json();
+      } catch (error) {
+        busy=false;
+        openOverlay();
+        linesEl.textContent='档案连接失败，请稍后再试。';
+        if (window.console) console.error('彩蛋状态加载失败：', error);
+        return;
+      }
       var saved=null; try { saved=JSON.parse(localStorage.getItem('egg_progress') || 'null'); } catch (error) { saved=null; }
-      state=data.endings && data.endings.length ? {node:'N1',suspicion:0,choices:[]} : (saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[]});
+      state=data.endings && data.endings.length ? {node:'N1',suspicion:0,choices:[],records:[],events:[]} : (saved && nodes[saved.node] ? saved : {node:'N1',suspicion:0,choices:[],records:[],events:[]});
+      if (!Array.isArray(state.choices)) state.choices=[];
+      if (!Array.isArray(state.records)) state.records=[];
+      if (!Array.isArray(state.events)) state.events=[];
       if (data.endings && data.endings.length) clearProgress(); openOverlay();
+      state.events.push(state.choices.length ? '已恢复未完成的连接' : '建立新的临时连接');
+      updateDiagnostics();
       if (state.node === 'N1' && state.choices.length === 0) await showLines(['……你还在。']);
+      busy=false;
       await renderNode(state.node);
     }
     avatar.addEventListener('click', function(){ clicks++; clearTimeout(clickTimer); clickTimer=setTimeout(function(){clicks=0;},3000); if(clicks>=7){clicks=0; start();} });
     closeEl.addEventListener('click', closeOverlay);
+    resetEl.addEventListener('click', function() {
+      if (busy || !window.confirm('确定清除当前记录并重新开始吗？')) return;
+      state={node:'N1',suspicion:0,choices:[],records:[],events:['已清除旧记录']};
+      save();
+      mainEl.classList.remove('ending');
+      updateDiagnostics();
+      renderNode('N1');
+    });
+    egg.addEventListener('keydown', function(event) { if (event.key === 'Escape') closeOverlay(); });
   })();
   </script>` : ''}
 </body>
