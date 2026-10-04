@@ -167,8 +167,8 @@ export async function renderArticleNew(env: Env, req: Request) {
         pv.style.display = 'block';
         editBtn.style.background = '#fff'; editBtn.style.color = '#666'; editBtn.style.borderColor = '#ddd';
         previewBtn.style.background = '#8E44AD'; previewBtn.style.color = '#fff'; previewBtn.style.borderColor = '#8E44AD';
-        pv.innerHTML = window.renderMarkdownHtml(ta.value || '') || '';
-        if (typeof typesetMath === 'function') typesetMath(pv);
+        pv.textContent = ta.value || '';
+        if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(pv);
       } else {
         ta.style.display = 'block';
         pv.style.display = 'none';
@@ -387,8 +387,8 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
         pv.style.display = 'block';
         editBtn.style.background = '#fff'; editBtn.style.color = '#666'; editBtn.style.borderColor = '#ddd';
         previewBtn.style.background = '#8E44AD'; previewBtn.style.color = '#fff'; previewBtn.style.borderColor = '#8E44AD';
-        pv.innerHTML = window.renderMarkdownHtml(ta.value || '') || '';
-        if (typeof typesetMath === 'function') typesetMath(pv);
+        pv.textContent = ta.value || '';
+        if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(pv);
       } else {
         ta.style.display = 'block';
         pv.style.display = 'none';

@@ -1,5 +1,5 @@
 import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
-import { getChinaTime, getHitokoto } from './time';
+import { getChinaTime, HITOKOTO_FALLBACK } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
 import { hasAdminPermission } from './adminPermissions';
@@ -53,12 +53,10 @@ export async function getLayout(
     ].find(([permission]) => hasAdminPermission(user, permission)) : undefined;
     const announcementScope = currentPath.startsWith('/backend') ? 'backend' : currentPath === '/' ? 'home' : 'all';
 
-    const [unreadCounts, hitokoto, announcements, siteStatusRow] = await Promise.all([
+    const [unreadCounts, announcements, siteStatusRow] = await Promise.all([
       (user && env?.DB)
         ? Promise.all([getSystemUnreadCount(env.DB, user.id), getPmUnreadCount(env.DB, user.id)])
         : Promise.resolve([0, 0]),
-
-      getHitokoto(),
 
       env?.DB
         ? env.DB.prepare("SELECT id, content, announcement_type, scroll_speed, is_pinned FROM announcements WHERE enabled = 1 AND (display_scope = 'all' OR display_scope = ?) AND (starts_at = '' OR starts_at <= datetime('now')) AND (ends_at = '' OR ends_at >= datetime('now')) ORDER BY is_pinned DESC, sort_order ASC, id DESC").bind(announcementScope).all()
@@ -310,17 +308,9 @@ export async function getLayout(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/js-gdo/static/refs/heads/gh-pages/icon/sl/icon.ico">
   <title>${title} - ${t('appName')}</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
-      startup: { typeset: false }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.15/purify.min.js" defer></script>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/11.10.3/sweetalert2.all.min.js" defer></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -966,6 +956,23 @@ export async function getLayout(
       return String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    const scriptPromises = {};
+    function loadScript(src) {
+      if (scriptPromises[src]) return scriptPromises[src];
+      scriptPromises[src] = new Promise(function(resolve, reject) {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = function() {
+          delete scriptPromises[src];
+          reject(new Error('Failed to load script: ' + src));
+        };
+        document.head.appendChild(script);
+      });
+      return scriptPromises[src];
+    }
+
     function renderMarkdown(text) {
       const resolvedText = resolveMentionMarkdown(text);
       if (!resolvedText) return '';
@@ -1000,17 +1007,65 @@ export async function getLayout(
     window.typesetMath = typesetMath;
 
     function renderMarkdownNodes(root) {
+      var target = root || document;
       var markdownNodes = [];
-      (root || document).querySelectorAll('.markdown-content').forEach(function(el) {
-        var text = el.textContent;
-        el.innerHTML = renderMarkdown(text);
-        markdownNodes.push(el);
+      if (typeof target.matches === 'function' && target.matches('.markdown-content')) {
+        markdownNodes.push(target);
+      }
+      markdownNodes.push.apply(markdownNodes, Array.from(target.querySelectorAll('.markdown-content')));
+      if (markdownNodes.length === 0) return;
+
+      Promise.all([
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js'),
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.15/purify.min.js')
+      ]).then(function() {
+        var mathNodes = [];
+        markdownNodes.forEach(function(el) {
+          if (!el.isConnected) return;
+          var text = el.textContent;
+          el.innerHTML = renderMarkdown(text);
+          if (text.indexOf('$') !== -1 || text.indexOf('\\\\(') !== -1 || text.indexOf('\\\\[') !== -1) {
+            mathNodes.push(el);
+          }
+        });
+        if (mathNodes.length === 0) return;
+
+        window.MathJax = {
+          tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] },
+          options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+          startup: { typeset: false }
+        };
+        loadScript('https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js')
+          .then(function() { typesetMath(mathNodes); })
+          .catch(function(error) { console.warn('MathJax failed to load:', error); });
+      }).catch(function(error) {
+        console.warn('Markdown dependencies failed to load:', error);
+        markdownNodes.forEach(function(el) {
+          if (!el.isConnected) return;
+          el.innerHTML = String(el.textContent)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\\n/g, '<br>');
+        });
       });
-      typesetMath(markdownNodes);
     }
     window.renderMarkdownNodes = renderMarkdownNodes;
 
     document.addEventListener('DOMContentLoaded', function() {
+      fetch('https://v1.hitokoto.cn', { headers: { Accept: 'application/json' } })
+        .then(function(response) {
+          if (!response.ok) throw new Error('Hitokoto request failed: ' + response.status);
+          return response.json();
+        })
+        .then(function(data) {
+          if (!data || !data.hitokoto) return;
+          var sentence = document.getElementById('hitokoto-sentence');
+          var source = document.getElementById('hitokoto-from');
+          if (sentence) sentence.textContent = '“' + data.hitokoto + '”';
+          if (source) source.textContent = '—— ' + (data.from || '未知来源');
+        })
+        .catch(function(error) { console.warn('Hitokoto request failed:', error); });
       renderMarkdownNodes(document);
       decoratePointBadges(document);
     });
@@ -1260,8 +1315,8 @@ export async function getLayout(
       <div class="card">
         <h3><i class="fas fa-quote-left"></i> ${t('hitokoto')}</h3>
         <div class="hitokoto-box">
-          <div class="sentence">“${htmlEscape(hitokoto.sentence)}”</div>
-          <div class="from">—— ${htmlEscape(hitokoto.from)}</div>
+                  <div class="sentence" id="hitokoto-sentence">“${htmlEscape(HITOKOTO_FALLBACK.sentence)}”</div>
+                  <div class="from" id="hitokoto-from">—— ${htmlEscape(HITOKOTO_FALLBACK.from)}</div>
         </div>
       </div>
       <div class="card">

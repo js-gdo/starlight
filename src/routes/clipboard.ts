@@ -55,8 +55,8 @@ export async function renderClipboard(env: Env, req: Request) {
             function clipRenderPreview() {
                 var text = clipEditor.value;
                 try {
-                    clipPreview.innerHTML = window.renderMarkdownHtml(text) || '';
-                    if (typeof typesetMath === 'function') typesetMath(clipPreview);
+                    clipPreview.textContent = text;
+                    if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(clipPreview);
                 } catch(e) { clipPreview.textContent = text; }
             }
             clipEditor.addEventListener('input', clipRenderPreview);
