@@ -181,12 +181,12 @@ export async function renderHome(env: Env, req: Request) {
             <div class="banner-slides" id="bannerSlides">
               ${banners.results.map((b: any, i: number) => `
                 <div class="banner-slide">
-                  ${b.link_url ? `<a href="${htmlEscape(b.link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
+                  ${b.link_url ? `<a href="${htmlEscape(b.link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" loading="${i === 0 ? 'eager' : 'lazy'}" fetchpriority="${i === 0 ? 'high' : 'low'}" decoding="async" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(b.image_url)}" alt="Banner ${i + 1}" loading="${i === 0 ? 'eager' : 'lazy'}" fetchpriority="${i === 0 ? 'high' : 'low'}" decoding="async" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
                 </div>
               `).join('')}
               ${banners.results.length > 1 ? `
                 <div class="banner-slide">
-                  ${banners.results[0].link_url ? `<a href="${htmlEscape(banners.results[0].link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
+                  ${banners.results[0].link_url ? `<a href="${htmlEscape(banners.results[0].link_url)}" target="_blank" rel="noopener"><img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" loading="lazy" fetchpriority="low" decoding="async" onerror="this.parentElement.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';"></a>` : `<img src="${htmlEscape(banners.results[0].image_url)}" alt="Banner clone" loading="lazy" fetchpriority="low" decoding="async" onerror="this.parentElement.innerHTML='<div style=\\'padding:40px;text-align:center;color:#999;\\'>${t('appName')}</div>';">`}
                 </div>
               ` : ''}
             </div>

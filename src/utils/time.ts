@@ -40,8 +40,13 @@ export function getChinaTime() {
     };
 }
 
+export const HITOKOTO_FALLBACK = {
+    sentence: '向着天星的歌者，早已隐没在人群中。',
+    from: '星辰的怀念',
+};
+
 export async function getHitokoto() {
-    const fallback = { sentence: '向着天星的歌者，早已隐没在人群中。', from: '星辰的怀念' };
+    const fallback = HITOKOTO_FALLBACK;
     try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 1500);
