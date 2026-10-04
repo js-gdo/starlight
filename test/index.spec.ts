@@ -125,6 +125,16 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("StarLight");
 	});
 
+	it("does not block the initial page with optional CDN assets", async () => {
+		const response = await worker.fetch(new IncomingRequest("http://example.com/"), env, createExecutionContext());
+		const html = await response.text();
+		expect(html).toContain('rel="preload" as="style"');
+		expect(html).toContain('id="hitokoto-sentence"');
+		expect(html).toContain('function loadScript(src)');
+		expect(html).not.toMatch(/<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/mathjax/);
+		expect(html).not.toMatch(/<script[^>]+src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/(?:marked|dompurify)/);
+	});
+
 	it("keeps route-specific styles available to SPA navigation", async () => {
 		const response = await worker.fetch(new IncomingRequest('http://example.com/achievements', {
 			headers: { 'X-Starlight-SPA': '1' },

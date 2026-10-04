@@ -194,8 +194,12 @@ int main() {
                 }).join('');
                 var statement = problem.statement || problem.description || '';
                 var statementNode = document.getElementById('ojProblemStatement');
-                statementNode.innerHTML = window.renderMarkdownHtml(statement) || '<span class="oj-muted">题面为空。</span>';
-                window.typesetMath(statementNode);
+                if (statement) {
+                    statementNode.textContent = statement;
+                    window.renderMarkdownNodes(statementNode);
+                } else {
+                    statementNode.innerHTML = '<span class="oj-muted">题面为空。</span>';
+                }
                 state.hidden = true;
                 view.hidden = false;
             }
