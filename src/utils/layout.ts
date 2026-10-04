@@ -87,6 +87,7 @@ export async function getLayout(
 
         const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number }> = [
         { href: '/', label: t('home'), active: title === t('home') },
+        { href: '/os', label: '桌面', active: title === '桌面' },
         { href: '/server', label: '服务状态', active: title === '服务状态' },
         { href: '/admin-list', label: '管理员列表', active: title === '管理员列表' },
         { href: '/health', label: '系统监控', active: title === '系统监控' },
@@ -117,6 +118,7 @@ export async function getLayout(
         const onclickAttr = item.onclick ? ` onclick="${item.onclick}"` : '';
         const iconMap: Record<string, string> = {
             '/': 'fa-home',
+            '/os': 'fa-desktop',
             '/server': 'fa-server',
             '/admin-list': 'fa-user-shield',
             '/health': 'fa-heart-pulse',
@@ -141,12 +143,12 @@ export async function getLayout(
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
     }).join('');
 
-    const primaryNavPaths = new Set(['/', '/articles/list', '/ticket/list', '/oj', '/contest', '/leaderboard', '/achievements', '/game']);
+    const primaryNavPaths = new Set(['/', '/os', '/articles/list', '/ticket/list', '/oj', '/contest', '/leaderboard', '/achievements', '/game']);
     const primaryNavItems = navItems.filter(item => primaryNavPaths.has(item.href));
     const moreNavItems = navItems.filter(item => !primaryNavPaths.has(item.href));
     const renderTopNavItem = (item: typeof navItems[number], mobile = false) => {
       const icons: Record<string, string> = {
-        '/': 'fa-home', '/articles/list': 'fa-file-alt', '/ticket/list': 'fa-ticket-alt', '/oj': 'fa-code',
+        '/': 'fa-home', '/os': 'fa-desktop', '/articles/list': 'fa-file-alt', '/ticket/list': 'fa-ticket-alt', '/oj': 'fa-code',
         '/contest': 'fa-trophy', '/leaderboard': 'fa-ranking-star', '/achievements': 'fa-medal', '/game': 'fa-gamepad',
         '/server': 'fa-server', '/admin-list': 'fa-user-shield', '/health': 'fa-heart-pulse', '/benben': 'fa-comment',
         '/judgement': 'fa-gavel', '/clipboard': 'fa-clipboard', '/redeem': 'fa-ticket', '/search': 'fa-search',
