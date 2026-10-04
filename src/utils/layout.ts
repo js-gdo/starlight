@@ -811,6 +811,51 @@ export async function getLayout(
       body.layout-starlight .starlight-home-hero { min-height:190px; padding:20px; }
       body.layout-starlight .starlight-hero-mark { right:-4%; font-size:110px; }
     }
+    @media (max-width:640px) {
+      html { -webkit-text-size-adjust:100%; }
+      body { overflow-x:clip; }
+      body:not(.layout-starlight) { padding:58px 8px 8px; }
+      .app-layout { width:100%; min-width:0; gap:10px; }
+      .main-content,
+      .main-content > *,
+      .main-content .card { min-width:0; max-width:100%; }
+      .main-content .card { padding:14px 12px; border-radius:10px; }
+      .page-header h1 { font-size:20px; overflow-wrap:anywhere; }
+      .page-header p { font-size:13px; }
+      .main-content :where(img, video, canvas, iframe) { max-width:100%; }
+      .main-content :where(form) { min-width:0; max-width:100%; }
+      .main-content :where(input, select, textarea) { min-width:0; max-width:100%; font-size:16px; }
+      .main-content :where(.table-wrap, .admin-table-wrap, .online-chart-wrap, .table-responsive, [style*="overflow-x:auto"]) {
+        max-width:100%;
+        overflow-x:auto;
+        overscroll-behavior-x:contain;
+        -webkit-overflow-scrolling:touch;
+      }
+      .main-content :where(table) { max-width:100%; }
+      .main-content :where(th, td) { overflow-wrap:anywhere; }
+      .mobile-menu-toggle {
+        top:max(10px, env(safe-area-inset-top));
+        left:max(10px, env(safe-area-inset-left));
+        min-width:44px;
+        min-height:44px;
+        align-items:center;
+        justify-content:center;
+      }
+      .sidebar-left.mobile-open {
+        width:min(280px, calc(100vw - 48px));
+        max-height:100vh;
+        max-height:100dvh;
+        padding-bottom:max(12px, env(safe-area-inset-bottom));
+      }
+      body.layout-starlight .starlight-topbar-inner {
+        gap:8px;
+        padding-left:max(12px, env(safe-area-inset-left));
+        padding-right:max(12px, env(safe-area-inset-right));
+      }
+      body.layout-starlight .starlight-menu-toggle { width:44px; height:44px; }
+      body.layout-starlight .starlight-brand small { display:none; }
+      body.layout-starlight .app-layout { width:100%; }
+    }
     #spa-page-progress {
       position: fixed;
       top: 0;
