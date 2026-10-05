@@ -10,45 +10,81 @@ export async function renderArticleList(env: Env, req: Request) {
     const user = await getSessionUser(env, req);
     const db = env.DB;
     const url = new URL(req.url);
-    const typeParam = url.searchParams.get('type') || 'all';
+    const requestedType = url.searchParams.get('type') || 'all';
+    const typeParam = ['all', 'normal', 'problem', 'following', 'saved'].includes(requestedType) ? requestedType : 'all';
     const problemIdParam = url.searchParams.get('id') || '';
-    const categoryParam = url.searchParams.get('category') || 'all';
+    const requestedCategory = url.searchParams.get('category') || 'all';
     const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
+    const categoryParam = requestedCategory === 'all' || Object.hasOwn(categoryNames, requestedCategory) ? requestedCategory : 'all';
+    const requestedPage = Number.parseInt(url.searchParams.get('page') || '1', 10);
+    const pageSize = 20;
 
-    let unreadCount = 0;
-    if (user) {
-        const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
-            .bind(user.id).first();
-        unreadCount = countResult ? countResult.cnt : 0;
-    }
-
-    let sql = `SELECT a.*, u.username, u.color, u.tag
-         FROM articles a JOIN users u ON a.author_id = u.id`;
-    const bindValues: any[] = [];
+    const conditions: string[] = [];
+    const bindValues: Array<string | number> = [];
     if (typeParam === 'normal') {
-        sql += ` WHERE (a.article_type IS NULL OR a.article_type = ?)`;
+        conditions.push('(a.article_type IS NULL OR a.article_type = ?)');
         bindValues.push('normal');
     } else if (typeParam === 'problem') {
-        sql += ` WHERE a.article_type = ?`;
+        conditions.push('a.article_type = ?');
         bindValues.push('problem');
         if (problemIdParam) {
-            sql += ` AND a.problem_id = ?`;
+            conditions.push('a.problem_id = ?');
             bindValues.push(problemIdParam);
+        }
+    } else if (typeParam === 'following') {
+        if (user) {
+            conditions.push('EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = a.author_id)');
+            bindValues.push(user.id);
+        } else {
+            conditions.push('0 = 1');
+        }
+    } else if (typeParam === 'saved') {
+        if (user) {
+            conditions.push('EXISTS (SELECT 1 FROM article_bookmarks b WHERE b.user_id = ? AND b.article_id = a.id)');
+            bindValues.push(user.id);
+        } else {
+            conditions.push('0 = 1');
         }
     }
     if (categoryParam !== 'all' && categoryNames[categoryParam]) {
-      sql += bindValues.length ? ` AND a.category = ?` : ` WHERE a.category = ?`;
-      bindValues.push(categoryParam);
+        conditions.push('a.category = ?');
+        bindValues.push(categoryParam);
     }
-    sql += ` ORDER BY a.is_pinned DESC, a.created_at DESC`;
+    const whereClause = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+    const totalRow = await db.prepare(
+        `SELECT COUNT(*) AS total FROM articles a JOIN users u ON a.author_id = u.id${whereClause}`
+    ).bind(...bindValues).first<{ total: number }>();
+    const totalPages = Math.max(1, Math.ceil(Number(totalRow?.total || 0) / pageSize));
+    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0
+        ? Math.min(requestedPage, totalPages)
+        : 1;
+    const articles = await db.prepare(
+        `SELECT a.*, u.username, u.color, u.tag,
+                ${user ? 'EXISTS (SELECT 1 FROM article_bookmarks b WHERE b.user_id = ? AND b.article_id = a.id)' : '0'} AS is_saved
+         FROM articles a JOIN users u ON a.author_id = u.id${whereClause}
+         ORDER BY a.is_pinned DESC, a.created_at DESC, a.id DESC LIMIT ? OFFSET ?`
+    ).bind(...(user ? [user.id] : []), ...bindValues, pageSize, (page - 1) * pageSize).all();
 
-    const articles = await db.prepare(sql).bind(...bindValues).all();
     const filterLinks = [
         { value: 'all', label: '全部' },
         { value: 'normal', label: '普通帖子' },
         { value: 'problem', label: '题目讨论帖' },
+        ...(user ? [{ value: 'following', label: '关注动态' }, { value: 'saved', label: '我的收藏' }] : []),
     ];
-    const problemFilterUrl = typeParam === 'problem' ? `?type=problem&id=${encodeURIComponent(problemIdParam)}` : '?type=problem';
+    const buildListUrl = (nextPage: number, nextType = typeParam, nextCategory = categoryParam) => {
+        const params = new URLSearchParams();
+        if (nextType !== 'all') params.set('type', nextType);
+        if (nextType === 'problem' && problemIdParam) params.set('id', problemIdParam);
+        if (nextCategory !== 'all') params.set('category', nextCategory);
+        if (nextPage > 1) params.set('page', String(nextPage));
+        return `/articles/list${params.size ? `?${params}` : ''}`;
+    };
+    const pagination = totalPages > 1 ? `
+      <nav aria-label="文章分页" style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
+        ${page > 1 ? `<a href="${buildListUrl(page - 1)}" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;color:#8E44AD;text-decoration:none;">上一页</a>` : ''}
+        <span style="font-size:13px;color:#666;">第 ${page} / ${totalPages} 页 · 共 ${Number(totalRow?.total || 0)} 篇</span>
+        ${page < totalPages ? `<a href="${buildListUrl(page + 1)}" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;color:#8E44AD;text-decoration:none;">下一页</a>` : ''}
+      </nav>` : '';
 
     const content = `
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -62,16 +98,17 @@ export async function renderArticleList(env: Env, req: Request) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         ${filterLinks.map((item) => {
             const selected = typeParam === item.value;
-            const href = item.value === 'problem' ? '/articles/list?type=problem' : `/articles/list?type=${item.value}`;
+            const href = buildListUrl(1, item.value, 'all');
             return `<a href="${href}" style="padding:6px 12px;border-radius:999px;text-decoration:none;font-size:13px;border:1px solid ${selected ? '#8E44AD' : '#ddd'};background:${selected ? '#8E44AD' : '#fff'};color:${selected ? '#fff' : '#333'};">${item.label}</a>`;
         }).join('')}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
-        ${[['all', '全部分类'], ...Object.entries(categoryNames)].map(([value, label]) => `<a href="/articles/list?category=${value}" style="padding:5px 10px;border-radius:999px;text-decoration:none;font-size:12px;border:1px solid ${categoryParam === value ? '#3498db' : '#ddd'};background:${categoryParam === value ? '#3498db' : '#fff'};color:${categoryParam === value ? '#fff' : '#555'};">${label}</a>`).join('')}
+        ${[['all', '全部分类'], ...Object.entries(categoryNames)].map(([value, label]) => `<a href="${buildListUrl(1, typeParam, value)}" style="padding:5px 10px;border-radius:999px;text-decoration:none;font-size:12px;border:1px solid ${categoryParam === value ? '#3498db' : '#ddd'};background:${categoryParam === value ? '#3498db' : '#fff'};color:${categoryParam === value ? '#fff' : '#555'};">${label}</a>`).join('')}
       </div>
       ${typeParam === 'problem' ? `
         <form method="GET" action="/articles/list" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <input type="hidden" name="type" value="problem">
+          ${categoryParam !== 'all' ? `<input type="hidden" name="category" value="${htmlEscape(categoryParam)}">` : ''}
           <label style="font-size:13px;color:#666;">选择题目</label>
           <select name="id" onchange="this.form.submit()" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;min-width:180px;">
             <option value="">全部题目</option>
@@ -95,10 +132,12 @@ export async function renderArticleList(env: Env, req: Request) {
           <div style="color:#999;font-size:13px;margin-top:2px;">
             ${renderUsernameLink(a.username, a.color, a.tag, a.author_id)}
             · ${formatTimeToChina(a.created_at)}
+            ${a.is_saved ? ' · <span style="color:#8E44AD;"><i class="fas fa-bookmark"></i> 已收藏</span>' : ''}
           </div>
         </div>
       `).join('')}
       ${articles.results.length === 0 ? `<div style="color:#999;padding:20px 0;text-align:center;">${t('noArticles')}</div>` : ''}
+      ${pagination}
     </div>
   `;
     return await getLayout(env, user, t('articleList'), content, '', req);
@@ -108,14 +147,6 @@ export async function renderArticleNew(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (!user) return t('loginRequired');
-
-    const db = env.DB;
-    let unreadCount = 0;
-    if (user) {
-        const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
-            .bind(user.id).first();
-        unreadCount = countResult ? countResult.cnt : 0;
-    }
 
     const url = new URL(req.url);
     const isProblemMode = url.searchParams.get('problem') === 'true';
@@ -154,6 +185,8 @@ export async function renderArticleNew(env: Env, req: Request) {
         </div>
         <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 24px;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;">${t('publish')}</button>
         <a href="/articles/list" style="margin-left:10px;color:#999;text-decoration:none;">${t('cancel')}</a>
+        <div id="draftStatus" role="status" style="display:inline-block;margin-left:10px;color:#777;font-size:12px;">草稿仅保存在此设备</div>
+        <button id="clearDraft" type="button" style="margin-left:8px;background:none;border:0;color:#8E44AD;cursor:pointer;font-size:12px;">清除本机草稿</button>
       </form>
     </div>
     <script>
@@ -176,6 +209,62 @@ export async function renderArticleNew(env: Env, req: Request) {
         previewBtn.style.background = '#fff'; previewBtn.style.color = '#666'; previewBtn.style.borderColor = '#ddd';
       }
     }
+    (function() {
+      var form = document.querySelector('form[action="/api/articles"]');
+      if (!form) return;
+      var key = 'article-draft:${Number(user.id)}:${isProblemMode ? 'problem' : 'new'}';
+      var status = document.getElementById('draftStatus');
+      var fields = ['title', 'content', 'category', 'problem_id'];
+      function readDraft() {
+        try {
+          var raw = localStorage.getItem(key);
+          if (!raw) return;
+          var draft = JSON.parse(raw);
+          if (!draft || typeof draft.savedAt !== 'number' || Date.now() - draft.savedAt > 30 * 86400000) {
+            localStorage.removeItem(key);
+            return;
+          }
+          if (!confirm('发现本机保存的帖子草稿（' + new Date(draft.savedAt).toLocaleString() + '），是否恢复？')) return;
+          fields.forEach(function(name) {
+            var field = form.elements.namedItem(name);
+            if (field && typeof draft[name] === 'string') field.value = draft[name];
+          });
+        } catch (error) {
+          status.textContent = '读取草稿失败：浏览器存储不可用';
+        }
+      }
+      function saveDraft() {
+        try {
+          var draft = { savedAt: Date.now() };
+          fields.forEach(function(name) {
+            var field = form.elements.namedItem(name);
+            if (field) draft[name] = field.value;
+          });
+          localStorage.setItem(key, JSON.stringify(draft));
+          status.textContent = '草稿已自动保存到此设备';
+        } catch (error) {
+          status.textContent = '保存草稿失败：浏览器存储不可用';
+        }
+      }
+      readDraft();
+      form.addEventListener('input', saveDraft);
+      form.addEventListener('change', saveDraft);
+      form.addEventListener('submit', function() {
+        try {
+          sessionStorage.setItem('article-draft-pending', key);
+        } catch (error) {
+          status.textContent = '无法记录草稿提交状态；发布后如草稿仍存在，请手动清除';
+        }
+      });
+      document.getElementById('clearDraft').addEventListener('click', function() {
+        try {
+          localStorage.removeItem(key);
+          status.textContent = '本机草稿已清除';
+        } catch (error) {
+          status.textContent = '清除草稿失败：浏览器存储不可用';
+        }
+      });
+    })();
     </script>
   `;
     return await getLayout(env, user, t('newArticle'), content, '', req);
@@ -186,13 +275,6 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
     const user = await getSessionUser(env, req);
     const db = env.DB;
     const hexId = path.split('/')[2];
-
-    let unreadCount = 0;
-    if (user) {
-        const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
-            .bind(user.id).first();
-        unreadCount = countResult ? countResult.cnt : 0;
-    }
 
     const article = await db.prepare(
         `SELECT a.*, u.username, u.color, u.tag
@@ -209,6 +291,9 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
     ).bind(article.id).all();
     const likeCount = await db.prepare('SELECT COUNT(*) AS total FROM article_likes WHERE article_id = ?').bind(article.id).first();
     const liked = user ? await db.prepare('SELECT article_id FROM article_likes WHERE article_id = ? AND user_id = ?').bind(article.id, user.id).first() : null;
+    const bookmarked = user ? await db.prepare(
+        'SELECT article_id FROM article_bookmarks WHERE article_id = ? AND user_id = ?'
+    ).bind(article.id, user.id).first() : null;
     const categoryNames: Record<string, string> = { leisure: '休闲·娱乐', culture: '学习·文化', technology: '科技·工程', programming: '编程算法·理论', life: '生活·游记', announcement: '公告', other: '其他' };
 
     const isAuthor = user && user.id === article.author_id;
@@ -226,6 +311,7 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
         <button id="shareArticleButton" type="button" onclick="copyArticleLink()" style="background:#fff;color:#555;padding:7px 16px;border:1px solid #ddd;border-radius:999px;cursor:pointer;"><i class="fas fa-share-alt"></i> ${t('shareClip')}</button>
         ${user ? `<button id="likeButton" onclick="toggleLike()" style="background:${liked ? '#e74c3c' : '#fff'};color:${liked ? '#fff' : '#e74c3c'};padding:7px 16px;border:1px solid #e74c3c;border-radius:999px;cursor:pointer;"><i class="fas fa-heart"></i> <span id="likeText">${liked ? '已点赞' : '点赞'}</span> <span id="likeCount">${Number(likeCount?.total || 0)}</span></button>` : `<span style="color:#999;font-size:13px;">登录后可以点赞</span>`}
+        ${user ? `<button id="bookmarkButton" type="button" onclick="toggleBookmark()" style="background:${bookmarked ? '#8E44AD' : '#fff'};color:${bookmarked ? '#fff' : '#8E44AD'};padding:7px 16px;border:1px solid #8E44AD;border-radius:999px;cursor:pointer;"><i class="fas fa-bookmark"></i> <span id="bookmarkText">${bookmarked ? '已收藏' : '收藏'}</span></button>` : ''}
         ${(isAuthor || isAdmin) ? `
           <a href="/articles/${hexId}/edit" style="background:#3498db;color:#fff;padding:4px 14px;border-radius:4px;text-decoration:none;font-size:13px;"><i class="fas fa-edit"></i> ${t('edit')}</a>
         ` : ''}
@@ -260,6 +346,36 @@ export async function renderArticleDetail(env: Env, req: Request, path: string) 
         }
         toast('${t('clipShareCopied')}');
       }
+      async function toggleBookmark() {
+        const button = document.getElementById('bookmarkButton');
+        button.disabled = true;
+        try {
+          const response = await fetch('/api/articles/${Number(article.id)}/bookmark', { method: 'POST' });
+          const data = await response.json();
+          if (!response.ok) return toast(data.error || '收藏操作失败', 'error');
+          document.getElementById('bookmarkText').textContent = data.bookmarked ? '已收藏' : '收藏';
+          button.style.background = data.bookmarked ? '#8E44AD' : '#fff';
+          button.style.color = data.bookmarked ? '#fff' : '#8E44AD';
+        } catch (error) {
+          toast('网络错误，收藏操作失败', 'error');
+        } finally {
+          button.disabled = false;
+        }
+      }
+      (function() {
+        try {
+          const key = sessionStorage.getItem('article-draft-pending');
+          if (!key) return;
+          if (!key.startsWith('article-draft:${Number(user?.id || 0)}:')) {
+            sessionStorage.removeItem('article-draft-pending');
+            return;
+          }
+          localStorage.removeItem(key);
+          sessionStorage.removeItem('article-draft-pending');
+        } catch (error) {
+          console.error('Failed to clear the submitted article draft', error);
+        }
+      })();
     </script>
     <div class="card">
       <h3 id="comments" style="font-size:15px;font-weight:600;margin-bottom:10px;"><i class="fas fa-comments"></i> ${t('comments')}</h3>
@@ -326,13 +442,6 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
     const hexId = path.split('/')[2];
     const db = env.DB;
 
-    let unreadCount = 0;
-    if (user) {
-        const countResult = await db.prepare('SELECT COUNT(*) as cnt FROM messages WHERE to_user_id = ? AND is_read = 0')
-            .bind(user.id).first();
-        unreadCount = countResult ? countResult.cnt : 0;
-    }
-
     const article = await db.prepare('SELECT * FROM articles WHERE hex_id = ?').bind(hexId).first();
     if (!article) return t('articleNotFound');
     if (user.id !== article.author_id && !user.admin) return t('permissionDenied');
@@ -374,6 +483,8 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
         </div>
         <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 24px;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;">${t('saveChanges')}</button>
         <a href="/articles/${hexId}" style="margin-left:10px;color:#999;text-decoration:none;">${t('cancel')}</a>
+        <div id="draftStatus" role="status" style="display:inline-block;margin-left:10px;color:#777;font-size:12px;">编辑草稿仅保存在此设备</div>
+        <button id="clearDraft" type="button" style="margin-left:8px;background:none;border:0;color:#8E44AD;cursor:pointer;font-size:12px;">清除本机草稿</button>
       </form>
     </div>
     <script>
@@ -396,6 +507,60 @@ export async function renderArticleEdit(env: Env, req: Request, path: string) {
         previewBtn.style.background = '#fff'; previewBtn.style.color = '#666'; previewBtn.style.borderColor = '#ddd';
       }
     }
+    (function() {
+      var form = document.querySelector('form[action="/api/articles/${Number(article.id)}"]');
+      if (!form) return;
+      var key = 'article-draft:${Number(user.id)}:${htmlEscape(String(article.hex_id))}';
+      var status = document.getElementById('draftStatus');
+      var fields = ['title', 'content', 'category', 'problem_id'];
+      try {
+        var raw = localStorage.getItem(key);
+        if (raw) {
+          var draft = JSON.parse(raw);
+          if (draft && typeof draft.savedAt === 'number' && Date.now() - draft.savedAt <= 30 * 86400000 &&
+              confirm('发现本机保存的编辑草稿（' + new Date(draft.savedAt).toLocaleString() + '），是否恢复？')) {
+            fields.forEach(function(name) {
+              var field = form.elements.namedItem(name);
+              if (field && typeof draft[name] === 'string') field.value = draft[name];
+            });
+          } else if (!draft || Date.now() - Number(draft.savedAt || 0) > 30 * 86400000) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch (error) {
+        status.textContent = '读取草稿失败：浏览器存储不可用';
+      }
+      function saveDraft() {
+        try {
+          var draft = { savedAt: Date.now() };
+          fields.forEach(function(name) {
+            var field = form.elements.namedItem(name);
+            if (field) draft[name] = field.value;
+          });
+          localStorage.setItem(key, JSON.stringify(draft));
+          status.textContent = '草稿已自动保存到此设备';
+        } catch (error) {
+          status.textContent = '保存草稿失败：浏览器存储不可用';
+        }
+      }
+      form.addEventListener('input', saveDraft);
+      form.addEventListener('change', saveDraft);
+      form.addEventListener('submit', function() {
+        try {
+          sessionStorage.setItem('article-draft-pending', key);
+        } catch (error) {
+          status.textContent = '无法记录草稿提交状态；保存成功后如草稿仍存在，请手动清除';
+        }
+      });
+      document.getElementById('clearDraft').addEventListener('click', function() {
+        try {
+          localStorage.removeItem(key);
+          status.textContent = '本机草稿已清除';
+        } catch (error) {
+          status.textContent = '清除草稿失败：浏览器存储不可用';
+        }
+      });
+    })();
     </script>
   `;
     return await getLayout(env, user, t('editArticle'), content, '', req);

@@ -11,6 +11,72 @@ export async function handleUser(request: Request, env: Env, path: string) {
     const db = env.DB;
     const user = await getSessionUser(env, request);
 
+    if (path === '/api/user/export' && method === 'GET') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const [articles, comments, likes, bookmarks, referrals, checkins, loginHistory] = await Promise.all([
+            db.prepare(
+                'SELECT hex_id, title, content, article_type, category, problem_id, created_at FROM articles WHERE author_id = ? ORDER BY created_at DESC'
+            ).bind(user.id).all(),
+            db.prepare(
+                `SELECT c.content, c.parent_id, c.created_at, a.hex_id AS article_hex_id, a.title AS article_title
+                 FROM comments c JOIN articles a ON a.id = c.article_id
+                 WHERE c.author_id = ? ORDER BY c.created_at DESC`
+            ).bind(user.id).all(),
+            db.prepare(
+                `SELECT a.hex_id, a.title, l.created_at FROM article_likes l
+                 JOIN articles a ON a.id = l.article_id WHERE l.user_id = ? ORDER BY l.created_at DESC`
+            ).bind(user.id).all(),
+            db.prepare(
+                `SELECT a.hex_id, a.title, b.created_at FROM article_bookmarks b
+                 JOIN articles a ON a.id = b.article_id WHERE b.user_id = ? ORDER BY b.created_at DESC`
+            ).bind(user.id).all(),
+            db.prepare(
+                `SELECT r.created_at, u.username AS invitee_username FROM referrals r
+                 JOIN users u ON u.id = r.invitee_id WHERE r.inviter_id = ?
+                 UNION ALL
+                 SELECT r.created_at, u.username AS invitee_username FROM referrals r
+                 JOIN users u ON u.id = r.inviter_id WHERE r.invitee_id = ?`
+            ).bind(user.id, user.id).all(),
+            db.prepare(
+                `SELECT rc.checkin_date, r.inviter_id FROM referral_checkins rc
+                 JOIN referrals r ON r.invitee_id = rc.invitee_id
+                 WHERE rc.invitee_id = ? OR r.inviter_id = ? ORDER BY rc.checkin_date DESC`
+            ).bind(user.id, user.id).all(),
+            db.prepare(
+                'SELECT ip_address, user_agent, created_at FROM login_history WHERE user_id = ? ORDER BY id DESC LIMIT 100'
+            ).bind(user.id).all(),
+        ]);
+        const exportData = {
+            exportedAt: new Date().toISOString(),
+            profile: {
+                id: user.id,
+                username: user.username,
+                createdAt: user.created_at,
+                points: user.points,
+                realName: user.real_name,
+                location: user.location,
+                profileLink: user.profile_link,
+                bio: user.bio,
+                avatarUrl: user.avatar_url,
+            },
+            articles: articles.results,
+            comments: comments.results,
+            likedArticles: likes.results,
+            bookmarkedArticles: bookmarks.results,
+            referrals: referrals.results,
+            referralCheckins: checkins.results,
+            recentLogins: loginHistory.results,
+        };
+        return new Response(JSON.stringify(exportData, null, 2), {
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Content-Disposition': `attachment; filename="starlight-user-data-${Number(user.id)}.json"`,
+                'Cache-Control': 'private, no-store',
+                'X-Content-Type-Options': 'nosniff',
+            },
+        });
+    }
+
     if (path === '/api/user/password' && method === 'POST') {
         if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
         const body = await request.json() as { current_password?: string; new_password?: string };

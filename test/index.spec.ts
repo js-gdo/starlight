@@ -995,3 +995,92 @@ describe("hover sidebar rendering", () => {
 		expect(html).toContain(".user-section > form");
 	});
 });
+
+describe("community essentials", () => {
+	it("supports article bookmarks, following feeds, and paginated article lists", async () => {
+		await SELF.fetch("https://example.com/");
+		const suffix = crypto.randomUUID().slice(0, 8);
+		const viewerInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password) VALUES (?, ?)'
+		).bind(`essentials_viewer_${suffix}`, 'unused').run();
+		const authorInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password) VALUES (?, ?)'
+		).bind(`essentials_author_${suffix}`, 'unused').run();
+		const viewerId = Number(viewerInsert.meta.last_row_id);
+		const authorId = Number(authorInsert.meta.last_row_id);
+		const session = await createSession(env, viewerId);
+		const articleIds: number[] = [];
+		for (let index = 0; index < 21; index += 1) {
+			const result = await env.DB.prepare(
+				'INSERT INTO articles (hex_id, title, content, author_id, created_at) VALUES (?, ?, ?, ?, ?)'
+			).bind(
+				`${suffix}${String(index).padStart(8, '0')}`,
+				`Essentials pagination ${suffix} ${index}`,
+				'content',
+				authorId,
+				new Date(Date.UTC(2030, 0, 1, 0, 0, index)).toISOString(),
+			).run();
+			articleIds.push(Number(result.meta.last_row_id));
+		}
+
+		const bookmark = await worker.fetch(new IncomingRequest(`http://example.com/api/articles/${articleIds[0]}/bookmark`, {
+			method: 'POST',
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(bookmark.status).toBe(200);
+		expect(await bookmark.json()).toEqual({ bookmarked: true });
+
+		const savedList = await worker.fetch(new IncomingRequest('http://example.com/articles/list?type=saved', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(await savedList.text()).toContain(`Essentials pagination ${suffix} 0`);
+
+		await env.DB.prepare('INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)')
+			.bind(viewerId, authorId).run();
+		const followingList = await worker.fetch(new IncomingRequest('http://example.com/articles/list?type=following', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(await followingList.text()).toContain(`Essentials pagination ${suffix}`);
+
+		const firstPage = await worker.fetch(new IncomingRequest('http://example.com/articles/list?type=following&page=1', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		const firstHtml = await firstPage.text();
+		expect(firstHtml).toContain('第 1 / 2 页');
+		expect(firstHtml).not.toContain(`Essentials pagination ${suffix} 0`);
+		const secondPage = await worker.fetch(new IncomingRequest('http://example.com/articles/list?type=following&page=2', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(await secondPage.text()).toContain(`Essentials pagination ${suffix} 0`);
+
+		const unbookmark = await worker.fetch(new IncomingRequest(`http://example.com/api/articles/${articleIds[0]}/bookmark`, {
+			method: 'POST',
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(await unbookmark.json()).toEqual({ bookmarked: false });
+	});
+
+	it("exports only the authenticated user's account data as a private download", async () => {
+		await SELF.fetch("https://example.com/");
+		const suffix = crypto.randomUUID().slice(0, 8);
+		const inserted = await env.DB.prepare(
+			'INSERT INTO users (username, password, bio) VALUES (?, ?, ?)'
+		).bind(`export_user_${suffix}`, 'must-not-export-this-password', 'export bio').run();
+		const userId = Number(inserted.meta.last_row_id);
+		const session = await createSession(env, userId);
+		const denied = await worker.fetch(new IncomingRequest('http://example.com/api/user/export'), env, createExecutionContext());
+		expect(denied.status).toBe(403);
+
+		const response = await worker.fetch(new IncomingRequest('http://example.com/api/user/export', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Disposition')).toContain(`starlight-user-data-${userId}.json`);
+		expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+		const body = await response.text();
+		expect(body).toContain(`export_user_${suffix}`);
+		expect(body).toContain('export bio');
+		expect(body).not.toContain('must-not-export-this-password');
+		expect(body).not.toContain('session_version');
+	});
+});
