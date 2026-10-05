@@ -4,8 +4,51 @@ import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
 import { hasAdminPermission } from './adminPermissions';
 import { validateBackgroundUrl, normalizeBackgroundMode } from './profile';
-import { getUserTagStyle } from './constants';
+import { getPointsRankBadgeLevel, getUserTagStyle } from './constants';
 import type { Env } from '../env.d';
+
+async function addPointRankBadges(html: string, db: Env['DB']): Promise<string> {
+    const userIds = Array.from(
+        html.matchAll(/<a\b(?=[^>]*\bclass="[^"]*\busername-link\b[^"]*")(?=[^>]*\bdata-user-id="(\d+)")[^>]*>/g),
+        match => Number(match[1])
+    ).filter(id => Number.isSafeInteger(id) && id > 0);
+    const uniqueUserIds = Array.from(new Set(userIds));
+    if (!uniqueUserIds.length) return html;
+
+    const ranks = new Map<number, { level: 'gold' | 'blue' | 'green'; rank: number; total: number }>();
+    for (let offset = 0; offset < uniqueUserIds.length; offset += 400) {
+        const ids = uniqueUserIds.slice(offset, offset + 400);
+        const rows = await db.prepare(
+            `SELECT target.id, COUNT(higher.id) + 1 AS rank,
+                    (SELECT COUNT(*) FROM users WHERE use = 1) AS total
+             FROM users AS target
+             LEFT JOIN users AS higher
+               ON higher.use = 1
+              AND (higher.points > target.points OR (higher.points = target.points AND higher.id < target.id))
+             WHERE target.use = 1 AND target.id IN (${ids.map(() => '?').join(',')})
+             GROUP BY target.id`
+        ).bind(...ids).all<{ id: number; rank: number; total: number }>();
+        for (const row of rows.results || []) {
+            const rank = Number(row.rank);
+            const total = Number(row.total);
+            const level = getPointsRankBadgeLevel(rank, total);
+            if (level) ranks.set(Number(row.id), { level, rank, total });
+        }
+    }
+
+    const colors = { gold: '#f1c40f', blue: '#3498db', green: '#5eb95e' };
+    const checkPath = 'M16 8C16 6.84375 15.25 5.84375 14.1875 5.4375C14.6562 4.4375 14.4688 3.1875 13.6562 2.34375C12.8125 1.53125 11.5625 1.34375 10.5625 1.8125C10.1562 0.75 9.15625 0 8 0C6.8125 0 5.8125 0.75 5.40625 1.8125C4.40625 1.34375 3.15625 1.53125 2.34375 2.34375C1.5 3.1875 1.3125 4.4375 1.78125 5.4375C0.71875 5.84375 0 6.84375 0 8C0 9.1875 0.71875 10.1875 1.78125 10.5938C1.3125 11.5938 1.5 12.8438 2.34375 13.6562C3.15625 14.5 4.40625 14.6875 5.40625 14.2188C5.8125 15.2812 6.8125 16 8 16C9.15625 16 10.1562 15.2812 10.5625 14.2188C11.5938 14.6875 12.8125 14.5 13.6562 13.6562C14.4688 12.8438 14.6562 11.5938 14.1875 10.5938C15.25 10.1875 16 9.1875 16 8ZM11.4688 6.625L7.375 10.6875C7.21875 10.84375 7 10.8125 6.875 10.6875L4.5 8.3125C4.375 8.1875 4.375 7.96875 4.5 7.8125L5.3125 7C5.46875 6.875 5.6875 6.875 5.8125 7.03125L7.125 8.34375L10.1562 5.34375C10.3125 5.1875 10.5312 5.1875 10.6562 5.34375L11.4688 6.15625C11.5938 6.28125 11.5938 6.5 11.4688 6.625Z';
+
+    return html.replace(
+        /<a\b(?=[^>]*\bclass="[^"]*\busername-link\b[^"]*")(?=[^>]*\bdata-user-id="(\d+)")[^>]*>[\s\S]*?<\/a>/g,
+        (link, rawId: string) => {
+            const markedLink = link.replace(/^(<a\b[^>]*)(>)/, '$1 data-point-badge-ready="1"$2');
+            const badge = ranks.get(Number(rawId));
+            if (!badge) return markedLink;
+            return `${markedLink}<svg class="point-rank-badge" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="${colors[badge.level]}" aria-label="${badge.level} point rank" title="积分排名：${badge.rank} / ${badge.total}" style="display:inline-block;vertical-align:-3px;margin-left:3px;"><path d="${checkPath}"></path></svg>`;
+        }
+    );
+}
 
 export async function getLayout(
     env: Env,
@@ -175,7 +218,7 @@ export async function getLayout(
       </header>
     ` : '';
     const starlightHero = layoutMode === 'starlight' && currentPath === '/' ? `
-      <section class="starlight-home-hero"><div class="starlight-hero-inner"><div class="starlight-hero-kicker">STARLIGHT COMMUNITY</div><h1>${user ? `欢迎回来，<span class="username-link" data-user-id="${user.id}">${htmlEscape(user.username)}${user.tag ? `<span style="${htmlEscape(getUserTagStyle(user.color))}">${htmlEscape(user.tag)}</span>` : ''}</span>` : '欢迎来到 StarLight'}</h1><p>写文章、开工单、刷 OJ、组团队，在这里分享你的想法和作品。</p><div class="starlight-hero-actions"><a class="starlight-hero-primary" href="${user ? '/articles/new' : '/register'}"><i class="fas ${user ? 'fa-pen-to-square' : 'fa-user-plus'}"></i> ${user ? t('newArticle') : t('register')}</a><a class="starlight-hero-secondary" href="/articles/list"><i class="fas fa-book-open"></i> ${t('articleList')}</a></div></div><div class="starlight-hero-mark" aria-hidden="true"><i class="fas fa-star"></i></div></section>
+      <section class="starlight-home-hero"><div class="starlight-hero-inner"><div class="starlight-hero-kicker">STARLIGHT COMMUNITY</div><h1>${user ? `欢迎回来，${renderUsernameLink(user.username, user.color, user.tag, user.id)}` : '欢迎来到 StarLight'}</h1><p>写文章、开工单、刷 OJ、组团队，在这里分享你的想法和作品。</p><div class="starlight-hero-actions"><a class="starlight-hero-primary" href="${user ? '/articles/new' : '/register'}"><i class="fas ${user ? 'fa-pen-to-square' : 'fa-user-plus'}"></i> ${user ? t('newArticle') : t('register')}</a><a class="starlight-hero-secondary" href="/articles/list"><i class="fas fa-book-open"></i> ${t('articleList')}</a></div></div><div class="starlight-hero-mark" aria-hidden="true"><i class="fas fa-star"></i></div></section>
     ` : '';
 
     let userSection = '';
@@ -303,7 +346,7 @@ export async function getLayout(
     ` : '';
         const siteStatusHtml = siteStatus !== 'normal' ? `<div class="site-status-banner" style="max-width:1360px;margin:0 auto 10px;padding:8px 12px;border-radius:6px;background:${siteStatus === 'maintenance' ? '#fff1f2' : '#fff7ed'};border:1px solid ${siteStatus === 'maintenance' ? '#fecdd3' : '#fed7aa'};color:${siteStatus === 'maintenance' ? '#be123c' : '#c2410c'};font-size:13px;"><i class="fas fa-circle-exclamation"></i> ${siteStatus === 'maintenance' ? '维护中，部分功能暂时不可用' : '站点当前处于维护状态，请稍后再试'}</div>` : '';
 
-    return `<!DOCTYPE html>
+    const pageHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -1920,4 +1963,5 @@ export async function getLayout(
   </script>` : ''}
 </body>
 </html>`;
+    return env?.DB ? addPointRankBadges(pageHtml, env.DB) : pageHtml;
 }
