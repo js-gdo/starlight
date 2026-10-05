@@ -1072,6 +1072,63 @@ export async function getLayout(
       return String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function protectMathExpressions(text) {
+      const delimiters = [
+        { open: '\\\\(', close: '\\\\)', multiline: false },
+        { open: '\\\\[', close: '\\\\]', multiline: true },
+        { open: '$$', close: '$$', multiline: true },
+        { open: '$', close: '$', multiline: false }
+      ];
+      const expressions = [];
+      let tokenPrefix = 'STARMATHPLACEHOLDER';
+      while (text.indexOf(tokenPrefix) !== -1) tokenPrefix += 'X';
+      let output = '';
+      let cursor = 0;
+      let searchFrom = 0;
+      let expressionIndex = 0;
+      while (searchFrom < text.length) {
+        let start = -1;
+        let delimiter = null;
+        delimiters.forEach(function(candidate) {
+          const candidateStart = text.indexOf(candidate.open, searchFrom);
+          if (candidateStart !== -1 && (start === -1 || candidateStart < start)) {
+            start = candidateStart;
+            delimiter = candidate;
+          }
+        });
+        if (start === -1 || !delimiter) break;
+        let end = text.indexOf(delimiter.close, start + delimiter.open.length);
+        if (delimiter.open === '$') {
+          while (end !== -1 && (text[end - 1] === '$' || text[end + 1] === '$')) {
+            end = text.indexOf(delimiter.close, end + delimiter.close.length);
+          }
+        }
+        if (end !== -1 && !delimiter.multiline) {
+          const lineBreak = text.indexOf('\n', start);
+          if (lineBreak !== -1 && lineBreak < end) end = -1;
+        }
+        if (end === -1) {
+          searchFrom = start + delimiter.open.length;
+          continue;
+        }
+        const token = tokenPrefix + expressionIndex++ + 'END';
+        output += text.slice(cursor, start) + token;
+        expressions.push({ token: token, source: text.slice(start, end + delimiter.close.length) });
+        cursor = end + delimiter.close.length;
+        searchFrom = cursor;
+      }
+      output += text.slice(cursor);
+      return {
+        text: output,
+        restore: function(rendered) {
+          expressions.forEach(function(expression) {
+            rendered = rendered.split(expression.token).join(expression.source);
+          });
+          return rendered;
+        }
+      };
+    }
+
     const scriptPromises = {};
     function loadScript(src) {
       if (scriptPromises[src]) return scriptPromises[src];
@@ -1090,8 +1147,9 @@ export async function getLayout(
     }
 
     function renderMarkdown(text) {
-      const resolvedText = resolveMentionMarkdown(text);
-      if (!resolvedText) return '';
+      if (!text) return '';
+      const protectedMath = protectMathExpressions(String(text));
+      const resolvedText = resolveMentionMarkdown(protectedMath.text);
       const canPurify = typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function';
       const source = canPurify ? resolvedText : escapeAngleBrackets(resolvedText);
       let parsed = '';
@@ -1107,6 +1165,7 @@ export async function getLayout(
         console.warn('Markdown parse error:', e);
       }
       if (!parsed) parsed = String(source).replace(/\\n/g, '<br>');
+      parsed = protectedMath.restore(parsed);
       return canPurify ? sanitizeHtml(parsed) : parsed;
     }
     window.renderMarkdownHtml = renderMarkdown;
@@ -1134,6 +1193,7 @@ export async function getLayout(
       Promise.all([
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js'),
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.15/purify.min.js')
+          .catch(function(error) { console.warn('DOMPurify failed to load; Markdown will escape raw HTML:', error); })
       ]).then(function() {
         var mathNodes = [];
         markdownNodes.forEach(function(el) {
