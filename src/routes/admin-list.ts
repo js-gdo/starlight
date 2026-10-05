@@ -1,7 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { htmlEscape, renderAvatar, renderUsernameLink } from '../utils/html';
-import { getUserTagStyle } from '../utils/constants';
 import { ADMIN_ROLE_KEYS, ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import type { Env } from '../env.d';
 
@@ -55,7 +54,7 @@ export async function renderAdminList(env: Env, req: Request) {
         <div class="admin-warning">superuser 批量修改必须填写理由；可多选管理员，也可以身兼多个分类。</div>
         <form class="admin-role-form" action="/api/admin/roles" method="POST" style="border-top:0;padding-top:0;">
           <div style="display:grid;gap:8px;">
-            ${admins.map((admin: any) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" name="user_id" value="${admin.id}"> <span class="username-link" data-user-id="${admin.id}">${htmlEscape(String(admin.username))}${admin.tag ? `<span style="${htmlEscape(getUserTagStyle(admin.color))}">${htmlEscape(String(admin.tag))}</span>` : ''}</span>（UID ${admin.id}）</label>`).join('')}
+            ${admins.map((admin: any) => `<label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" name="user_id" value="${admin.id}"> ${renderUsernameLink(admin.username, admin.color, admin.tag, admin.id)}（UID ${admin.id}）</label>`).join('')}
           </div>
           <div class="admin-role-options">${roleOptions}</div>
           <input type="text" name="reason" required maxlength="500" placeholder="必须填写批量修改理由">
