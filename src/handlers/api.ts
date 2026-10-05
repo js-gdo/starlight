@@ -15,8 +15,7 @@ import { handleEgg } from './egg';
 import { handleOj } from './oj';
 import { jsonRes } from '../utils/auth';
 import { getPointsRankBadgeLevel, getUserColor, isValidUserColor } from '../utils/constants';
-import { getAchievementBadges, getAchievementDefinition, getUserAchievementIds } from '../utils/achievements';
-import { htmlEscape } from '../utils/html';
+import { htmlEscape, renderUserVerificationBadge } from '../utils/html';
 import { validateAvatarUrl } from '../utils/profile';
 import { handleRedeem } from './redeem';
 import { handleGame } from './game';
@@ -26,30 +25,21 @@ import type { Env } from '../env.d';
 
 async function renderUserSvg(env: Env, uid: number): Promise<Response> {
     const user = await env.DB.prepare(
-        'SELECT id, username, color, tag, avatar_url, points, admin, use FROM users WHERE id = ?'
+        `WITH target AS (
+            SELECT id, username, color, tag, avatar_url, points
+            FROM users WHERE id = ? AND use = 1
+         )
+         SELECT target.*,
+            (SELECT COUNT(*) FROM users WHERE use = 1) AS total_users,
+            (SELECT COUNT(*) FROM users WHERE use = 1
+             AND (points > target.points OR (points = target.points AND id <= target.id))) AS user_rank
+         FROM target`
     ).bind(uid).first<any>();
-    if (!user || !user.use) return jsonRes({ error: 'User not found' }, 404);
-
-    const totalRow = await env.DB.prepare('SELECT COUNT(*) AS count FROM users WHERE use = 1').first<any>();
-    const rankRow = await env.DB.prepare(
-        `SELECT COUNT(*) AS count FROM users
-         WHERE use = 1 AND (points > ? OR (points = ? AND id <= ?))`
-    ).bind(Number(user.points || 0), Number(user.points || 0), uid).first<any>();
-    const rankLevel = getPointsRankBadgeLevel(Number(rankRow?.count || 0), Number(totalRow?.count || 0));
-    await getAchievementBadges(env.DB, uid);
-    const achievementIds = await getUserAchievementIds(env.DB, uid);
-    const achievements = achievementIds
-        .map((id) => getAchievementDefinition(id))
-        .filter((achievement): achievement is NonNullable<typeof achievement> => !!achievement);
-    const visibleAchievements = achievements.slice(0, 16);
+    if (!user) return jsonRes({ error: 'User not found' }, 404);
+    const rankLevel = getPointsRankBadgeLevel(Number(user.user_rank || 0), Number(user.total_users || 0));
     const name = String(user.username || 'Unknown');
     const safeName = htmlEscape(name);
-    const usernameWidth = Array.from(name).reduce((width, char) => width + (char.codePointAt(0)! > 255 ? 27 : 15), 0);
-    const width = Math.max(
-        640,
-        151 + usernameWidth + (rankLevel ? 42 : 0) + 24,
-        180 + visibleAchievements.length * 34 + (achievements.length > visibleAchievements.length ? 46 : 0)
-    );
+    const usernameWidth = Array.from(name).reduce((width, char) => width + (char.codePointAt(0)! > 255 ? 16 : 9), 0);
     const colorKey = String(user.color || 'red');
     const safeColorKey = isValidUserColor(colorKey) ? colorKey : 'red';
     const nameColor = safeColorKey === 'rainbow' ? 'url(#username-gradient)' : getUserColor(safeColorKey);
@@ -58,32 +48,26 @@ async function renderUserSvg(env: Env, uid: number): Promise<Response> {
     const initial = htmlEscape(Array.from(name)[0] || '?').toUpperCase();
     const tag = String(user.tag || '');
     const safeTag = htmlEscape(Array.from(tag).slice(0, 28).join(''));
-    const tagWidth = Math.max(38, Math.min(Array.from(tag).length, 28) * 12 + 22);
+    const tagWidth = Math.max(38, Math.min(Array.from(tag).length, 28) * 8 + 16);
     const tagColor = safeColorKey === 'rainbow' ? 'url(#username-gradient)' : getUserColor(safeColorKey);
-    const rankColor = rankLevel === 'gold' ? '#f1c40f' : rankLevel === 'blue' ? '#3498db' : '#5eb95e';
+    const rankBadge = rankLevel ? renderUserVerificationBadge(rankLevel) : '';
+    const badgeWidth = rankLevel ? 19 : 0;
+    const tagX = 60 + usernameWidth + badgeWidth + 6;
+    const width = Math.max(160, tagX + (safeTag ? tagWidth : 0) + 12);
     const gradient = safeColorKey === 'rainbow'
         ? '<linearGradient id="username-gradient"><stop stop-color="#E74C3C"/><stop offset="14%" stop-color="#E67E22"/><stop offset="29%" stop-color="#F1C40F"/><stop offset="43%" stop-color="#5EB95E"/><stop offset="57%" stop-color="#00BCD4"/><stop offset="71%" stop-color="#0E90D2"/><stop offset="100%" stop-color="#8E44AD"/></linearGradient>'
         : '';
-    const achievementSvg = visibleAchievements.map((achievement, index) => {
-        const x = 151 + index * 34;
-        return `<g transform="translate(${x} 139)"><title>${htmlEscape(achievement.name + ': ' + achievement.description)}</title><circle r="11" fill="${htmlEscape(achievement.color)}" opacity=".14"/><text text-anchor="middle" dominant-baseline="central" font-size="15" fill="${htmlEscape(achievement.color)}">${htmlEscape(achievement.icon)}</text></g>`;
-    }).join('');
-    const remaining = achievements.length - visibleAchievements.length;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="168" viewBox="0 0 ${width} 168" role="img" aria-label="${safeName} profile">
-  <title>${safeName} · UID ${uid}</title>
-  <defs>${gradient}<clipPath id="avatar-clip"><circle cx="78" cy="82" r="52"/></clipPath></defs>
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="40" viewBox="0 0 ${width} 40" role="img" aria-label="${safeName}">
+  <title>${safeName}</title>
+  <defs>${gradient}<clipPath id="avatar-clip"><circle cx="20" cy="20" r="16"/></clipPath></defs>
   <a href="/user/${uid}" target="_top" aria-label="View ${safeName}'s profile">
-    <rect width="${width}" height="168" rx="18" fill="#fff" stroke="#e9e4ef"/>
-    <circle cx="78" cy="82" r="55" fill="#f2eaf7"/>
-    <circle cx="78" cy="82" r="52" fill="#8E44AD"/>
-    <text x="78" y="91" text-anchor="middle" font-family="Arial,sans-serif" font-size="32" font-weight="700" fill="#fff">${initial}</text>
-    ${safeAvatarUrl ? `<image href="${safeAvatarUrl}" x="26" y="30" width="104" height="104" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>` : ''}
-    <text x="151" y="64" font-family="Arial,sans-serif" font-size="27" font-weight="700" fill="${nameColor}">${safeName}</text>
-    ${rankLevel ? `<g transform="translate(${151 + usernameWidth + 14} 45)"><title>${rankLevel} rank</title><circle r="12" fill="${rankColor}"/><path d="M-5 0l3.5 3.5L5-4" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></g>` : ''}
-    ${safeTag ? `<rect x="151" y="78" width="${tagWidth}" height="23" rx="6" fill="${tagColor}"/><text x="${151 + tagWidth / 2}" y="94" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#fff">${safeTag}</text>` : ''}
-    <text x="151" y="120" font-family="Arial,sans-serif" font-size="13" fill="#7b7282">UID ${uid} · ${Number(user.points || 0)} points${Number(user.admin) ? ' · Admin' : ''}</text>
-    ${achievementSvg}
-    ${remaining > 0 ? `<g transform="translate(${151 + visibleAchievements.length * 34} 139)"><circle r="11" fill="#eee9f2"/><text text-anchor="middle" dominant-baseline="central" font-family="Arial,sans-serif" font-size="10" fill="#6f6578">+${remaining}</text><title>${remaining} more achievements</title></g>` : ''}
+    <rect width="${width}" height="40" rx="20" fill="#fff" stroke="#e9e4ef"/>
+    <circle cx="20" cy="20" r="16" fill="#8E44AD"/>
+    <text x="20" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#fff">${initial}</text>
+    ${safeAvatarUrl ? `<image href="${safeAvatarUrl}" x="4" y="4" width="32" height="32" preserveAspectRatio="xMidYMid slice" clip-path="url(#avatar-clip)"/>` : ''}
+    <text x="44" y="25" font-family="Arial,sans-serif" font-size="15" font-weight="600" fill="${nameColor}">${safeName}</text>
+    ${rankBadge ? `<g transform="translate(${44 + usernameWidth + 4} 12)"><title>${rankLevel} rank</title>${rankBadge}</g>` : ''}
+    ${safeTag ? `<rect x="${tagX}" y="10" width="${tagWidth}" height="20" rx="6" fill="${tagColor}"/><text x="${tagX + tagWidth / 2}" y="24" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="600" fill="#fff">${safeTag}</text>` : ''}
   </a>
 </svg>`;
     return new Response(svg, {

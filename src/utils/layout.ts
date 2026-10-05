@@ -1,4 +1,4 @@
-import { htmlEscape, renderAvatar, renderUsernameLink } from './html';
+import { htmlEscape, renderUsernameLink } from './html';
 import { getChinaTime, HITOKOTO_FALLBACK } from './time';
 import { getSystemUnreadCount, getPmUnreadCount } from './notification';
 import { getTranslator, getLanguage } from './i18n';
@@ -167,20 +167,19 @@ export async function getLayout(
           <a class="starlight-brand" href="/"><span class="starlight-brand-mark"><i class="fas fa-star"></i></span><span>StarLight<small>社区</small></span></a>
           <nav class="starlight-primary-nav" aria-label="主导航">${primaryNavItems.map(item => renderTopNavItem(item)).join('')}</nav>
           <details class="starlight-more-nav" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}">其他 <i class="fas fa-chevron-down"></i>${moreNavBadgeCount ? `<span class="top-nav-badge">${moreNavBadgeCount}</span>` : ''}</summary><div class="starlight-more-menu">${moreNavItems.map(item => renderTopNavItem(item)).join('')}</div></details>
-          <div class="starlight-top-actions">${user ? `<a class="starlight-user" href="/user/${user.id}" title="${htmlEscape(user.username)}">${renderAvatar(user, 30)}<span>${htmlEscape(user.username)}</span></a><a class="starlight-icon-link" href="/settings" title="用户设置" aria-label="用户设置"><i class="fas fa-user-cog"></i></a><form action="/logout" method="GET"><button class="starlight-icon-link" type="submit" title="${t('logout')}" aria-label="${t('logout')}"><i class="fas fa-sign-out-alt"></i></button></form>` : `<a href="/login">${t('login')}</a><a class="starlight-login" href="/register">${t('register')}</a>`}</div>
+          <div class="starlight-top-actions">${user ? `<span class="starlight-user">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</span><a class="starlight-icon-link" href="/settings" title="用户设置" aria-label="用户设置"><i class="fas fa-user-cog"></i></a><form action="/logout" method="GET"><button class="starlight-icon-link" type="submit" title="${t('logout')}" aria-label="${t('logout')}"><i class="fas fa-sign-out-alt"></i></button></form>` : `<a href="/login">${t('login')}</a><a class="starlight-login" href="/register">${t('register')}</a>`}</div>
           <button class="starlight-menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" onclick="toggleStarlightMenu()"><i class="fas fa-bars"></i></button>
         </div>
         <nav class="starlight-mobile-drawer" id="starlightMobileDrawer" aria-label="移动端导航">${primaryNavItems.map(item => renderTopNavItem(item, true)).join('')}<details class="starlight-mobile-more" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}"><i class="fas fa-ellipsis"></i><span>其他</span>${moreNavBadgeCount ? `<span class="top-nav-badge">${moreNavBadgeCount}</span>` : ''}</summary><div class="starlight-mobile-more-menu">${moreNavItems.map(item => renderTopNavItem(item, true)).join('')}</div></details></nav>
       </header>
     ` : '';
     const starlightHero = layoutMode === 'starlight' && currentPath === '/' ? `
-      <section class="starlight-home-hero"><div class="starlight-hero-inner"><div class="starlight-hero-kicker">STARLIGHT COMMUNITY</div><h1>${user ? `欢迎回来，${htmlEscape(user.username)}` : '欢迎来到 StarLight'}</h1><p>写文章、开工单、刷 OJ、组团队，在这里分享你的想法和作品。</p><div class="starlight-hero-actions"><a class="starlight-hero-primary" href="${user ? '/articles/new' : '/register'}"><i class="fas ${user ? 'fa-pen-to-square' : 'fa-user-plus'}"></i> ${user ? t('newArticle') : t('register')}</a><a class="starlight-hero-secondary" href="/articles/list"><i class="fas fa-book-open"></i> ${t('articleList')}</a></div></div><div class="starlight-hero-mark" aria-hidden="true"><i class="fas fa-star"></i></div></section>
+      <section class="starlight-home-hero"><div class="starlight-hero-inner"><div class="starlight-hero-kicker">STARLIGHT COMMUNITY</div><h1>${user ? `欢迎回来，${renderUsernameLink(user.username, user.color, user.tag, user.id)}` : '欢迎来到 StarLight'}</h1><p>写文章、开工单、刷 OJ、组团队，在这里分享你的想法和作品。</p><div class="starlight-hero-actions"><a class="starlight-hero-primary" href="${user ? '/articles/new' : '/register'}"><i class="fas ${user ? 'fa-pen-to-square' : 'fa-user-plus'}"></i> ${user ? t('newArticle') : t('register')}</a><a class="starlight-hero-secondary" href="/articles/list"><i class="fas fa-book-open"></i> ${t('articleList')}</a></div></div><div class="starlight-hero-mark" aria-hidden="true"><i class="fas fa-star"></i></div></section>
     ` : '';
 
     let userSection = '';
     if (user) {
         userSection = `
-      <div class="avatar" data-unknown-avatar="1" title="">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
       <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
       <button id="browser-notifications-toggle" type="button" onclick="toggleBrowserNotifications()" data-enable-label="${htmlEscape(t('enableBrowserNotifications'))}" data-enabled-label="${htmlEscape(t('browserNotificationsEnabled'))}" style="color:#8E44AD;background:none;border:0;cursor:pointer;font-size:12px;"><i class="fas fa-bell"></i> ${t('enableBrowserNotifications')}</button>
@@ -781,7 +780,6 @@ export async function getLayout(
     body.layout-starlight .starlight-top-actions { display:flex; align-items:center; gap:5px; flex:none; }
     body.layout-starlight .starlight-top-actions form { display:flex; }
     body.layout-starlight .starlight-user { display:flex; align-items:center; gap:7px; color:#45414d; text-decoration:none; font-size:12px; }
-    body.layout-starlight .starlight-user img { width:30px; height:30px; object-fit:cover; border-radius:50%; }
     body.layout-starlight .starlight-icon-link { display:grid; place-items:center; width:34px; height:34px; border-radius:8px; color:#77717f; text-decoration:none; }
     body.layout-starlight .starlight-icon-link:hover { background:#f6edfa; color:#6c3483; }
     body.layout-starlight .starlight-login { padding:6px 10px; border-radius:6px; color:#fff; background:#8e44ad; }
@@ -826,7 +824,6 @@ export async function getLayout(
       body.layout-starlight .starlight-topbar-inner { padding:0 14px; }
       body.layout-starlight .starlight-primary-nav, body.layout-starlight .starlight-more-nav { display:none; }
       body.layout-starlight .starlight-top-actions { margin-left:auto; }
-      body.layout-starlight .starlight-user span { display:none; }
       body.layout-starlight .starlight-menu-toggle { display:grid; place-items:center; width:36px; height:36px; border-radius:8px; color:#5c5662; }
       body.layout-starlight .starlight-mobile-drawer { position:absolute; top:100%; left:0; right:0; display:none; max-height:calc(100vh - 60px); overflow:auto; padding:9px 14px 14px; border-bottom:1px solid #e8e6ef; background:#fff; box-shadow:0 12px 28px rgba(34,26,58,.12); }
       body.layout-starlight .starlight-mobile-drawer.open { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px; }
@@ -1256,62 +1253,7 @@ export async function getLayout(
         })
         .catch(function(error) { console.warn('Hitokoto request failed:', error); });
       renderMarkdownNodes(document);
-      decoratePointBadges(document);
     });
-
-    function decoratePointBadges(root) {
-      var target = root || document;
-      var selector = '.username-link[data-user-id]:not([data-point-badge-ready])';
-      var nodes = [];
-      if (typeof target.matches === 'function' && target.matches(selector)) nodes.push(target);
-      if (typeof target.querySelectorAll === 'function') nodes.push.apply(nodes, Array.from(target.querySelectorAll(selector)));
-      var colors = { gold: '#f1c40f', blue: '#3498db', green: '#5eb95e' };
-      var path = 'M16 8C16 6.84375 15.25 5.84375 14.1875 5.4375C14.6562 4.4375 14.4688 3.1875 13.6562 2.34375C12.8125 1.53125 11.5625 1.34375 10.5625 1.8125C10.1562 0.75 9.15625 0 8 0C6.8125 0 5.8125 0.75 5.40625 1.8125C4.40625 1.34375 3.15625 1.53125 2.34375 2.34375C1.5 3.1875 1.3125 4.4375 1.78125 5.4375C0.71875 5.84375 0 6.84375 0 8C0 9.1875 0.71875 10.1875 1.78125 10.5938C1.3125 11.5938 1.5 12.8438 2.34375 13.6562C3.15625 14.5 4.40625 14.6875 5.40625 14.2188C5.8125 15.28125 6.8125 16 8 16C9.15625 16 10.1562 15.2812 10.5625 14.2188C11.5938 14.6875 12.8125 14.5 13.6562 13.6562C14.4688 12.8438 14.6562 11.5938 14.1875 10.5938C15.25 10.1875 16 9.1875 16 8ZM11.4688 6.625L7.375 10.6875C7.21875 10.84375 7 10.8125 6.875 10.6875L4.5 8.3125C4.375 8.1875 4.375 7.96875 4.5 7.8125L5.3125 7C5.46875 6.875 5.6875 6.875 5.8125 7.03125L7.125 8.34375L10.1562 5.34375C10.3125 5.1875 10.5312 5.1875 10.6562 5.34375L11.4688 6.15625Z';
-      Array.prototype.forEach.call(nodes, function(node) {
-       node.setAttribute('data-point-badge-ready', '1');
-       fetch('/api/leaderboard/badge?uid=' + encodeURIComponent(node.getAttribute('data-user-id')), { headers: { Accept: 'application/json' } })
-         .then(function(response) {
-           if (!response.ok) throw new Error('HTTP ' + response.status);
-           return response.json();
-         })
-         .then(function(data) {
-           if (!node.isConnected) return;
-           node.removeAttribute('data-point-badge-retries');
-           if (!data || !data.level || !colors[data.level]) return;
-           var badge = document.createElement('svg');
-           badge.setAttribute('class', 'point-rank-badge');
-           badge.setAttribute('width', '16');
-           badge.setAttribute('height', '16');
-           badge.setAttribute('viewBox', '0 0 16 16');
-           badge.setAttribute('fill', colors[data.level]);
-           badge.setAttribute('aria-label', data.level + ' point rank');
-           badge.setAttribute('title', '积分排名：' + data.rank + ' / ' + data.total);
-           badge.style.cssText = 'display:inline-block;vertical-align:-3px;margin-left:3px;';
-           var badgePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-           badgePath.setAttribute('d', path);
-           badge.appendChild(badgePath);
-           node.insertAdjacentElement('afterend', badge);
-         })
-         .catch(function(error) {
-           console.warn('Unable to load username rank badge:', error);
-           if (!node.isConnected) return;
-           node.removeAttribute('data-point-badge-ready');
-           var retries = Number(node.getAttribute('data-point-badge-retries') || '0');
-           if (retries < 2) {
-             node.setAttribute('data-point-badge-retries', String(retries + 1));
-             setTimeout(function() { decoratePointBadges(node); }, 1000 * (retries + 1));
-           }
-         });
-      });
-    }
-    window.decoratePointBadges = decoratePointBadges;
-    new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        mutation.addedNodes.forEach(function(node) {
-          if (node.nodeType === 1) decoratePointBadges(node);
-        });
-      });
-    }).observe(document.documentElement, { childList: true, subtree: true });
 
     function toggleMobileMenu() {
       document.getElementById('sidebarLeft').classList.toggle('mobile-open');
@@ -1453,7 +1395,6 @@ export async function getLayout(
         updateActiveNavigation(url.pathname);
         executePageScripts(currentMain);
         if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(currentMain);
-        if (typeof window.decoratePointBadges === 'function') window.decoratePointBadges(currentMain);
         if (pushState) history.pushState({ spa: true }, '', url.href);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         document.body.classList.remove('spa-loading');

@@ -281,7 +281,6 @@ export async function renderHome(env: Env, req: Request) {
               ${onlineUsers.results.length > 0 ? onlineUsers.results.map((u: any) => `
                 <div class="online-user-item">
                   <span class="online-status-dot"></span>
-                  <div class="online-avatar">${renderAvatar(u, 30)}</div>
                   <div class="online-user-meta">
                     <div class="online-user-name">${renderUsernameLink(u.username, u.color, u.tag, u.id)}</div>
                     <div class="online-user-time">${u.last_active_at ? t('activeAt') + ' ' + formatTimeToChina(u.last_active_at) : t('justNow')}</div>
