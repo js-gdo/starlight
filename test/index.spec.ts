@@ -126,6 +126,30 @@ describe("database migrations", () => {
 });
 
 describe("worker routing", () => {
+	it("returns raw JSON for API requests that accept HTML", async () => {
+		const response = await worker.fetch(new IncomingRequest("http://example.com/api/leaderboard/badge", {
+			headers: { Accept: "text/html" },
+		}), env, createExecutionContext());
+		const contentType = response.headers.get("Content-Type");
+
+		expect(response.status).toBe(400);
+		expect(contentType).toContain("application/json");
+		expect(contentType).not.toContain("text/html");
+		expect(await response.json()).toEqual({ error: "Invalid user ID" });
+	});
+
+	it("returns JSON for unknown API routes that accept HTML", async () => {
+		const response = await worker.fetch(new IncomingRequest("http://example.com/api/not-a-route", {
+			headers: { Accept: "text/html" },
+		}), env, createExecutionContext());
+		const contentType = response.headers.get("Content-Type");
+
+		expect(response.status).toBe(404);
+		expect(contentType).toContain("application/json");
+		expect(contentType).not.toContain("text/html");
+		expect(await response.json()).toEqual({ error: "API not found" });
+	});
+
 	it("renders the home page as HTML (unit style)", async () => {
 		const request = new IncomingRequest("http://example.com/");
 		// Create an empty context to pass to `worker.fetch()`.
