@@ -163,6 +163,10 @@ export default {
 
     notifications: 'Notificaciones',
     noNotifications: 'Sin notificaciones',
+    mentionNotificationLabel: 'Menciones',
+    enableBrowserNotifications: 'Activar notificaciones del navegador',
+    browserNotificationsEnabled: 'Notificaciones del navegador activadas',
+    browserNotificationsDenied: 'Las notificaciones del navegador están bloqueadas. Permítelas en la configuración del navegador.',
     systemMessage: 'Sistema',
     read: 'Leído',
     unread: 'No leído',

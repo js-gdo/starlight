@@ -166,6 +166,10 @@ export default {
 	// ==================== 메시지 ====================
 	notifications: '메시지',
 	noNotifications: '메시지 없음',
+	mentionNotificationLabel: '멘션',
+	enableBrowserNotifications: '브라우저 알림 켜기',
+	browserNotificationsEnabled: '브라우저 알림 켜짐',
+	browserNotificationsDenied: '브라우저 알림이 허용되지 않았습니다. 브라우저 설정에서 허용해 주세요.',
 	systemMessage: '시스템',
 	read: '읽음',
 	unread: '안 읽음',

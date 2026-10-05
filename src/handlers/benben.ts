@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
+import { sendMentionNotifications } from '../utils/notification';
 import type { Env } from '../env.d';
 import { hasAdminPermission } from '../utils/adminPermissions';
 
@@ -28,6 +29,7 @@ export async function handleBenben(request: Request, env: Env, path: string) {
         const normalizedContent = await normalizeAtMentionsInContent(db, String(content).trim());
         await db.prepare('INSERT INTO benben (content, author_id) VALUES (?, ?)')
             .bind(normalizedContent, user.id).run();
+        await sendMentionNotifications(env, user.id, String(content).trim(), t('benben'));
         return new Response(null, { status: 302, headers: { Location: '/benben' } });
     }
 

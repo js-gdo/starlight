@@ -183,6 +183,7 @@ export async function getLayout(
       <div class="avatar" data-unknown-avatar="1" title="">${renderAvatar(user, 24)}</div>
       <div class="user-name">${renderUsernameLink(user.username, user.color, user.tag, user.id)}</div>
       <a href="/settings" style="color:#8E44AD;text-decoration:none;font-size:12px;"><i class="fas fa-user-cog"></i> 用户设置</a>
+      <button id="browser-notifications-toggle" type="button" onclick="toggleBrowserNotifications()" data-enable-label="${htmlEscape(t('enableBrowserNotifications'))}" data-enabled-label="${htmlEscape(t('browserNotificationsEnabled'))}" style="color:#8E44AD;background:none;border:0;cursor:pointer;font-size:12px;"><i class="fas fa-bell"></i> ${t('enableBrowserNotifications')}</button>
       <form action="/logout" method="GET">
         <button type="submit" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ${t('logout')}</button>
       </form>
@@ -927,6 +928,121 @@ export async function getLayout(
   <style id="spa-page-styles" data-spa-route-style="true">${extraStyles}</style>
   <script>
     window.__mentionUsers = ${JSON.stringify(mentionUserMap)};
+    window.__currentUserId = ${user ? Number(user.id) : 0};
+    window.__mentionNotificationTitle = ${JSON.stringify(t('mentionNotificationLabel'))};
+    window.__browserNotificationsDenied = ${JSON.stringify(t('browserNotificationsDenied'))};
+
+    (function() {
+      var userId = window.__currentUserId;
+      if (!userId) return;
+      var enabledKey = 'starlight-browser-notifications-' + userId;
+      var cursorKey = 'starlight-mention-cursor-' + userId;
+      var pollTimer = null;
+      var cursor = null;
+
+      function setButtonState(enabled) {
+        var button = document.getElementById('browser-notifications-toggle');
+        if (!button) return;
+        button.innerHTML = '<i class="fas fa-bell"></i> ' + (enabled ? button.dataset.enabledLabel : button.dataset.enableLabel);
+        button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      }
+
+      async function fetchMentions(after) {
+        var url = '/api/messages/mentions' + (after === null ? '' : '?after=' + encodeURIComponent(after));
+        var response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) throw new Error('Mention notification request failed: ' + response.status);
+        return response.json();
+      }
+
+      async function primeCursor() {
+        var data = await fetchMentions(null);
+        cursor = Number(data.latestId || 0);
+        localStorage.setItem(cursorKey, String(cursor));
+      }
+
+      async function pollMentions() {
+        if (window.Notification.permission !== 'granted' || localStorage.getItem(enabledKey) !== '1') return;
+        var data = await fetchMentions(cursor === null ? 0 : cursor);
+        var messages = Array.isArray(data.messages) ? data.messages : [];
+        messages.forEach(function(message) {
+          var id = Number(message.id);
+          if (!Number.isSafeInteger(id) || id <= cursor) return;
+          var notification = new window.Notification(window.__mentionNotificationTitle, {
+            body: String(message.title || '') + ': ' + String(message.body || ''),
+            tag: 'mention-' + id
+          });
+          notification.onclick = function() {
+            window.focus();
+            fetch('/api/messages/read', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message_id: id })
+            }).then(function(response) {
+              if (!response.ok) throw new Error('Unable to mark mention notification as read: ' + response.status);
+            }).catch(function(error) {
+              console.error('Unable to mark mention notification as read', error);
+            }).finally(function() {
+              window.location.href = String(message.href || '/messages');
+            });
+            notification.close();
+          };
+          cursor = id;
+        });
+        if (cursor !== null) localStorage.setItem(cursorKey, String(cursor));
+      }
+
+      function startPolling(resetCursor) {
+        if (pollTimer !== null) window.clearInterval(pollTimer);
+        cursor = resetCursor ? null : Number(localStorage.getItem(cursorKey));
+        if (!Number.isSafeInteger(cursor) || cursor < 0) cursor = null;
+        var ready = cursor === null ? primeCursor() : pollMentions();
+        ready.catch(function(error) { console.error('Unable to initialize browser mention notifications', error); });
+        pollTimer = window.setInterval(function() {
+          pollMentions().catch(function(error) { console.error('Unable to check browser mention notifications', error); });
+        }, 30000);
+      }
+
+      window.toggleBrowserNotifications = async function() {
+        if (typeof window.Notification === 'undefined') return;
+        if (localStorage.getItem(enabledKey) === '1' && window.Notification.permission === 'granted') {
+          localStorage.setItem(enabledKey, '0');
+          if (pollTimer !== null) window.clearInterval(pollTimer);
+          pollTimer = null;
+          setButtonState(false);
+          return;
+        }
+        var permission = window.Notification.permission;
+        if (permission === 'default') {
+          try {
+            permission = await window.Notification.requestPermission();
+          } catch (error) {
+            console.error('Unable to request browser notification permission', error);
+            if (typeof window.toast === 'function') window.toast(window.__browserNotificationsDenied, 'error');
+            return;
+          }
+        }
+        if (permission !== 'granted') {
+          if (typeof window.toast === 'function') window.toast(window.__browserNotificationsDenied, 'error');
+          return;
+        }
+        localStorage.setItem(enabledKey, '1');
+        setButtonState(true);
+        startPolling(true);
+      };
+
+      document.addEventListener('DOMContentLoaded', function() {
+        var button = document.getElementById('browser-notifications-toggle');
+        if (!button) return;
+        if (typeof window.Notification === 'undefined') {
+          button.hidden = true;
+          return;
+        }
+        var enabled = localStorage.getItem(enabledKey) === '1' && window.Notification.permission === 'granted';
+        setButtonState(enabled);
+        if (enabled) startPolling(false);
+      });
+    })();
 
     function resolveMentionMarkdown(text) {
       if (!text || !window.__mentionUsers) return text;

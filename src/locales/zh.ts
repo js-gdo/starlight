@@ -174,6 +174,10 @@ export default {
     // ==================== 消息 ====================
     notifications: '消息',
     noNotifications: '暂无消息',
+    mentionNotificationLabel: '@ 提及',
+    enableBrowserNotifications: '开启浏览器提醒',
+    browserNotificationsEnabled: '浏览器提醒已开启',
+    browserNotificationsDenied: '浏览器未允许通知，请在浏览器设置中开启权限。',
     systemMessage: '系统',
     read: '已读',
     unread: '未读',

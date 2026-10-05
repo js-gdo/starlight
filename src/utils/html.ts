@@ -1,4 +1,5 @@
 import { getUserColor, getUserColorTextStyle, getUserTagStyle } from './constants';
+import type { TypedD1Database } from '../env.d';
 
 export type MentionUser = {
     id: number;
@@ -66,10 +67,10 @@ export function replaceAtMentionsWithMarkdown(text: string, resolveUser: (token:
     return result;
 }
 
-export async function normalizeAtMentionsInContent(db: any, text: string): Promise<string> {
-    if (!text) return text;
+export async function getAtMentionedUsers(db: TypedD1Database, text: string): Promise<MentionUser[]> {
+    if (!text) return [];
     const tokens = extractAtMentionTokens(text);
-    if (!tokens.length) return text;
+    if (!tokens.length) return [];
 
     const mentionMap = new Map<string, MentionUser>();
     const numericTokens = tokens.filter((token) => /^\d+$/.test(token));
@@ -78,14 +79,27 @@ export async function normalizeAtMentionsInContent(db: any, text: string): Promi
     if (numericTokens.length > 0) {
         const ids = numericTokens.map((token) => parseInt(token, 10));
         const idRows = await db.prepare(`SELECT id, username, color, tag FROM users WHERE id IN (${ids.map(() => '?').join(',')})`)
-            .bind(...ids).all();
+            .bind(...ids).all<MentionUser>();
         for (const row of idRows.results) mentionMap.set(String(row.id), row);
     }
 
     if (usernameTokens.length > 0) {
         const nameRows = await db.prepare(`SELECT id, username, color, tag FROM users WHERE username IN (${usernameTokens.map(() => '?').join(',')})`)
-            .bind(...usernameTokens).all();
+            .bind(...usernameTokens).all<MentionUser>();
         for (const row of nameRows.results) mentionMap.set(String(row.username).toLowerCase(), row);
+    }
+
+    return Array.from(new Map(Array.from(mentionMap.values()).map((user) => [user.id, user])).values());
+}
+
+export async function normalizeAtMentionsInContent(db: TypedD1Database, text: string): Promise<string> {
+    if (!text) return text;
+    const mentionedUsers = await getAtMentionedUsers(db, text);
+    if (!mentionedUsers.length) return text;
+    const mentionMap = new Map<string, MentionUser>();
+    for (const user of mentionedUsers) {
+        mentionMap.set(String(user.id), user);
+        mentionMap.set(user.username.toLowerCase(), user);
     }
 
     return replaceAtMentionsWithMarkdown(text, (token) => {

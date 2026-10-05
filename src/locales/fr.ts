@@ -166,6 +166,10 @@ export default {
 	// ==================== Notifications ====================
 	notifications: 'Messages',
 	noNotifications: 'Aucun message',
+	mentionNotificationLabel: 'Mentions',
+	enableBrowserNotifications: 'Activer les notifications du navigateur',
+	browserNotificationsEnabled: 'Notifications du navigateur activées',
+	browserNotificationsDenied: 'Les notifications du navigateur sont bloquées. Autorisez-les dans les paramètres du navigateur.',
 	systemMessage: 'Système',
 	read: 'Lu',
 	unread: 'Non lu',
