@@ -1,6 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { renderUsernameLink } from '../utils/html';
+import { renderAvatar, renderUsernameLink } from '../utils/html';
 import type { Env } from '../env.d';
 
 type LeaderboardUser = {
@@ -42,7 +42,7 @@ export async function renderLeaderboard(env: Env, req: Request) {
         return `
             <tr>
                 <td class="leaderboard-rank${rankClass}">${rank}</td>
-                <td><div class="leaderboard-user">${username}</div></td>
+                <td><div class="leaderboard-user">${renderAvatar(entry, 32)}<span>${username}</span></div></td>
                 <td class="leaderboard-points">${Number(entry.points || 0).toLocaleString('zh-CN')}</td>
             </tr>
         `;

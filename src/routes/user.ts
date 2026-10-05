@@ -1,6 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { renderUsernameLink, htmlEscape } from '../utils/html';
+import { renderAvatar, renderUsernameLink, htmlEscape } from '../utils/html';
+import { getUserTagStyle } from '../utils/constants';
 import { getTranslator } from '../utils/i18n';
 import { ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import { getAchievementBadges } from '../utils/achievements';
@@ -40,9 +41,10 @@ export async function renderUser(env: Env, req: Request, path: string) {
     const achievementBadges = await getAchievementBadges(db, uid);
 
     const content = `
-        <div class="page-header" style="display:flex;align-items:center;gap:10px;"><h1 style="display:flex;align-items:center;gap:10px;">${renderUsernameLink(user.username, user.color, user.tag, user.id)}${achievementBadges}</h1></div>
+        <div class="page-header" style="display:flex;align-items:center;gap:10px;"><h1 style="display:flex;align-items:center;gap:10px;">${renderAvatar(user, 48)} ${renderUsernameLink(user.username, user.color, '', user.id)}${achievementBadges}</h1></div>
         <div style="display:grid;gap:16px;">
             <div class="card">
+                ${user.tag ? `<span style="${getUserTagStyle(user.color)};padding:0 12px;font-size:13px;">${htmlEscape(user.tag)}</span>` : ''}
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;">
                     ${user.real_name ? `<span style="font-size:14px;color:#444;"><i class="fas fa-user"></i> ${htmlEscape(user.real_name)}</span>` : ''}
                     ${user.location ? `<span style="font-size:14px;color:#666;"><i class="fas fa-map-marker-alt"></i> ${htmlEscape(user.location)}</span>` : ''}
