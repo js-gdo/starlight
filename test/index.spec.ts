@@ -126,6 +126,43 @@ describe("database migrations", () => {
 });
 
 describe("worker routing", () => {
+	it("returns a clickable user SVG with avatar, tag, rank hook, and achievement badge", async () => {
+		await SELF.fetch("https://example.com/");
+		const userInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password, color, tag, avatar_url, points) VALUES (?, ?, ?, ?, ?, ?)'
+		).bind('svg-user<&', 'unused', 'rainbow', 'Star<&', 'https://example.com/avatar.png', 1000000).run();
+		const uid = Number(userInsert.meta.last_row_id);
+		const response = await worker.fetch(new IncomingRequest(`http://example.com/api/usersvg?uid=${uid}`, {
+			headers: { Accept: "text/html" },
+		}), env, createExecutionContext());
+		const svg = await response.text();
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get('Content-Type')).toContain('image/svg+xml');
+		expect(svg).toContain(`<a href="/user/${uid}" target="_top"`);
+		expect(svg).toContain('href="https://example.com/avatar.png"');
+		expect(svg).toContain('svg-user&lt;&amp;');
+		expect(svg).toContain('Star&lt;&amp;');
+		expect(svg).toContain('id="username-gradient"');
+		expect(svg).toContain('<title>gold rank</title>');
+		expect(svg).toContain('>★</text>');
+		expect(svg).not.toContain('<script');
+	});
+
+	it("returns JSON errors for invalid or missing usersvg UIDs", async () => {
+		for (const url of [
+			'http://example.com/api/usersvg',
+			'http://example.com/api/usersvg?uid=0',
+			'http://example.com/api/usersvg?uid=abc',
+			'http://example.com/api/usersvg?uid=12%0A',
+		]) {
+			const response = await worker.fetch(new IncomingRequest(url), env, createExecutionContext());
+			expect(response.status).toBe(400);
+			expect(response.headers.get('Content-Type')).toContain('application/json');
+			expect(await response.json()).toEqual({ error: 'Invalid user ID' });
+		}
+	});
+
 	it("returns raw JSON for API requests that accept HTML", async () => {
 		const response = await worker.fetch(new IncomingRequest("http://example.com/api/leaderboard/badge", {
 			headers: { Accept: "text/html" },
