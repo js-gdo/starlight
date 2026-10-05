@@ -110,7 +110,7 @@ function renderOjProblemContent(problemId: string): string {
             <article class="card">
                 <h2 id="ojProblemTitle" style="font-size:20px;margin-bottom:12px;"></h2>
                 <div id="ojProblemTags" style="margin-bottom:12px;"></div>
-                <div id="ojProblemStatement" class="markdown-body"></div>
+                <div id="ojProblemStatement" class="markdown-body markdown-content"></div>
             </article>
             <section class="card">
                 <h2 style="font-size:16px;margin-bottom:10px;"><i class="fas fa-paper-plane"></i> 提交代码</h2>
