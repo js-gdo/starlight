@@ -31,6 +31,8 @@ describe("points rank username badges", () => {
 	it("does not render a fixed UID-based badge in username links", () => {
 		const html = renderUsernameLink("ranked-user", "purple", "", 42);
 		expect(html).toContain('data-user-id="42"');
+		expect(html).toContain('src="/api/usersvg?uid=42"');
+		expect(html).toContain('alt="ranked-user"');
 		expect(html).not.toContain("<svg");
 	});
 });
@@ -126,7 +128,7 @@ describe("database migrations", () => {
 });
 
 describe("worker routing", () => {
-	it("returns a clickable user SVG with avatar, tag, rank hook, and achievement badge", async () => {
+	it("returns a clickable user SVG with avatar, tag, and rank hook only", async () => {
 		await SELF.fetch("https://example.com/");
 		const userInsert = await env.DB.prepare(
 			'INSERT INTO users (username, password, color, tag, avatar_url, points) VALUES (?, ?, ?, ?, ?, ?)'
@@ -145,7 +147,9 @@ describe("worker routing", () => {
 		expect(svg).toContain('Star&lt;&amp;');
 		expect(svg).toContain('id="username-gradient"');
 		expect(svg).toContain('<title>gold rank</title>');
-		expect(svg).toContain('>★</text>');
+		expect(svg).not.toContain('points');
+		expect(svg).not.toContain('★');
+		expect(svg).toContain('fill="#f1c40f"');
 		expect(svg).not.toContain('<script');
 	});
 
@@ -608,7 +612,8 @@ describe("worker routing", () => {
 		const html = await response.text();
 		expect(html).toContain('class="username-link"');
 		expect(html).toContain("data-user-id=");
-		expect(html).toContain("/api/leaderboard/badge?uid=");
+		expect(html).toContain('/api/usersvg?uid=');
+		expect(html).not.toContain('decoratePointBadges');
 	});
 
 	it("renders the independent achievements page and sidebar entry", async () => {
