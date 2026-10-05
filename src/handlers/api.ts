@@ -14,6 +14,7 @@ import { handleHealth } from './health';
 import { handleEgg } from './egg';
 import { handleOj } from './oj';
 import { jsonRes } from '../utils/auth';
+import { getPointsRankBadgeLevel } from '../utils/constants';
 import { handleRedeem } from './redeem';
 import { handleGame } from './game';
 import { handleTeams } from './teams';
@@ -46,10 +47,7 @@ export async function handleApi(request: Request, env: Env, path: string) {
              WHERE use = 1 AND (points > ? OR (points = ? AND id <= ?))`
         ).bind(Number(user.points || 0), Number(user.points || 0), uid).first<any>();
         const rank = Number(rankRow?.count || 0);
-        const goldLimit = Math.max(1, Math.ceil(total * 0.1));
-        const blueLimit = Math.max(goldLimit, Math.ceil(total * 0.3));
-        const greenLimit = Math.max(blueLimit, Math.ceil(total * 0.6));
-        const level = rank <= goldLimit ? 'gold' : rank <= blueLimit ? 'blue' : rank <= greenLimit ? 'green' : null;
+        const level = getPointsRankBadgeLevel(rank, total);
         return jsonRes({ level, rank, total });
     }
 

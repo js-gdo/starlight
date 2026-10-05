@@ -118,14 +118,6 @@ export function renderUserVerificationBadge(level: 'gold' | 'blue' | 'green' | '
     return svgMap[level] || svgMap.default;
 }
 
-export function getUserVerificationLevel(uid: number): 'gold' | 'blue' | 'green' | 'default' {
-    if (!Number.isFinite(uid) || uid <= 0) return 'default';
-    if (uid === 1) return 'gold';
-    if (uid === 2) return 'blue';
-    if (uid === 3) return 'green';
-    return 'blue';
-}
-
 export function renderAtMentions(text: string, resolveUser: (token: string) => MentionUser | null): string {
     if (!text) return '';
     const regex = /(^|\s)@([A-Za-z0-9_]+)(?=\s|$)/g;
@@ -140,8 +132,7 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
         result += htmlEscape(text.slice(lastIndex, start));
         const user = resolveUser(token);
         if (user) {
-            const badge = renderUserVerificationBadge(getUserVerificationLevel(user.id));
-            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}${badge}</a>`;
+            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" class="username-link" data-user-id="${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}</a>`;
         } else {
             result += `${htmlEscape(prefix)}${htmlEscape('@' + token)}`;
         }
@@ -151,11 +142,10 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
     return result.replace(/\n/g, '<br>');
 }
 
-export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '', rankLevel?: 'gold' | 'blue' | 'green' | 'default') {
+export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '') {
     if (!username) return '';
     const tagHtml = tag ? `<span style="${htmlEscape(getUserTagStyle(color))}">${htmlEscape(tag)}</span>` : '';
-    const badge = renderUserVerificationBadge(rankLevel ?? getUserVerificationLevel(uid));
-    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}${badge}</a>`;
+    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
 }
 
 export function renderAvatar(user: { id?: number; username?: string; avatar_url?: string }, size = 42): string {
