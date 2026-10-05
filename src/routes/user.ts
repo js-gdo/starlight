@@ -146,6 +146,11 @@ export async function renderUserSettings(env: Env, req: Request) {
         </div>
         <div class="card" style="max-width:720px;margin-top:14px;">
             <h3 style="font-size:16px;margin-bottom:12px;">账号安全</h3>
+            <div style="margin-bottom:14px;padding:12px;background:#f7f8fa;border-radius:6px;">
+                <strong>个人数据</strong>
+                <p style="font-size:13px;color:#777;margin:5px 0 10px;">下载你的个人资料、帖子、评论、收藏、邀请记录和最近登录记录。</p>
+                <a href="/api/user/export" style="display:inline-block;background:#8E44AD;color:#fff;padding:7px 12px;border-radius:4px;text-decoration:none;font-size:13px;"><i class="fas fa-download"></i> 导出我的数据（JSON）</a>
+            </div>
             <div style="margin-bottom:18px;padding:12px;background:#f7f8fa;border-radius:6px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div><strong>登录设备</strong><div style="font-size:12px;color:#777;margin-top:4px;">最多保留最近 10 次登录。退出其他设备会保留当前设备。</div></div>

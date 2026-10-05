@@ -114,6 +114,14 @@ export async function initDB(env: Env) {
       FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS article_bookmarks (
+      article_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(article_id, user_id),
+      FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS ticket_votes (
       ticket_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
@@ -561,7 +569,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '19';
+const CURRENT_SCHEMA_VERSION = '20';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

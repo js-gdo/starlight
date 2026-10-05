@@ -65,6 +65,25 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         return jsonRes({ liked: !existing, count: Number(count?.total || 0) });
     }
 
+    const bookmarkMatch = path.match(/^\/api\/articles\/(\d+)\/bookmark$/);
+    if (bookmarkMatch && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const articleId = Number(bookmarkMatch[1]);
+        const article = await db.prepare('SELECT id FROM articles WHERE id = ?').bind(articleId).first();
+        if (!article) return jsonRes({ error: t('apiArticleNotFound') }, 404);
+        const existing = await db.prepare(
+            'SELECT article_id FROM article_bookmarks WHERE article_id = ? AND user_id = ?'
+        ).bind(articleId, user.id).first();
+        if (existing) {
+            await db.prepare('DELETE FROM article_bookmarks WHERE article_id = ? AND user_id = ?')
+                .bind(articleId, user.id).run();
+        } else {
+            await db.prepare('INSERT INTO article_bookmarks (article_id, user_id) VALUES (?, ?)')
+                .bind(articleId, user.id).run();
+        }
+        return jsonRes({ bookmarked: !existing });
+    }
+
     const articleMatch = path.match(/^\/api\/articles\/(\d+)$/);
     if (articleMatch && method === 'POST') {
         const id = parseInt(articleMatch[1]);
@@ -113,6 +132,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             if (user.id !== article.author_id && !hasAdminPermission(user, 'admin.content.articles.delete')) return jsonRes({ error: t('apiPermissionDenied') }, 403);
             await db.prepare('DELETE FROM comments WHERE article_id = ?').bind(id).run();
             await db.prepare('DELETE FROM article_likes WHERE article_id = ?').bind(id).run();
+            await db.prepare('DELETE FROM article_bookmarks WHERE article_id = ?').bind(id).run();
             await db.prepare('DELETE FROM articles WHERE id = ?').bind(id).run();
             return new Response(null, { status: 302, headers: { Location: '/articles/list' } });
         }
