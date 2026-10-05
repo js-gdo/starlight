@@ -1104,7 +1104,7 @@ export async function getLayout(
           }
         }
         if (end !== -1 && !delimiter.multiline) {
-          const lineBreak = text.indexOf('\n', start);
+          const lineBreak = text.indexOf('\\n', start);
           if (lineBreak !== -1 && lineBreak < end) end = -1;
         }
         if (end === -1) {
@@ -1144,6 +1144,23 @@ export async function getLayout(
         document.head.appendChild(script);
       });
       return scriptPromises[src];
+    }
+
+    let markdownLibrariesPromise;
+    function loadMarkdownLibraries() {
+      if (!markdownLibrariesPromise) {
+        markdownLibrariesPromise = Promise.all([
+          import('https://cdn.jsdelivr.net/npm/marked@11.1.1/lib/marked.esm.js'),
+          import('https://cdn.jsdelivr.net/npm/dompurify@3.4.15/dist/purify.es.mjs')
+        ]).then(function(modules) {
+          window.marked = modules[0].marked || modules[0];
+          window.DOMPurify = modules[1].default || modules[1];
+        }).catch(function(error) {
+          markdownLibrariesPromise = null;
+          throw error;
+        });
+      }
+      return markdownLibrariesPromise;
     }
 
     function renderMarkdown(text) {
@@ -1190,11 +1207,7 @@ export async function getLayout(
       markdownNodes.push.apply(markdownNodes, Array.from(target.querySelectorAll('.markdown-content')));
       if (markdownNodes.length === 0) return;
 
-      Promise.all([
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js'),
-        loadScript('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.15/purify.min.js')
-          .catch(function(error) { console.warn('DOMPurify failed to load; Markdown will escape raw HTML:', error); })
-      ]).then(function() {
+      loadMarkdownLibraries().then(function() {
         var mathNodes = [];
         markdownNodes.forEach(function(el) {
           if (!el.isConnected) return;
