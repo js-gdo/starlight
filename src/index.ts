@@ -33,7 +33,8 @@ import { renderSearch } from './routes/search';
 import { renderOS } from './routes/os';
 import { handleApi } from './handlers/api';
 import { renderTeamList, renderTeamNew, renderTeam, renderTeamSettings, renderTeamRequests } from './routes/teams';
-import { renderStatusPage, wantsHtmlNavigation } from './routes/status';
+import { renderStatusPage } from './routes/status';
+import { jsonRes } from './utils/auth';
 import type { Env } from './env.d';
 
 export default {
@@ -279,26 +280,18 @@ if (path === '/leaderboard') {
             }
 
             // ============ API 路由 ============
-            if (path.startsWith('/api/')) {
-                const response = await handleApi(request, env, path);
-                if (wantsHtmlNavigation(request) && response.status !== 302 && response.status !== 303) {
-                    return renderStatusPage(
-                        env,
-                        request,
-                        response.status,
-                        response.ok ? '操作完成' : '请求失败',
-                        response.ok ? '接口已正常响应。' : '接口请求未能完成，请返回上一页重试。'
-                    );
-                }
-                return response;
+            if (path === '/api' || path.startsWith('/api/')) {
+                return await handleApi(request, env, path);
             }
 
             return renderStatusPage(env, request, 404, '页面不存在', '找不到你访问的页面。');
         } catch (e: any) {
             console.error('Worker error:', e);
+            if (new URL(request.url).pathname === '/api' || new URL(request.url).pathname.startsWith('/api/')) {
+                return jsonRes({ error: 'Internal server error' }, 500);
+            }
             return renderStatusPage(env, request, 500, '页面出错了', '服务器暂时无法完成这次请求。');
         }
     },
 } satisfies ExportedHandler<Env>;
-
 
