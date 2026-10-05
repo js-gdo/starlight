@@ -12,6 +12,7 @@ import { getPointsRankBadgeLevel } from "../src/utils/constants";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from "../src/utils/profile";
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
+import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -32,6 +33,92 @@ describe("points rank username badges", () => {
 		const html = renderUsernameLink("ranked-user", "purple", "", 42);
 		expect(html).toContain('data-user-id="42"');
 		expect(html).not.toContain("<svg");
+	});
+});
+
+describe("site popup settings", () => {
+	it("parses and formats scheduled times in China Standard Time", () => {
+		const timestamp = parseChinaDateTime("2026-10-05T18:21");
+		expect(timestamp).toBe(Date.parse("2026-10-05T10:21:00Z"));
+		expect(formatChinaDateTime(timestamp)).toBe("2026-10-05T18:21");
+		expect(parseChinaDateTime("2026-02-30T12:00")).toBeNull();
+	});
+
+	it("normalizes popup settings and selected user IDs", () => {
+		const popup = parseSitePopupConfig(JSON.stringify({
+			enabled: true,
+			revision: 123,
+			targetMode: "selected",
+			userIds: [2, "2", -1, "invalid"],
+			title: "提示",
+			message: "消息",
+			startsAt: 1000,
+			endsAt: null,
+			durationSeconds: 60,
+		}));
+		expect(popup).toEqual({
+			enabled: true,
+			revision: 123,
+			targetMode: "selected",
+			userIds: [2],
+			title: "提示",
+			message: "消息",
+			startsAt: 1000,
+			endsAt: null,
+			durationSeconds: 60,
+		});
+	});
+});
+
+describe("site popup administration and delivery", () => {
+	it("saves a targeted popup and includes it only for its selected user", async () => {
+		await SELF.fetch("https://example.com/");
+		const username = `popup${Date.now().toString().slice(-8)}`;
+		const inserted = await env.DB.prepare(
+			'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+		).bind(username, 'unused').run();
+		const targetId = Number(inserted.meta.last_row_id);
+		const adminSession = await createSession(env, 1);
+		const form = new FormData();
+		form.set('enabled', '1');
+		form.set('title', '维护提示');
+		form.set('message', '站点将在今晚维护');
+		form.set('target_mode', 'selected');
+		form.append('popup_user_id', String(targetId));
+		form.set('duration_seconds', '30');
+		const save = await worker.fetch(new IncomingRequest('http://example.com/api/admin/site-popup', {
+			method: 'POST',
+			headers: { Cookie: `uid=${adminSession}` },
+			body: form,
+		}), env, createExecutionContext());
+
+		expect(save.status).toBe(302);
+		expect(save.headers.get('Location')).toBe('/backend/site');
+		const stored = await env.DB.prepare(
+			"SELECT setting_value FROM site_settings WHERE setting_key = 'site_popup'"
+		).first<any>();
+		expect(JSON.parse(stored.setting_value)).toMatchObject({
+			enabled: true,
+			targetMode: 'selected',
+			userIds: [targetId],
+			title: '维护提示',
+			message: '站点将在今晚维护',
+			startsAt: null,
+			endsAt: null,
+			durationSeconds: 30,
+		});
+
+		const targetSession = await createSession(env, targetId);
+		const targetHome = await worker.fetch(new IncomingRequest('http://example.com/', {
+			headers: { Cookie: `uid=${targetSession}` },
+		}), env, createExecutionContext());
+		const targetHtml = await targetHome.text();
+		expect(targetHtml).toContain('window.__sitePopup =');
+		expect(targetHtml).toContain('维护提示');
+		expect(targetHtml).toContain('不再此设备显示');
+
+		const otherHome = await worker.fetch(new IncomingRequest('http://example.com/'), env, createExecutionContext());
+		expect(await otherHome.text()).toContain('window.__sitePopup = null');
 	});
 });
 
