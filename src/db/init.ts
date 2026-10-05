@@ -1,4 +1,5 @@
 import type { Env } from '../env.d';
+import { createInviteCode } from '../utils/invite';
 
 async function runColumnMigration(db: Env['DB'], sql: string) {
     try {
@@ -16,6 +17,8 @@ export async function initDB(env: Env) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE,
       password TEXT,
+      invite_code TEXT NOT NULL DEFAULT '',
+      registered_ip TEXT NOT NULL DEFAULT '',
       use INTEGER DEFAULT 1,
       speak INTEGER DEFAULT 1,
       admin INTEGER DEFAULT 0,
@@ -47,6 +50,20 @@ export async function initDB(env: Env) {
       redirect_delay_seconds INTEGER DEFAULT 5,
       session_version INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
+    )`,
+        `CREATE TABLE IF NOT EXISTS referrals (
+      invitee_id INTEGER PRIMARY KEY,
+      inviter_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(invitee_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(inviter_id) REFERENCES users(id) ON DELETE CASCADE,
+      CHECK(invitee_id != inviter_id)
+    )`,
+        `CREATE TABLE IF NOT EXISTS referral_checkins (
+      invitee_id INTEGER NOT NULL,
+      checkin_date TEXT NOT NULL,
+      PRIMARY KEY(invitee_id, checkin_date),
+      FOREIGN KEY(invitee_id) REFERENCES referrals(invitee_id) ON DELETE CASCADE
     )`,
         `CREATE TABLE IF NOT EXISTS articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -419,6 +436,8 @@ export async function initDB(env: Env) {
 
     // 为旧数据库补充字段（忽略已存在字段错误）
     const alterColumns = [
+        'ALTER TABLE users ADD COLUMN invite_code TEXT NOT NULL DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN registered_ip TEXT NOT NULL DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_ip TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_region TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_city TEXT DEFAULT ""',
@@ -473,6 +492,15 @@ export async function initDB(env: Env) {
         await runColumnMigration(db, sql);
     }
 
+    const usersWithoutInviteCodes = await db.prepare("SELECT id, username FROM users WHERE invite_code = '' OR invite_code IS NULL").all<{ id: number; username: string }>();
+    for (let offset = 0; offset < (usersWithoutInviteCodes.results || []).length; offset += 100) {
+        const batch = await Promise.all((usersWithoutInviteCodes.results || []).slice(offset, offset + 100).map(async user =>
+            db.prepare("UPDATE users SET invite_code = ? WHERE id = ? AND (invite_code = '' OR invite_code IS NULL)")
+                .bind(await createInviteCode(String(user.username || '')), user.id)
+        ));
+        if (batch.length) await db.batch(batch);
+    }
+
     await db.prepare("UPDATE users SET admin_roles = '[\"unassigned\"]' WHERE admin = 1 AND (admin_roles IS NULL OR admin_roles = '' OR admin_roles = '[]')").run();
 
     // Keep proposal records created by older deployments usable while adding
@@ -512,6 +540,19 @@ export async function initDB(env: Env) {
         'CREATE INDEX IF NOT EXISTS idx_team_posts_team ON team_posts (team_id, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_team_creation_requests_status ON team_creation_requests (status, created_at)'
         , 'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)'
+        , 'CREATE INDEX IF NOT EXISTS idx_users_invite_code ON users (invite_code)'
+        , 'CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referrals (inviter_id)'
+        , `CREATE TRIGGER IF NOT EXISTS referral_registration_reward
+           AFTER INSERT ON referrals
+           BEGIN
+             UPDATE users SET points = points + 50 WHERE id = NEW.inviter_id;
+           END`
+        , `CREATE TRIGGER IF NOT EXISTS referral_checkin_reward
+           AFTER INSERT ON referral_checkins
+           BEGIN
+             UPDATE users SET points = points + 1
+             WHERE id = (SELECT inviter_id FROM referrals WHERE invitee_id = NEW.invitee_id);
+           END`
     ];
     for (const sql of indexes) {
         await db.prepare(sql).run();
@@ -520,7 +561,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '18';
+const CURRENT_SCHEMA_VERSION = '19';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

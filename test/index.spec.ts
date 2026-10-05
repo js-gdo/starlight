@@ -13,6 +13,8 @@ import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/uti
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from "../src/utils/profile";
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
 import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
+import { createInviteCode } from "../src/utils/invite";
+import { sha256 } from "../src/utils/crypto";
 
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
@@ -119,6 +121,89 @@ describe("site popup administration and delivery", () => {
 
 		const otherHome = await worker.fetch(new IncomingRequest('http://example.com/'), env, createExecutionContext());
 		expect(await otherHome.text()).toContain('window.__sitePopup = null');
+	});
+});
+
+describe("user invitations and referral rewards", () => {
+	it("derives a four-character code from the first and last two SHA-256 characters", async () => {
+		const digest = await sha256("invite-code-test");
+		expect(await createInviteCode("invite-code-test")).toBe(`${digest.slice(0, 2)}${digest.slice(-2)}`);
+	});
+
+	it("blocks inviter IP reuse, awards registration points, and rewards each invitee check-in once", async () => {
+		await SELF.fetch("https://example.com/");
+		const inviterName = `inviter${Date.now().toString().slice(-8)}`;
+		const inviterCode = await createInviteCode(inviterName);
+		const registerPage = await worker.fetch(new IncomingRequest(`http://example.com/register?invite=${inviterCode}`), env, createExecutionContext());
+		const registerHtml = await registerPage.text();
+		expect(registerHtml).toContain('label>邀请码（可空）</label>');
+		expect(registerHtml).toContain(`value="${inviterCode}"`);
+		const inviterInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password, invite_code, registered_ip, points) VALUES (?, ?, ?, ?, 0)'
+		).bind(inviterName, 'unused', inviterCode, '198.51.100.12').run();
+		const inviterId = Number(inviterInsert.meta.last_row_id);
+		const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 200, data: { is_violated: false } }), {
+			headers: { 'Content-Type': 'application/json' },
+		}));
+		vi.stubGlobal('fetch', fetchMock);
+		try {
+			const sameIp = await worker.fetch(new IncomingRequest('http://example.com/api/register', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.12' },
+				body: JSON.stringify({ username: `sameip${Date.now().toString().slice(-6)}`, password: 'password123', inviteCode: inviterCode }),
+			}), env, createExecutionContext());
+			expect(sameIp.status).toBe(400);
+			expect(await sameIp.json()).toMatchObject({ error: expect.stringContaining('请删除邀请码') });
+
+			const noCode = await worker.fetch(new IncomingRequest('http://example.com/api/register', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.12' },
+				body: JSON.stringify({ username: `nocode${Date.now().toString().slice(-6)}`, password: 'password123', inviteCode: '' }),
+			}), env, createExecutionContext());
+			expect(noCode.status).toBe(201);
+			expect(await noCode.json()).toMatchObject({ invited: false, pointsAwarded: 0 });
+
+			const invitedName = `invited${Date.now().toString().slice(-8)}`;
+			const registration = await worker.fetch(new IncomingRequest('http://example.com/api/register', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '203.0.113.77' },
+				body: JSON.stringify({ username: invitedName, password: 'password123', inviteCode: inviterCode }),
+			}), env, createExecutionContext());
+			expect(registration.status).toBe(201);
+			expect(await registration.json()).toMatchObject({ invited: true, pointsAwarded: 30 });
+			const invited = await env.DB.prepare('SELECT id, points, invite_code, registered_ip FROM users WHERE username = ?')
+				.bind(invitedName).first<any>();
+			expect(invited.points).toBe(30);
+			expect(invited.invite_code).toBe(await createInviteCode(invitedName));
+			expect(invited.registered_ip).toBe('203.0.113.77');
+			expect((await env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(inviterId).first<any>()).points).toBe(50);
+
+			const inviteeSession = await createSession(env, invited.id);
+			const invitePage = await worker.fetch(new IncomingRequest('http://example.com/invite', {
+				headers: { Cookie: `uid=${inviteeSession}` },
+			}), env, createExecutionContext());
+			const inviteHtml = await invitePage.text();
+			expect(invitePage.status).toBe(200);
+			expect(inviteHtml).toContain(await createInviteCode(invitedName));
+			expect(inviteHtml).toContain('复制邀请链接');
+
+			const firstCheckin = await worker.fetch(new IncomingRequest('http://example.com/api/checkin', {
+				method: 'POST',
+				headers: { Cookie: `uid=${inviteeSession}` },
+			}), env, createExecutionContext());
+			expect(firstCheckin.status).toBe(200);
+			expect((await firstCheckin.json()).points).toBe(10);
+			expect((await env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(inviterId).first<any>()).points).toBe(51);
+
+			const duplicateCheckin = await worker.fetch(new IncomingRequest('http://example.com/api/checkin', {
+				method: 'POST',
+				headers: { Cookie: `uid=${inviteeSession}` },
+			}), env, createExecutionContext());
+			expect((await duplicateCheckin.json()).checked).toBe(true);
+			expect((await env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(inviterId).first<any>()).points).toBe(51);
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });
 

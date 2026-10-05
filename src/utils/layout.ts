@@ -161,7 +161,9 @@ export async function getLayout(
         { href: '/team', label: '团队', active: title === '创建团队' || title.includes('团队') },
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
-    ];if (adminEntry) {
+    ];
+    if (user) navItems.push({ href: '/invite', label: '邀请好友', active: title === '邀请好友' });
+    if (adminEntry) {
       navItems.push({ href: adminEntry[1], label: t('adminPanel'), active: currentPath.startsWith('/backend') });
     }
     if (user?.id === 1) {
@@ -198,6 +200,7 @@ export async function getLayout(
             '/pm': 'fa-envelope',
             '/backend': 'fa-cog',
             '/oj/propose': 'fa-file-circle-plus',
+            '/invite': 'fa-user-plus',
         };
         const icon = iconMap[item.href] || 'fa-link';
         return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
@@ -214,6 +217,7 @@ export async function getLayout(
         '/server': 'fa-server', '/admin-list': 'fa-user-shield', '/health': 'fa-heart-pulse', '/benben': 'fa-comment',
         '/judgement': 'fa-gavel', '/clipboard': 'fa-clipboard', '/redeem': 'fa-ticket', '/search': 'fa-search',
         '/team': 'fa-users', '/messages': 'fa-bell', '/pm': 'fa-envelope', '/backend': 'fa-cog', '/oj/propose': 'fa-file-circle-plus',
+        '/invite': 'fa-user-plus',
       };
       const badge = item.badge ? `<span class="top-nav-badge">${item.badge}</span>` : '';
       return `<a href="${item.href}" class="${mobile ? 'starlight-drawer-link' : 'top-nav-link'}${item.active ? ' active' : ''}"${mobile ? ' onclick="closeStarlightMenu()"' : ''}><i class="fas ${icons[item.href] || 'fa-link'}"></i><span>${item.label}</span>${badge}</a>`;
@@ -260,6 +264,7 @@ export async function getLayout(
     <a href="/ticket/new" class="quick-link"><i class="fas fa-plus-circle"></i> ${t('newTicket')}</a>
     <a href="/judgement" class="quick-link"><i class="fas fa-gavel"></i> ${t('judgement')}</a>
     ${user ? `<a href="/user/${user.id}" class="quick-link"><i class="fas fa-user"></i> ${t('userProfile')}</a>` : ''}
+    ${user ? '<a href="/invite" class="quick-link"><i class="fas fa-user-plus"></i> 邀请好友</a>' : ''}
   `;
 
     let eggFooter = '';

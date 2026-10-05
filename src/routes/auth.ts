@@ -1,5 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getTranslator } from '../utils/i18n';
+import { htmlEscape } from '../utils/html';
 import type { Env } from '../env.d';
 
 export async function renderLogin(env: Env, req: Request) {
@@ -176,6 +177,7 @@ export async function renderLogin(env: Env, req: Request) {
 
 export async function renderRegister(env: Env, req: Request) {
     const t = getTranslator(req);
+    const inviteCode = new URL(req.url).searchParams.get('invite') || '';
     const user = await getSessionUser(env, req);
     if (user) {
         return { redirect: '/' };
@@ -302,6 +304,10 @@ export async function renderRegister(env: Env, req: Request) {
         <label>${t('password')}</label>
         <input type="password" id="password" placeholder="${t('passwordLength')}" required minlength="6">
       </div>
+      <div class="form-group">
+        <label>邀请码（可空）</label>
+        <input type="text" id="invite-code" placeholder="4 位邀请码" maxlength="4" pattern="[a-fA-F0-9]{4}" value="${htmlEscape(inviteCode)}" autocomplete="off">
+      </div>
       <button type="submit" class="btn">${t('register')}</button>
     </form>
     <div class="login-link">
@@ -313,11 +319,12 @@ export async function renderRegister(env: Env, req: Request) {
       e.preventDefault();
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
+      const inviteCode = document.getElementById('invite-code').value.trim();
       try {
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password, inviteCode })
         });
         const data = await res.json();
         if (res.ok) {
