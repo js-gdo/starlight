@@ -3,6 +3,7 @@ import { getLayout } from '../utils/layout';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { formatTimeToChina } from '../utils/time';
 import { getUserColor, getTicketStatus } from '../utils/constants';
+import { formatChinaDateTime, parseSitePopupConfig, SITE_POPUP_SETTING_KEY } from '../utils/sitePopup';
 import type { Env } from '../env.d';
 import {
     ADMIN_PERMISSION_NODES,
@@ -246,6 +247,50 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
         if (hasAdminPermission(user, 'admin.site.settings.edit')) {
             const status = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first<any>();
             body += panel('站点状态', 'fa-satellite-dish', `<form class="admin-inline-form" action="/api/admin/site-status" method="POST"><select name="status"><option value="normal" ${status?.setting_value === 'normal' ? 'selected' : ''}>正常运行</option><option value="limited" ${status?.setting_value === 'limited' ? 'selected' : ''}>限流提示</option><option value="maintenance" ${status?.setting_value === 'maintenance' ? 'selected' : ''}>维护中</option></select><button class="admin-btn primary" type="submit">保存状态</button></form>`);
+            const [popupRow, activeUsers] = await Promise.all([
+                db.prepare('SELECT setting_value FROM site_settings WHERE setting_key = ?').bind(SITE_POPUP_SETTING_KEY).first<any>(),
+                db.prepare('SELECT id, username FROM users WHERE use = 1 ORDER BY id DESC').all<any>(),
+            ]);
+            const popup = parseSitePopupConfig(popupRow?.setting_value);
+            const userOptions = (activeUsers.results || []).map((target: any) =>
+                `<label class="site-popup-user" data-popup-user="${htmlEscape(`${target.id} ${target.username}`.toLowerCase())}"><input type="checkbox" name="popup_user_id" value="${Number(target.id)}" ${popup?.userIds.includes(Number(target.id)) ? 'checked' : ''}> ${htmlEscape(target.username)} <span class="admin-muted">UID ${Number(target.id)}</span></label>`
+            ).join('');
+            body += panel('登录提示弹窗', 'fa-window-maximize', `<form action="/api/admin/site-popup" method="POST" class="site-popup-form">
+                <label class="admin-inline-form"><input type="checkbox" name="enabled" value="1" ${popup?.enabled ? 'checked' : ''}> 启用提示</label>
+                <label>标题<input type="text" name="title" maxlength="120" value="${htmlEscape(popup?.title || '')}" placeholder="站点提示"></label>
+                <label>消息<textarea name="message" rows="5" maxlength="5000" placeholder="输入要向用户显示的内容">${htmlEscape(popup?.message || '')}</textarea></label>
+                <label>目标用户<select name="target_mode" id="sitePopupTargetMode"><option value="all" ${!popup || popup.targetMode === 'all' ? 'selected' : ''}>全部活跃用户</option><option value="selected" ${popup?.targetMode === 'selected' ? 'selected' : ''}>指定用户</option></select></label>
+                <div id="sitePopupUsers" class="site-popup-users" ${popup?.targetMode === 'selected' ? '' : 'hidden'}>
+                    <input class="admin-search" type="search" id="sitePopupUserSearch" placeholder="筛选用户列表" aria-label="筛选用户列表">
+                    <div class="site-popup-user-list">${userOptions || '<span class="admin-muted">暂无活跃用户</span>'}</div>
+                </div>
+                <div class="site-popup-times">
+                    <label>开始显示（北京时间，可留空）<input type="text" name="starts_at" pattern="\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}" placeholder="2026-10-05T18:00" value="${formatChinaDateTime(popup?.startsAt || null)}"></label>
+                    <label>停止显示（北京时间，可留空）<input type="text" name="ends_at" pattern="\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}" placeholder="2026-10-05T22:00" value="${formatChinaDateTime(popup?.endsAt || null)}"></label>
+                    <label>自动关闭（秒，0 表示不自动关闭）<input type="number" name="duration_seconds" min="0" max="3600" value="${popup?.durationSeconds || 0}"></label>
+                </div>
+                <div class="admin-muted">用户点“确定”后，本次浏览器会话不再重复显示；点“不再此设备显示”后，该设备将记住选择。修改并保存配置后会重新提示。</div>
+                <button class="admin-btn primary" type="submit">保存弹窗设置</button>
+            </form>
+            <script>
+              (function(){
+                var mode=document.getElementById('sitePopupTargetMode');
+                var users=document.getElementById('sitePopupUsers');
+                var search=document.getElementById('sitePopupUserSearch');
+                if(mode&&users)mode.addEventListener('change',function(){users.hidden=mode.value!=='selected'});
+                if(search)search.addEventListener('input',function(){var q=this.value.trim().toLowerCase();document.querySelectorAll('[data-popup-user]').forEach(function(item){item.hidden=!item.dataset.popupUser.includes(q)})});
+              })();
+            </script>
+            <style>
+              .site-popup-form{display:grid;gap:12px;max-width:760px}
+              .site-popup-form>label:not(.admin-inline-form){display:grid;gap:5px;font-size:12px;color:#536269}
+              .site-popup-form textarea{width:100%;resize:vertical}
+              .site-popup-times{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+              .site-popup-times label{display:grid;gap:5px;font-size:12px;color:#536269}
+              .site-popup-users{display:grid;gap:8px}
+              .site-popup-user-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px;max-height:230px;overflow:auto;padding:9px;border:1px solid var(--ac-line);border-radius:4px}
+              .site-popup-user{font-size:12px;color:var(--ac-ink)}
+            </style>`);
         }
         if (hasAdminPermission(user, 'admin.site.banners.manage')) {
             const banners = await db.prepare('SELECT * FROM banners ORDER BY sort_order, id').all<any>();

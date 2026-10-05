@@ -6,6 +6,7 @@ import type { Env } from '../env.d';
 import { writeAudit } from '../utils/audit';
 import { normalizeAdminRoles } from '../utils/adminRoles';
 import { hasAdminPermission, normalizeAdminPermissions } from '../utils/adminPermissions';
+import { parseChinaDateTime, parseSitePopupConfig, SITE_POPUP_SETTING_KEY } from '../utils/sitePopup';
 
 export async function handleAdmin(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
@@ -40,10 +41,10 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
                                     ? bulkArticleAction === 'category' ? 'admin.content.articles.edit' : 'admin.content.articles.moderate'
                                     : /^\/api\/admin\/ticket\/\d+\/delete$/.test(path)
                                         ? 'admin.content.tickets.delete'
-                                        : path === '/api/admin/site-status'
+                                        : path === '/api/admin/site-status' || path === '/api/admin/site-popup'
                                             ? 'admin.site.settings.edit'
                                             : path === '/api/admin/banner/add' || /^\/api\/admin\/banner\/\d+\/delete$/.test(path)
-                                                ? 'admin.site.banners.manage'
+                                            ? 'admin.site.banners.manage'
                                                 : path === '/api/admin/announcement/add' || /^\/api\/admin\/announcement\/\d+\/delete$/.test(path)
                                                     ? 'admin.site.announcements.manage'
                                                     : /^\/api\/admin\/export\/(users|tickets|audit|reports)$/.test(path)
@@ -315,6 +316,69 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
             .bind(content, sortOrder, announcementType, displayScope, scrollSpeed, startsAt, endsAt, isPinned).run();
         await writeAudit(env, user.id, '新增公告', 'announcement', 0, content);
         return new Response(null, { status: 302, headers: { Location: '/backend' } });
+    }
+
+    if (path === '/api/admin/site-popup' && method === 'POST') {
+        const form = await request.formData();
+        const enabled = form.get('enabled') === '1';
+        const title = String(form.get('title') || '').trim();
+        const message = String(form.get('message') || '').trim();
+        const targetMode = String(form.get('target_mode') || '');
+        if (!['all', 'selected'].includes(targetMode)) return jsonRes({ error: '请选择有效的提示对象' }, 400);
+        if (enabled && (!title || !message)) return jsonRes({ error: '启用弹窗时标题和消息不能为空' }, 400);
+        if (title.length > 120 || message.length > 5000) return jsonRes({ error: '标题最多 120 字，消息最多 5000 字' }, 400);
+
+        const startsAtInput = String(form.get('starts_at') || '').trim();
+        const endsAtInput = String(form.get('ends_at') || '').trim();
+        const startsAt = startsAtInput ? parseChinaDateTime(startsAtInput) : null;
+        const endsAt = endsAtInput ? parseChinaDateTime(endsAtInput) : null;
+        if ((startsAtInput && startsAt === null) || (endsAtInput && endsAt === null)) {
+            return jsonRes({ error: '请输入有效的北京时间' }, 400);
+        }
+        if (startsAt !== null && endsAt !== null && endsAt <= startsAt) {
+            return jsonRes({ error: '停止时间必须晚于开始时间' }, 400);
+        }
+
+        const durationInput = String(form.get('duration_seconds') || '0');
+        if (!/^\d+$/.test(durationInput) || Number(durationInput) > 3600) {
+            return jsonRes({ error: '自动关闭时间必须是 0 至 3600 秒' }, 400);
+        }
+
+        let userIds: number[] = [];
+        if (targetMode === 'selected') {
+            const submittedIds = form.getAll('popup_user_id').map(value => String(value));
+            if (submittedIds.length > 1000 || submittedIds.some(value => !/^[1-9]\d*$/.test(value))) {
+                return jsonRes({ error: '指定用户列表无效' }, 400);
+            }
+            const selectedIds = [...new Set(submittedIds.map(Number))];
+            const activeUsers = await db.prepare('SELECT id FROM users WHERE use = 1').all<{ id: number }>();
+            const activeIds = new Set((activeUsers.results || []).map(row => Number(row.id)));
+            if (selectedIds.some(id => !Number.isSafeInteger(id) || !activeIds.has(id))) {
+                return jsonRes({ error: '指定用户中包含不存在或已停用的账号' }, 400);
+            }
+            userIds = selectedIds;
+            if (enabled && !userIds.length) return jsonRes({ error: '请选择至少一名提示对象' }, 400);
+        }
+
+        const currentSetting = await db.prepare('SELECT setting_value FROM site_settings WHERE setting_key = ?')
+            .bind(SITE_POPUP_SETTING_KEY).first<any>();
+        const previousPopup = parseSitePopupConfig(currentSetting?.setting_value);
+        const popup = {
+            enabled,
+            revision: Math.max(Date.now(), Number(previousPopup?.revision || 0) + 1),
+            targetMode,
+            userIds,
+            title,
+            message,
+            startsAt,
+            endsAt,
+            durationSeconds: Number(durationInput),
+        };
+        await db.prepare('INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value')
+            .bind(SITE_POPUP_SETTING_KEY, JSON.stringify(popup)).run();
+        await writeAudit(env, user.id, '更新登录提示弹窗', 'site_popup', 0,
+            `启用: ${enabled ? '是' : '否'} | 对象: ${targetMode === 'all' ? '全部活跃用户' : `指定 ${userIds.length} 人`} | 标题: ${title}`);
+        return new Response(null, { status: 302, headers: { Location: '/backend/site' } });
     }
 
     if (path === '/api/admin/site-status' && method === 'POST') {

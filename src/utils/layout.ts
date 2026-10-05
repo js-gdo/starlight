@@ -5,6 +5,7 @@ import { getTranslator, getLanguage } from './i18n';
 import { hasAdminPermission } from './adminPermissions';
 import { validateBackgroundUrl, normalizeBackgroundMode } from './profile';
 import { getPointsRankBadgeLevel, getUserTagStyle } from './constants';
+import { parseSitePopupConfig, SITE_POPUP_SETTING_KEY } from './sitePopup';
 import type { Env } from '../env.d';
 
 async function addPointRankBadges(html: string, db: Env['DB']): Promise<string> {
@@ -97,7 +98,7 @@ export async function getLayout(
     ].find(([permission]) => hasAdminPermission(user, permission)) : undefined;
     const announcementScope = currentPath.startsWith('/backend') ? 'backend' : currentPath === '/' ? 'home' : 'all';
 
-    const [unreadCounts, announcements, siteStatusRow] = await Promise.all([
+    const [unreadCounts, announcements, siteStatusRow, sitePopupRow] = await Promise.all([
       (user && env?.DB)
         ? Promise.all([getSystemUnreadCount(env.DB, user.id), getPmUnreadCount(env.DB, user.id)])
         : Promise.resolve([0, 0]),
@@ -109,11 +110,23 @@ export async function getLayout(
       env?.DB
         ? env.DB.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first()
         : Promise.resolve(null),
+
+      user && env?.DB
+        ? env.DB.prepare('SELECT setting_value FROM site_settings WHERE setting_key = ?').bind(SITE_POPUP_SETTING_KEY).first()
+        : Promise.resolve(null),
     ]);
 
     const systemUnread = unreadCounts[0];
     const pmUnread = unreadCounts[1];
     const siteStatus = String((siteStatusRow as any)?.setting_value || 'normal');
+    const storedPopup = parseSitePopupConfig((sitePopupRow as any)?.setting_value);
+    const now = Date.now();
+    const sitePopup = user && storedPopup?.enabled &&
+      (storedPopup.targetMode === 'all' || storedPopup.userIds.includes(Number(user.id))) &&
+      (!storedPopup.endsAt || storedPopup.endsAt >= now) &&
+      storedPopup.title && storedPopup.message
+        ? storedPopup
+        : null;
 
     let mentionUserMap = { byId: {}, byName: {} } as { byId: Record<string, { uid: number; username: string }>; byName: Record<string, { uid: number; username: string }> };
     if (includeMentionMap && env?.DB) {
@@ -973,6 +986,7 @@ export async function getLayout(
   <script>
     window.__mentionUsers = ${JSON.stringify(mentionUserMap)};
     window.__currentUserId = ${user ? Number(user.id) : 0};
+    window.__sitePopup = ${JSON.stringify(sitePopup).replace(/[<>&\u2028\u2029]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)};
     window.__mentionNotificationTitle = ${JSON.stringify(t('mentionNotificationLabel'))};
     window.__browserNotificationsDenied = ${JSON.stringify(t('browserNotificationsDenied'))};
 
@@ -1301,7 +1315,73 @@ export async function getLayout(
         .catch(function(error) { console.warn('Hitokoto request failed:', error); });
       renderMarkdownNodes(document);
       decoratePointBadges(document);
+      showSitePopup();
     });
+
+    var sitePopupHandled = false;
+    var sitePopupOpening = false;
+    var sitePopupTimer = null;
+    function showSitePopup() {
+      var popup = window.__sitePopup;
+      var userId = window.__currentUserId;
+      if (!popup || !userId || sitePopupHandled || sitePopupOpening) return;
+      var now = Date.now();
+      if (popup.startsAt && popup.startsAt > now) {
+        if (!sitePopupTimer) {
+          sitePopupTimer = setTimeout(function() {
+            sitePopupTimer = null;
+            showSitePopup();
+          }, Math.min(popup.startsAt - now, 2147483647));
+        }
+        return;
+      }
+      if (popup.endsAt && popup.endsAt < now) return;
+      var sessionKey = 'starlight-site-popup-session-' + popup.revision + '-' + userId;
+      var deviceKey = 'starlight-site-popup-device-' + popup.revision + '-' + userId;
+      try {
+        if (sessionStorage.getItem(sessionKey) || localStorage.getItem(deviceKey)) return;
+      } catch (error) {
+        console.warn('Unable to read popup dismissal state:', error);
+      }
+      if (!window.Swal || typeof window.Swal.fire !== 'function') {
+        console.error('Site popup cannot be shown because SweetAlert is unavailable.');
+        return;
+      }
+      sitePopupOpening = true;
+      try {
+        var options = {
+          title: popup.title,
+          text: popup.message,
+          icon: 'info',
+          confirmButtonText: '确定',
+          showDenyButton: true,
+          denyButtonText: '不再此设备显示',
+          showCloseButton: true,
+          allowOutsideClick: false
+        };
+        if (popup.durationSeconds > 0) {
+          options.timer = popup.durationSeconds * 1000;
+          options.timerProgressBar = true;
+        }
+        window.Swal.fire(options).then(function(result) {
+          sitePopupOpening = false;
+          sitePopupHandled = true;
+          try {
+            if (result.isDenied) localStorage.setItem(deviceKey, '1');
+            if (result.isConfirmed || result.isDenied || result.dismiss) sessionStorage.setItem(sessionKey, '1');
+          } catch (error) {
+            console.warn('Unable to save popup dismissal state:', error);
+          }
+        }).catch(function(error) {
+          sitePopupOpening = false;
+          console.error('Unable to display site popup:', error);
+        });
+      } catch (error) {
+        sitePopupOpening = false;
+        console.error('Unable to display site popup:', error);
+      }
+    }
+    window.showSitePopup = showSitePopup;
 
     function decoratePointBadges(root) {
       var target = root || document;
@@ -1498,6 +1578,7 @@ export async function getLayout(
         executePageScripts(currentMain);
         if (typeof window.renderMarkdownNodes === 'function') window.renderMarkdownNodes(currentMain);
         if (typeof window.decoratePointBadges === 'function') window.decoratePointBadges(currentMain);
+        if (typeof window.showSitePopup === 'function') window.showSitePopup();
         if (pushState) history.pushState({ spa: true }, '', url.href);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         document.body.classList.remove('spa-loading');
