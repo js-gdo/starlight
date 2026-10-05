@@ -111,8 +111,14 @@ describe("database migrations", () => {
 		const homeHtml = await home.text();
 		expect(homeHtml).toContain('class="ui-modern layout-starlight"');
 		expect(homeHtml).toContain('starlight-topbar');
+		expect(homeHtml).toContain('class="starlight-user username-link" data-user-id="1"');
+		expect(homeHtml).toContain('欢迎回来，<span class="username-link" data-user-id="1">migration-test');
 		expect(homeHtml).toContain('community.jpg');
 		expect(homeHtml).toContain('background-size: 100% 100% !important');
+		const adminList = await worker.fetch(new IncomingRequest('http://example.com/admin-list', {
+			headers: { Cookie: `uid=${session}` },
+		}), env, createExecutionContext());
+		expect(await adminList.text()).toContain('class="username-link" data-user-id="1">migration-test');
 		const permissions = await env.DB.prepare('SELECT admin_permissions FROM users WHERE id = 1').first<any>();
 		expect(JSON.parse(permissions.admin_permissions)).toEqual(['*']);
 
