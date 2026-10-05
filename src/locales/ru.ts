@@ -166,6 +166,10 @@ export default {
 	// ==================== Сообщения ====================
 	notifications: 'Сообщения',
 	noNotifications: 'Сообщений нет',
+	mentionNotificationLabel: 'Упоминания',
+	enableBrowserNotifications: 'Включить уведомления браузера',
+	browserNotificationsEnabled: 'Уведомления браузера включены',
+	browserNotificationsDenied: 'Уведомления браузера запрещены. Разрешите их в настройках браузера.',
 	systemMessage: 'Система',
 	read: 'Прочитано',
 	unread: 'Не прочитано',

@@ -174,6 +174,10 @@ export default {
     // ==================== Notifications ====================
     notifications: 'Notifications',
     noNotifications: 'No notifications',
+    mentionNotificationLabel: 'Mentions',
+    enableBrowserNotifications: 'Enable browser notifications',
+    browserNotificationsEnabled: 'Browser notifications enabled',
+    browserNotificationsDenied: 'Browser notifications are not allowed. Enable them in your browser settings.',
     systemMessage: 'System',
     read: 'Read',
     unread: 'Unread',

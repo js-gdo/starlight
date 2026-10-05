@@ -73,5 +73,38 @@ export async function handleMessages(request: Request, env: Env, path: string) {
         return jsonRes({ messages: messages.results });
     }
 
+    if (path === '/api/messages/mentions' && method === 'GET') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const afterParam = new URL(request.url).searchParams.get('after');
+        if (afterParam === null) {
+            const latest = await db.prepare(
+                "SELECT COALESCE(MAX(id), 0) AS latest_id FROM messages WHERE to_user_id = ? AND type = 'mention'"
+            ).bind(user.id).first<any>();
+            return new Response(JSON.stringify({ messages: [], latestId: Number(latest?.latest_id || 0) }), {
+                headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store' },
+            });
+        }
+
+        const afterId = Number(afterParam);
+        if (!Number.isSafeInteger(afterId) || afterId < 0) return jsonRes({ error: t('apiInvalidRequest') }, 400);
+        const messages = await db.prepare(
+            `SELECT m.id, m.content, u.username AS from_name
+             FROM messages m
+             LEFT JOIN users u ON m.from_user_id = u.id
+             WHERE m.to_user_id = ? AND m.type = 'mention' AND m.is_read = 0 AND m.id > ?
+             ORDER BY m.id ASC LIMIT 20`
+        ).bind(user.id, afterId).all<any>();
+        return new Response(JSON.stringify({
+            messages: messages.results.map((message) => ({
+                id: Number(message.id),
+                title: String(message.from_name || t('systemMessage')),
+                body: String(message.content || ''),
+                href: `/messages#notification-${Number(message.id)}`,
+            })),
+        }), {
+            headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store' },
+        });
+    }
+
     return jsonRes({ error: t('apiNotFound') }, 404);
 }

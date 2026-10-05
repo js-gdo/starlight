@@ -64,6 +64,7 @@ export async function renderMessages(env: Env, req: Request) {
         if (message.type === 'comment' && message.related_article_hex) {
             return `/articles/${encodeURIComponent(String(message.related_article_hex))}#comments`;
         }
+        if (message.type === 'mention') return `/messages#notification-${Number(message.id)}`;
         if (message.type === 'private' && Number(message.from_user_id) > 0) {
             return `/pm/${Number(message.from_user_id)}`;
         }
@@ -73,18 +74,18 @@ export async function renderMessages(env: Env, req: Request) {
     };
 
     const content = `
-        <div class="page-header"><h1><i class="fas fa-bell"></i> ${t('notifications')}</h1><p style="margin-top:4px;">${t('notificationType')}</p><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><a href="${typeHref('')}" style="color:#8E44AD;">${t('all')}</a><a href="${typeHref('report')}" style="color:#8E44AD;">举报</a><a href="${typeHref('permission_change')}" style="color:#8E44AD;">权限</a><a href="${typeHref('report_result')}" style="color:#8E44AD;">举报结果</a><a href="${unreadOnly ? typeHref(messageType || '') : `/messages?${new URLSearchParams({ ...(messageType ? { type: messageType } : {}), unread: '1' })}`}" style="color:#8E44AD;border-bottom:${unreadOnly ? '2px solid #8E44AD' : 'none'};">${unreadOnly ? t('all') : t('unread')}</a><button onclick="markAllRead()" style="border:1px solid #ddd;background:#fff;padding:3px 8px;border-radius:4px;cursor:pointer;">${t('markAllNotificationsRead')}</button></div></div>
+        <div class="page-header"><h1><i class="fas fa-bell"></i> ${t('notifications')}</h1><p style="margin-top:4px;">${t('notificationType')}</p><div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><a href="${typeHref('')}" style="color:#8E44AD;">${t('all')}</a><a href="${typeHref('mention')}" style="color:#8E44AD;">${t('mentionNotificationLabel')}</a><a href="${typeHref('report')}" style="color:#8E44AD;">举报</a><a href="${typeHref('permission_change')}" style="color:#8E44AD;">权限</a><a href="${typeHref('report_result')}" style="color:#8E44AD;">举报结果</a><a href="${unreadOnly ? typeHref(messageType || '') : `/messages?${new URLSearchParams({ ...(messageType ? { type: messageType } : {}), unread: '1' })}`}" style="color:#8E44AD;border-bottom:${unreadOnly ? '2px solid #8E44AD' : 'none'};">${unreadOnly ? t('all') : t('unread')}</a><button onclick="markAllRead()" style="border:1px solid #ddd;background:#fff;padding:3px 8px;border-radius:4px;cursor:pointer;">${t('markAllNotificationsRead')}</button></div></div>
         <div class="card">
             ${messages.results.length === 0 ? `<div style="color:#999;padding:20px 0;text-align:center;">${t('noNotifications')}</div>` : ''}
             ${messages.results.map((m: any) => `
-                <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
+                <div id="notification-${Number(m.id)}" style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <div>
                             ${m.from_user_id ? renderUsernameLink(m.from_name, m.from_color, m.from_tag, m.from_user_id) : t('systemMessage')}
                             <span style="font-size:12px;color:#999;margin-left:8px;">${formatTimeToChina(m.created_at)}</span>
                             ${m.is_read ? `<span style="font-size:11px;color:#999;margin-left:6px;">${t('read')}</span>` : `<span style="font-size:11px;color:#e74c3c;margin-left:6px;">${t('unread')}</span>`}
                         </div>
-                        <span style="font-size:11px;color:#8E44AD;">${m.type}</span>
+                        <span style="font-size:11px;color:#8E44AD;">${m.type === 'mention' ? t('mentionNotificationLabel') : m.type}</span>
                     </div>
                     <div style="margin-top:4px;font-size:14px;color:#333;">${renderAtMentions(m.content || '', (token) => {
                         if (/^\d+$/.test(token)) return mentionMap.get(token) || null;

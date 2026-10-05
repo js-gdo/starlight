@@ -1,6 +1,6 @@
 import { getSessionUser, jsonRes, generateHex } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
-import { sendNotification } from '../utils/notification';
+import { sendMentionNotifications, sendNotification } from '../utils/notification';
 import { getTranslator } from '../utils/i18n';
 import { validateAtMentionSpacing, normalizeAtMentionsInContent } from '../utils/html';
 import { buildProblemArticleTitle, buildProblemArticleContent, fetchProblemList } from '../utils/problem';
@@ -45,6 +45,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const hex = generateHex();
         await db.prepare('INSERT INTO articles (hex_id, title, content, author_id, article_type, problem_id, category) VALUES (?, ?, ?, ?, ?, ?, ?)')
             .bind(hex, title, normalizedContent, user.id, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', category).run();
+        await sendMentionNotifications(env, user.id, String(content), t('articleList'));
         return new Response(null, { status: 302, headers: { Location: `/articles/${hex}` } });
     }
 
@@ -102,6 +103,8 @@ export async function handleArticles(request: Request, env: Env, path: string) {
             const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
             await db.prepare('UPDATE articles SET title = ?, content = ?, article_type = ?, problem_id = ?, category = ? WHERE id = ?')
                 .bind(title, normalizedContent, isProblem ? 'problem' : 'normal', isProblem ? problemId : '', category, id).run();
+            const previousMentionIds = Array.from(String(article.content || '').matchAll(/\]\(\/user\/(\d+)\)/g), (match) => Number(match[1]));
+            await sendMentionNotifications(env, user.id, String(content), t('articleList'), previousMentionIds);
             return new Response(null, { status: 302, headers: { Location: `/articles/${article.hex_id}` } });
         } else if (methodOverride === 'DELETE') {
             if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
@@ -146,6 +149,7 @@ export async function handleArticles(request: Request, env: Env, path: string) {
         const normalizedContent = await normalizeAtMentionsInContent(db, String(content));
         await db.prepare('INSERT INTO comments (article_id, author_id, content, parent_id) VALUES (?, ?, ?, ?)')
             .bind(article_id, user.id, normalizedContent, parent_id).run();
+        await sendMentionNotifications(env, user.id, String(content), t('comments'));
 
         if (targetArticle.author_id !== user.id) {
             await sendNotification(env, targetArticle.author_id, user.id,

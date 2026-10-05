@@ -386,6 +386,63 @@ describe("worker routing", () => {
 		expect(marked.is_read).toBe(1);
 	});
 
+	it("notifies mentioned users and exposes unread mentions to browser notifications", async () => {
+		await SELF.fetch("https://example.com/");
+		const suffix = crypto.randomUUID().slice(0, 8);
+		const authorInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password) VALUES (?, ?)'
+		).bind(`mention_author_${suffix}`, 'unused').run();
+		const targetInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password) VALUES (?, ?)'
+		).bind(`mention_target_${suffix}`, 'unused').run();
+		const authorId = Number(authorInsert.meta.last_row_id);
+		const targetId = Number(targetInsert.meta.last_row_id);
+		const authorSession = await createSession(env, authorId);
+		const targetSession = await createSession(env, targetId);
+		const content = `Hello @mention_target_${suffix} `;
+		const form = new FormData();
+		form.set('title', 'Mention notification test');
+		form.set('content', content);
+		const createArticle = await worker.fetch(new IncomingRequest('http://example.com/api/articles', {
+			method: 'POST',
+			headers: { Cookie: `uid=${authorSession}` },
+			body: form,
+		}), env, createExecutionContext());
+		expect(createArticle.status).toBe(302);
+
+		const article = await env.DB.prepare(
+			'SELECT id, content FROM articles WHERE author_id = ? AND title = ?'
+		).bind(authorId, 'Mention notification test').first<any>();
+		expect(article.content).toContain(`/user/${targetId}`);
+		const mention = await env.DB.prepare(
+			"SELECT id, content FROM messages WHERE to_user_id = ? AND from_user_id = ? AND type = 'mention' ORDER BY id DESC LIMIT 1"
+		).bind(targetId, authorId).first<any>();
+		expect(mention).not.toBeNull();
+		expect(mention.content).toContain(content.trim());
+
+		const initialCursor = await worker.fetch(new IncomingRequest('http://example.com/api/messages/mentions', {
+			headers: { Cookie: `uid=${targetSession}` },
+		}), env, createExecutionContext());
+		expect(await initialCursor.json()).toEqual({ messages: [], latestId: mention.id });
+
+		const newMentions = await worker.fetch(new IncomingRequest('http://example.com/api/messages/mentions?after=0', {
+			headers: { Cookie: `uid=${targetSession}` },
+		}), env, createExecutionContext());
+		const mentionData = await newMentions.json<any>();
+		expect(mentionData.messages).toContainEqual(expect.objectContaining({
+			id: mention.id,
+			title: `mention_author_${suffix}`,
+			href: `/messages#notification-${mention.id}`,
+		}));
+
+		const targetHome = await worker.fetch(new IncomingRequest('http://example.com/', {
+			headers: { Cookie: `uid=${targetSession}` },
+		}), env, createExecutionContext());
+		const homeHtml = await targetHome.text();
+		expect(homeHtml).toContain('id="browser-notifications-toggle"');
+		expect(homeHtml).toContain('/api/messages/mentions');
+	});
+
 	it("returns 404 JSON for unknown API paths", async () => {
 		const response = await SELF.fetch("https://example.com/api/nope");
 		expect(response.status).toBe(404);

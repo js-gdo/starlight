@@ -174,6 +174,10 @@ export default {
 	// ==================== 訊息 ====================
 	notifications: '訊息',
 	noNotifications: '暫無訊息',
+	mentionNotificationLabel: '@ 提及',
+	enableBrowserNotifications: '開啟瀏覽器提醒',
+	browserNotificationsEnabled: '瀏覽器提醒已開啟',
+	browserNotificationsDenied: '瀏覽器未允許通知，請在瀏覽器設定中開啟權限。',
 	systemMessage: '系統',
 	read: '已讀',
 	unread: '未讀',
