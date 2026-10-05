@@ -119,6 +119,18 @@ describe("worker routing", () => {
 		expect(await response.text()).toContain("StarLight");
 	});
 
+	it("marks OJ statements for Markdown rendering", async () => {
+		const response = await worker.fetch(
+			new IncomingRequest("http://example.com/oj/markdown-test"),
+			env,
+			createExecutionContext(),
+		);
+		const html = await response.text();
+
+		expect(response.status).toBe(200);
+		expect(html).toContain('id="ojProblemStatement" class="markdown-body markdown-content"');
+	});
+
 	it("renders the home page as HTML (integration style)", async () => {
 		const response = await SELF.fetch("https://example.com");
 		expect(response.status).toBe(200);
