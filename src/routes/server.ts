@@ -1,7 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { getTranslator } from '../utils/i18n';
-import { htmlEscape, renderUsernameLink } from '../utils/html';
+import { htmlEscape } from '../utils/html';
 import type { Env } from '../env.d';
 
 const hardwareCatalog = [
@@ -369,7 +369,7 @@ export async function renderServer(env: Env, req: Request) {
                   <div class="rank-item">
                     <div class="rank-badge">${index + 1}</div>
                     <div>
-                      <div style="font-weight:700;">${renderUsernameLink(String(row.username || '未知用户'), row.color, row.tag, Number(row.id))}</div>
+                      <div style="font-weight:700;">${htmlEscape(String(row.username || '未知用户'))}</div>
                       <div style="font-size:11px;color:#666;">${row.server_cpu || 'E5-2686 v4'} · ${row.server_ram || '16GB DDR4'}</div>
                     </div>
                     <div style="font-weight:700;color:#8E44AD;">${Number(row.server_hardware_score || 0)}</div>
@@ -385,7 +385,7 @@ export async function renderServer(env: Env, req: Request) {
                   <div class="rank-item">
                     <div class="rank-badge">${index + 1}</div>
                     <div>
-                      <div style="font-weight:700;">${renderUsernameLink(String(row.username || '未知用户'), row.color, row.tag, Number(row.id))}</div>
+                      <div style="font-weight:700;">${htmlEscape(String(row.username || '未知用户'))}</div>
                       <div style="font-size:11px;color:#666;">积分 ${Number(row.points || 0)}</div>
                     </div>
                     <div style="font-weight:700;color:#8E44AD;">${Number(row.server_coin || 0)}</div>

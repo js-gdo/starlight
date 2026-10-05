@@ -176,7 +176,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
         `SELECT r.*, u.username, u.color, u.tag FROM ticket_replies r JOIN users u ON r.author_id = u.id WHERE r.ticket_id = ? ORDER BY r.created_at ASC`
     ).bind(id).all();
     const permissionLogs = ticket.permission
-        ? await db.prepare(`SELECT l.*, u.username, u.color, u.tag FROM permission_ticket_logs l JOIN users u ON l.admin_id = u.id WHERE l.ticket_id = ? ORDER BY l.created_at DESC`).bind(id).all()
+        ? await db.prepare(`SELECT l.*, u.username FROM permission_ticket_logs l JOIN users u ON l.admin_id = u.id WHERE l.ticket_id = ? ORDER BY l.created_at DESC`).bind(id).all()
         : { results: [] };
     const upvoteCount = await db.prepare('SELECT COUNT(*) AS total FROM ticket_votes WHERE ticket_id = ? AND vote = 1').bind(id).first();
     const downvoteCount = await db.prepare('SELECT COUNT(*) AS total FROM ticket_votes WHERE ticket_id = ? AND vote = -1').bind(id).first();
@@ -211,7 +211,7 @@ export async function renderTicketDetail(env: Env, req: Request, path: string) {
     const permissionHistory = permissionLogs.results.length > 0 ? `
         <div style="margin:8px 0;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:4px;font-size:13px;">
             <strong><i class="fas fa-clock-rotate-left"></i> 审批历史</strong>
-            ${permissionLogs.results.map((log: any) => `<div style="margin-top:6px;color:#666;">${renderUsernameLink(log.username, log.color, log.tag, log.admin_id)} · ${log.decision === 'approve' ? '已允许' : '已拒绝'} · ${formatTimeToChina(log.created_at)} · ${htmlEscape(log.reason || '')}</div>`).join('')}
+            ${permissionLogs.results.map((log: any) => `<div style="margin-top:6px;color:#666;">${htmlEscape(log.username)} · ${log.decision === 'approve' ? '已允许' : '已拒绝'} · ${formatTimeToChina(log.created_at)} · ${htmlEscape(log.reason || '')}</div>`).join('')}
         </div>` : '';
 
     // 预翻译

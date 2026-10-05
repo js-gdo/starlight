@@ -1,6 +1,6 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
-import { htmlEscape, renderUsernameLink } from '../utils/html';
+import { htmlEscape, renderAvatar, renderUsernameLink } from '../utils/html';
 import { ADMIN_ROLE_KEYS, ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import type { Env } from '../env.d';
 
@@ -37,7 +37,7 @@ export async function renderAdminList(env: Env, req: Request) {
       ${admins.length ? `<div class="admin-list-grid">${admins.map((admin: any) => {
           const roles = parseAdminRoles(admin.admin_roles);
           return `<div class="admin-list-card">
-            <div class="admin-list-head"><div><div>${renderUsernameLink(admin.username, admin.color, admin.tag, admin.id)}</div><div style="font-size:11px;color:#999;">UID: ${admin.id}</div></div></div>
+            <div class="admin-list-head">${renderAvatar(admin, 42)}<div><div>${renderUsernameLink(admin.username, admin.color, admin.tag, admin.id)}</div><div style="font-size:11px;color:#999;">UID: ${admin.id}</div></div></div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">${roles.map(role => `<span class="admin-role-pill">${ADMIN_ROLE_LABELS[role]}</span>`).join('')}</div>
             ${admin.bio ? `<div style="margin-top:10px;color:#777;font-size:12px;">${htmlEscape(admin.bio)}</div>` : ''}
             ${user?.id === 1 ? `<form class="admin-role-form" action="/api/admin/roles" method="POST">

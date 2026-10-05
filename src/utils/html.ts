@@ -1,4 +1,4 @@
-import { getUserColor } from './constants';
+import { getUserColor, getUserColorTextStyle, getUserTagStyle } from './constants';
 import type { TypedD1Database } from '../env.d';
 
 export type MentionUser = {
@@ -132,7 +132,7 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
         result += htmlEscape(text.slice(lastIndex, start));
         const user = resolveUser(token);
         if (user) {
-            result += `${htmlEscape(prefix)}@${renderUsernameLink(token, user.color || 'purple', user.tag || '', user.id)}`;
+            result += `${htmlEscape(prefix)}<a href="/user/${user.id}" class="username-link" data-user-id="${user.id}" style="${getUserColorTextStyle(user.color || 'purple')}text-decoration:none;font-weight:500;" target="_blank">${htmlEscape('@' + token)}</a>`;
         } else {
             result += `${htmlEscape(prefix)}${htmlEscape('@' + token)}`;
         }
@@ -142,10 +142,10 @@ export function renderAtMentions(text: string, resolveUser: (token: string) => M
     return result.replace(/\n/g, '<br>');
 }
 
-export function renderUsernameLink(username: string, _color: string, _tag: string, uid: number, extraClass = '') {
+export function renderUsernameLink(username: string, color: string, tag: string, uid: number, extraClass = '') {
     if (!username) return '';
-    if (!Number.isSafeInteger(uid) || uid <= 0) return htmlEscape(username);
-    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="display:inline-flex;align-items:center;vertical-align:middle;${htmlEscape(extraClass)}" target="_blank" title="${htmlEscape(username)}"><img src="/api/usersvg?uid=${uid}" alt="${htmlEscape(username)}" loading="lazy" decoding="async" style="display:block;width:auto;height:28px;max-width:100%;"></a>`;
+    const tagHtml = tag ? `<span style="${htmlEscape(getUserTagStyle(color))}">${htmlEscape(tag)}</span>` : '';
+    return `<a href="/user/${uid}" class="username-link" data-user-id="${uid}" style="${htmlEscape(getUserColorTextStyle(color))}text-decoration:none;font-weight:500;${extraClass}" target="_blank">${htmlEscape(username)}${tagHtml}</a>`;
 }
 
 export function renderAvatar(user: { id?: number; username?: string; avatar_url?: string }, size = 42): string {
