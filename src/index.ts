@@ -30,6 +30,7 @@ import { renderAchievements } from './routes/achievements';
 import { renderRedeem } from './routes/redeem';
 import { renderGame } from './routes/game';
 import { renderSearch } from './routes/search';
+import { renderInvite } from './routes/invite';
 import { renderOS } from './routes/os';
 import { handleApi } from './handlers/api';
 import { renderTeamList, renderTeamNew, renderTeam, renderTeamSettings, renderTeamRequests } from './routes/teams';
@@ -214,6 +215,9 @@ if (path === '/leaderboard') {
                     headers: { 'Content-Type': 'text/html; charset=utf-8' },
                 });
             }
+            if (path === '/invite') {
+                return await renderInvite(env, request);
+            }
             if (path === '/team') {
                 return new Response(await renderTeamList(env, request), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
             }
@@ -294,4 +298,3 @@ if (path === '/leaderboard') {
         }
     },
 } satisfies ExportedHandler<Env>;
-
