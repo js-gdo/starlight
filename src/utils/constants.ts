@@ -11,6 +11,17 @@ export function getTicketStatus(status: string) {
     return TICKET_STATUSES[status] || TICKET_STATUSES['pending'];
 }
 
+export function getPointsRankBadgeLevel(rank: number, total: number): 'gold' | 'blue' | 'green' | null {
+    if (!Number.isInteger(rank) || !Number.isInteger(total) || rank < 1 || total < 1 || rank > total) return null;
+    const goldLimit = Math.ceil(total * 0.1);
+    const blueLimit = Math.ceil(total * 0.3);
+    const greenLimit = Math.ceil(total * 0.6);
+    if (rank <= goldLimit) return 'gold';
+    if (rank <= blueLimit) return 'blue';
+    if (rank <= greenLimit) return 'green';
+    return null;
+}
+
 // 颜色映射
 export const COLOR_MAP: Record<string, string> = {
     purple: '#8E44AD',

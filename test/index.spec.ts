@@ -8,6 +8,7 @@ import { describe, it, expect, vi } from "vitest";
 import worker from "../src/index";
 import { createSession } from "../src/utils/auth";
 import { renderUsernameLink } from "../src/utils/html";
+import { getPointsRankBadgeLevel } from "../src/utils/constants";
 import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from "../src/utils/profile";
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
@@ -15,6 +16,24 @@ import { buildReportAuditText, normalizeReportReason } from "../src/handlers/rep
 // For now, you'll need to do something like this to get a correctly-typed
 // `Request` to pass to `worker.fetch()`.
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
+
+describe("points rank username badges", () => {
+	it("assigns the first 10%, next 20%, and next 30% of 100 users", () => {
+		expect(getPointsRankBadgeLevel(1, 100)).toBe("gold");
+		expect(getPointsRankBadgeLevel(10, 100)).toBe("gold");
+		expect(getPointsRankBadgeLevel(11, 100)).toBe("blue");
+		expect(getPointsRankBadgeLevel(30, 100)).toBe("blue");
+		expect(getPointsRankBadgeLevel(31, 100)).toBe("green");
+		expect(getPointsRankBadgeLevel(60, 100)).toBe("green");
+		expect(getPointsRankBadgeLevel(61, 100)).toBeNull();
+	});
+
+	it("does not render a fixed UID-based badge in username links", () => {
+		const html = renderUsernameLink("ranked-user", "purple", "", 42);
+		expect(html).toContain('data-user-id="42"');
+		expect(html).not.toContain("<svg");
+	});
+});
 
 describe("database migrations", () => {
 	it("migrates existing profile settings before saving an unchanged bio", async () => {
