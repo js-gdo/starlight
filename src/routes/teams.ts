@@ -1,6 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
+import { contestScheduleState } from '../handlers/contest';
 import type { Env } from '../env.d';
 
 const TEAM_ROLE_LABELS: Record<string, string> = { owner: '队长', admin: '管理员', member: '成员' };
@@ -80,6 +81,15 @@ export async function renderTeam(env: Env, req: Request, path: string) {
   const members = await env.DB.prepare("SELECT tm.*,u.username,u.color,u.tag FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? AND tm.status='approved' ORDER BY tm.role DESC,tm.created_at").bind(id).all<any>();
   const pending = await env.DB.prepare("SELECT tm.*,u.username,u.color,u.tag FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? AND tm.status='pending' ORDER BY tm.created_at DESC").bind(id).all<any>();
   const posts = await env.DB.prepare("SELECT p.*,u.username,u.color,u.tag FROM team_posts p JOIN users u ON u.id=p.author_id WHERE p.team_id=? ORDER BY p.created_at DESC LIMIT 50").bind(id).all<any>();
+  const teamContests = await env.DB.prepare(`
+    SELECT c.*,
+           (SELECT COUNT(*) FROM contest_enrollments ce WHERE ce.contest_id=c.id AND ce.status='enrolled') AS enrolled_count,
+           (SELECT status FROM contest_public_requests r WHERE r.contest_id=c.id ORDER BY r.id DESC LIMIT 1) AS public_request_status
+    FROM contests c WHERE c.team_id=? ORDER BY c.start_at DESC,c.id DESC
+  `).bind(id).all<any>();
+  const teamQuestions = member?.status === 'approved' ? await env.DB.prepare(
+    "SELECT problem_id,problem_name,tags,visibility FROM oj_proposals WHERE proposal_category='team' AND team_id=? AND status='approved' ORDER BY problem_id"
+  ).bind(id).all<any>() : { results: [] };
   const isOwner = member?.role === 'owner';
   const isAdmin = !!member && ['owner', 'admin'].includes(member.role);
   const canPost = member?.status === 'approved' && isAdmin;
@@ -115,6 +125,8 @@ export async function renderTeam(env: Env, req: Request, path: string) {
         <a href="#announcements" class="team-tab is-active">公告</a>
         <a href="#overview" class="team-tab">概览</a>
         <a href="#members" class="team-tab">成员</a>
+        ${member?.status === 'approved' ? '<a href="#team-oj" class="team-tab">团队题目</a>' : ''}
+        ${member?.status === 'approved' ? '<a href="#team-contests" class="team-tab">团队比赛</a>' : ''}
         ${canManage ? '<a href="#settings" class="team-tab">设置</a>' : ''}
       </nav>
 
@@ -137,6 +149,34 @@ export async function renderTeam(env: Env, req: Request, path: string) {
         ${members.results.map((m: any) => `<div class="team-member-row"><div>${renderUsernameLink(m.username,m.color,m.tag,m.user_id)}</div><span class="team-role-badge">${renderRoleLabel(m.role)}</span></div>`).join('') || '<p>暂无成员。</p>'}
         ${pending.results.length ? `<div style="margin-top:16px;"><h3>待审核</h3>${pending.results.map((m: any) => `<div class="team-member-row"><div>${renderUsernameLink(m.username,m.color,m.tag,m.user_id)}${m.reason ? `<div style="font-size:12px;color:#666;">${htmlEscape(m.reason)}</div>` : ''}</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><form method="POST" action="/api/teams/${id}/members/${m.user_id}/approve" style="display:inline"><button type="submit">通过</button></form><form method="POST" action="/api/teams/${id}/members/${m.user_id}/reject" style="display:inline"><button type="submit">拒绝</button></form></div></div>`).join('')}</div>` : ''}
       </section>
+      ${member?.status === 'approved' ? `
+        <section id="team-oj" class="card team-panel" style="display:none;">
+          <h2>团队题目</h2>
+          <p class="oj-muted">私有团队题只允许已审核团队成员访问，题目链接会附带所属团队编号。</p>
+          ${(teamQuestions.results || []).length ? (teamQuestions.results || []).map((problem: any) => {
+            let tags: string[] = [];
+            try { tags = JSON.parse(String(problem.tags || '[]')); } catch { tags = []; }
+            return `<article class="team-post">
+              <a href="/oj/${encodeURIComponent(String(problem.problem_id))}?tid=${id}" class="team-link"><strong>${htmlEscape(String(problem.problem_id))} · ${htmlEscape(String(problem.problem_name || '未命名题目'))}</strong></a>
+              <div class="oj-muted">${problem.visibility === 'private' ? '团队私有题' : '团队公开题'}${tags.length ? ` · ${tags.map(tag => htmlEscape(tag)).join('、')}` : ''}</div>
+            </article>`;
+          }).join('') : '<p>该团队尚无已审核题目。</p>'}
+        </section>
+        <section id="team-contests" class="card team-panel" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <h2 style="margin:0;">团队比赛</h2>
+            ${canManage ? `<a href="/team/${id}/contest/new" class="team-link">+ 新建比赛</a>` : ''}
+          </div>
+          ${(teamContests.results || []).length ? (teamContests.results || []).map((contest: any) => {
+            const state = contestScheduleState(contest.start_at, contest.end_at);
+            const status = contest.participation_mode === 'public' ? '公开赛' : contest.public_request_status === 'pending' ? '公开申请审核中' : '团队赛';
+            return `<article class="team-post">
+              <a href="/contest/${Number(contest.id)}" class="team-link"><strong>${htmlEscape(String(contest.title))}</strong></a>
+              <div class="oj-muted">${status} · ${state === 'running' ? '进行中' : state === 'ended' ? '已结束' : '未开始'} · ${Number(contest.enrolled_count || 0)} 人报名</div>
+            </article>`;
+          }).join('') : '<p>该团队尚无比赛。</p>'}
+        </section>
+      ` : ''}
       ${canManage ? `<section id="settings" class="card team-panel" style="display:none;"><h2>团队设置</h2><p><a href="/team/${id}/settings" class="team-link">管理成员、审核申请和公告</a></p></section>` : ''}
     </div>
   `;

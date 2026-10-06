@@ -338,6 +338,7 @@ export async function initDB(env: Env) {
       slug TEXT NOT NULL UNIQUE,
       description TEXT DEFAULT '',
       organizer_id INTEGER DEFAULT 1,
+      team_id INTEGER DEFAULT NULL,
       participation_mode TEXT NOT NULL DEFAULT 'public' CHECK (participation_mode IN ('public', 'team')),
       is_ioi INTEGER NOT NULL DEFAULT 1,
       start_at TEXT DEFAULT '',
@@ -349,11 +350,41 @@ export async function initDB(env: Env) {
         `CREATE TABLE IF NOT EXISTS contest_problems (
       contest_id INTEGER NOT NULL,
       problem_id TEXT NOT NULL,
+      problem_name TEXT NOT NULL DEFAULT '',
       problem_order INTEGER NOT NULL DEFAULT 0,
       visibility TEXT NOT NULL DEFAULT 'public',
       created_at TEXT DEFAULT (datetime('now')),
       PRIMARY KEY (contest_id, problem_id),
       FOREIGN KEY(contest_id) REFERENCES contests(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS contest_public_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contest_id INTEGER NOT NULL,
+      requested_by INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      review_note TEXT NOT NULL DEFAULT '',
+      reviewed_by INTEGER DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reviewed_at TEXT DEFAULT NULL,
+      FOREIGN KEY(contest_id) REFERENCES contests(id) ON DELETE CASCADE,
+      FOREIGN KEY(requested_by) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+    )`,
+        `CREATE TABLE IF NOT EXISTS contest_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contest_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      problem_id TEXT NOT NULL,
+      submission_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Judging',
+      passed INTEGER NOT NULL DEFAULT 0,
+      total INTEGER NOT NULL DEFAULT 0,
+      score INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(contest_id, submission_id),
+      FOREIGN KEY(contest_id) REFERENCES contests(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
         `CREATE TABLE IF NOT EXISTS contest_enrollments (
       contest_id INTEGER NOT NULL,
@@ -439,7 +470,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '20';
+const CURRENT_SCHEMA_VERSION = '21';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
