@@ -2,6 +2,7 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import { writeAudit } from '../utils/audit';
 import { ensureUserCanAccessContest } from './contest';
+import { filterVisibleOjProblems } from '../utils/problem';
 
 const OJ_BASE_URL = 'https://oj.lin114514.top';
 
@@ -15,7 +16,7 @@ function ojUrl(path: string, request: Request): URL {
     return url;
 }
 
-async function proxyJson(url: URL, init?: RequestInit): Promise<Response> {
+async function proxyJson(url: URL, init?: RequestInit, transform?: (data: any) => unknown): Promise<Response> {
     try {
         const response = await fetch(url, {
             ...init,
@@ -24,7 +25,10 @@ async function proxyJson(url: URL, init?: RequestInit): Promise<Response> {
                 ...(init?.headers || {}),
             },
         });
-        const body = await response.text();
+        const responseBody = await response.text();
+        const body = transform && response.ok
+            ? JSON.stringify(transform(JSON.parse(responseBody)))
+            : responseBody;
         return new Response(body, {
             status: response.status,
             headers: { 'Content-Type': response.headers.get('Content-Type') || 'application/json; charset=utf-8' },
@@ -36,6 +40,19 @@ async function proxyJson(url: URL, init?: RequestInit): Promise<Response> {
             headers: { 'Content-Type': 'application/json; charset=utf-8' },
         });
     }
+}
+
+function filterHiddenProblems(data: any): unknown {
+    if (Array.isArray(data)) {
+        return filterVisibleOjProblems(data);
+    }
+    if (!data || typeof data !== 'object' || !Array.isArray(data.problems)) return data;
+    const problems = filterVisibleOjProblems(data.problems);
+    return {
+        ...data,
+        problems,
+        ...(Object.prototype.hasOwnProperty.call(data, 'count') ? { count: problems.length } : {}),
+    };
 }
 
 async function requireSuperuser(request: Request, env: Env): Promise<any | null> {
@@ -191,7 +208,7 @@ export async function handleOj(request: Request, env: Env, path: string): Promis
         return jsonRes({ error: '比赛已结束，无法继续提交。' }, 403);
     }
     if (path === '/api/oj/problems') {
-        return proxyJson(ojUrl('/api/get/problem/list', request));
+        return proxyJson(ojUrl('/api/get/problem/list', request), undefined, filterHiddenProblems);
     }
     if (path === '/api/oj/problem') {
         return proxyJson(ojUrl('/api/get/problem', request));
