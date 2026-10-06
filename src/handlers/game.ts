@@ -159,8 +159,8 @@ async function getGameState(env: Env, userId: number): Promise<Record<string, un
             SELECT id, sector_key, sector_name, started_at, ends_at, energy_cost,
                    reward_credits, reward_alloy, reward_crystal, reward_research, status
             FROM space_game_expeditions
-            WHERE user_id = ?
-            ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, id DESC
+            WHERE user_id = ? AND status = 'active'
+            ORDER BY id DESC
             LIMIT 12
         `).bind(userId).all<any>(),
     ]);

@@ -747,6 +747,9 @@ describe("worker routing", () => {
 		expect(stationHtml).toContain("科技树");
 		expect(stationHtml).toContain("深空远征");
 		expect(stationHtml).toContain("/api/game/state");
+		expect(stationHtml).toContain("data-expedition-countdown");
+		expect(stationHtml).toContain("item.id===Number(countdown.getAttribute('data-expedition-countdown'))");
+		expect(stationHtml).not.toContain("heading.textContent.indexOf(item.sector_name)");
 	});
 
 	it("supports persistent space station upgrades, research, expeditions, and daily supplies", async () => {
@@ -828,12 +831,23 @@ describe("worker routing", () => {
 			method: 'POST', headers, body: JSON.stringify({ expedition_id: expedition!.id }),
 		});
 		expect(claimResponse.status).toBe(200);
+		const claimedState = await claimResponse.json() as { state: { expeditions: Array<{ id: number }> } };
+		expect(claimedState.state.expeditions).toHaveLength(0);
 		const claimAgain = await requestGame('/api/game/expedition/claim', {
 			method: 'POST', headers, body: JSON.stringify({ expedition_id: expedition!.id }),
 		});
 		expect(claimAgain.status).toBe(409);
 		const afterClaim = await env.DB.prepare('SELECT status FROM space_game_expeditions WHERE id = ?').bind(expedition!.id).first<{ status: string }>();
 		expect(afterClaim?.status).toBe('claimed');
+
+		const secondLaunch = await requestGame('/api/game/expedition/launch', {
+			method: 'POST', headers, body: JSON.stringify({ sector: 'orbit' }),
+		});
+		expect(secondLaunch.status).toBe(200);
+		const secondLaunchState = await secondLaunch.json() as { state: { expeditions: Array<{ id: number; status: string }> } };
+		expect(secondLaunchState.state.expeditions).toHaveLength(1);
+		expect(secondLaunchState.state.expeditions[0].id).not.toBe(expedition!.id);
+		expect(secondLaunchState.state.expeditions[0].status).toBe('active');
 
 		const dailyResponse = await requestGame('/api/game/daily/claim', { method: 'POST', headers });
 		expect(dailyResponse.status).toBe(200);

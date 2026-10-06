@@ -169,15 +169,13 @@ function renderGameContent(): string {
             }
             function expeditions(items,slots){
                 document.getElementById('spaceExpeditionSlots').textContent='远征位 '+number(slots.active)+' / '+number(slots.max);
-                var active=items.filter(function(item){return item.status==='active';});
-                var history=items.filter(function(item){return item.status==='claimed';}).slice(0,4);
-                var list=active.concat(history);
+                var list=items.filter(function(item){return item.status==='active';});
                 var host=document.getElementById('spaceExpeditions');
                 host.innerHTML=list.length?list.map(function(item){
                     var reward=item.rewards;
                     var rewardText='信用点 '+number(reward.credits)+' · 合金 '+number(reward.alloy)+' · 晶体 '+number(reward.crystal)+' · 研究 '+number(reward.research_points);
                     var activeTrip=item.status==='active';
-                    return '<article class="space-expedition"><div><h3><i class="fas '+(activeTrip?'fa-shuttle-space':'fa-circle-check')+'"></i> '+esc(item.sector_name)+(activeTrip?' · '+esc(formatRemaining(item.ends_at)):' · 已领取')+'</h3><p class="space-expedition-reward">'+rewardText+'</p></div>'+(activeTrip?'<button type="button" data-claim-expedition="'+number(item.id)+'" '+(!item.ready_to_claim?'disabled':'')+'>'+(item.ready_to_claim?'领取战利品':'远征中')+'</button>':'<span class="space-label">远征完成</span>')+'</article>';
+                    return '<article class="space-expedition"><div><h3><i class="fas '+(activeTrip?'fa-shuttle-space':'fa-circle-check')+'"></i> '+esc(item.sector_name)+(activeTrip?' <span data-expedition-countdown="'+number(item.id)+'">· '+esc(formatRemaining(item.ends_at))+'</span>':' · 已领取')+'</h3><p class="space-expedition-reward">'+rewardText+'</p></div>'+(activeTrip?'<button type="button" data-claim-expedition="'+number(item.id)+'" '+(!item.ready_to_claim?'disabled':'')+'>'+(item.ready_to_claim?'领取战利品':'远征中')+'</button>':'<span class="space-label">远征完成</span>')+'</article>';
                 }).join(''):'<div class="space-empty">舰队尚未出发。选择一个已解锁的星域开始远征。</div>';
                 document.querySelectorAll('[data-claim-expedition]').forEach(function(button){button.addEventListener('click',function(){post('/api/game/expedition/claim',{expedition_id:Number(button.dataset.claimExpedition)},button);});});
             }
@@ -228,14 +226,20 @@ function renderGameContent(): string {
             load();
             loadLeaderboard();
             window.setInterval(load,60000);
+            var refreshPending=false;
             window.setInterval(function(){
                 document.querySelectorAll('[data-claim-expedition]').forEach(function(button){
                     var row=state&&state.expeditions.find(function(item){return item.id===Number(button.dataset.claimExpedition);});
-                    if(row&&row.status==='active'&&!row.ready_to_claim&&Date.parse(row.ends_at)<=Date.now())load();
+                    if(!refreshPending&&row&&row.status==='active'&&!row.ready_to_claim&&Date.parse(row.ends_at)<=Date.now()){
+                        refreshPending=true;
+                        load().finally(function(){refreshPending=false;});
+                    }
                 });
-                document.querySelectorAll('.space-expedition h3').forEach(function(heading){
-                    var row=state&&state.expeditions.find(function(item){return item.status==='active'&&heading.textContent.indexOf(item.sector_name)!==-1;});
-                    if(row)heading.innerHTML='<i class="fas fa-shuttle-space"></i> '+esc(row.sector_name)+' · '+esc(formatRemaining(row.ends_at));
+                document.querySelectorAll('[data-expedition-countdown]').forEach(function(countdown){
+                    var row=state&&state.expeditions.find(function(item){
+                        return item.status==='active'&&item.id===Number(countdown.getAttribute('data-expedition-countdown'));
+                    });
+                    if(row)countdown.textContent='· '+formatRemaining(row.ends_at);
                 });
             },1000);
         }());
