@@ -1,6 +1,7 @@
 import { createExecutionContext, env as cloudflareEnv, waitOnExecutionContext } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import worker from "../src/index";
+import { initDB } from "../src/db/init";
 import { createSession } from "../src/utils/auth";
 import type { Env as WorkerEnv } from "../src/env.d";
 
@@ -104,5 +105,7 @@ describe("database migrations", () => {
 			method: 'POST', headers: { Cookie: `uid=${session}` }, body: invalidForm,
 		}), env, createExecutionContext());
 		expect(invalidBackground.status).toBe(400);
+
+		await initDB(env);
 	});
 });
