@@ -45,7 +45,7 @@ function renderOjListContent(request: Request): string {
         const value = incoming.searchParams.get(key);
         if (value) context.set(key, value);
     }
-    const contextQuery = context.size ? `&${context.toString()}` : '';
+    const contextQuery = context.size ? `?${context.toString()}` : '';
     return `
         <div class="page-header">
             <h1><i class="fas fa-code"></i> OJ 评测</h1>

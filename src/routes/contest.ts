@@ -1,8 +1,42 @@
 ﻿import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
-import { contestScheduleState } from '../handlers/contest';
+import { contestScheduleState, ensureUserCanViewContestLeaderboard } from '../handlers/contest';
 import type { Env } from '../env.d';
+
+const CONTEST_STYLES = `
+    .contest-page .page-header{margin-bottom:18px}
+    .contest-page .page-header h1{font-size:clamp(24px,4vw,34px);letter-spacing:-.025em}
+    .contest-page .page-header p{color:#777}
+    .contest-create-card{max-width:820px;margin:0 auto;padding:clamp(16px,3vw,28px);border:1px solid #eee7f4;border-radius:16px;background:linear-gradient(150deg,#fff,#fcf9ff);box-shadow:0 12px 32px #39234c0d}
+    .contest-create-card form{gap:16px!important}
+    .contest-create-card label{color:#493952;font-size:13px;font-weight:700}
+    .contest-create-card input:not([type=hidden]),.contest-create-card textarea,.contest-create-card select{margin-top:6px}
+    .contest-create-card input:focus,.contest-create-card textarea:focus,.contest-create-card select:focus{outline:2px solid #eadcf4;border-color:#8e44ad!important}
+    .contest-list-shell{padding:clamp(14px,3vw,24px);border:1px solid #eee7f4;border-radius:16px;background:#fff;box-shadow:0 12px 30px #39234c0a}
+    .contest-list-card{padding:18px;border:1px solid #eee8f3;border-radius:13px;margin:12px 0;background:linear-gradient(135deg,#fff,#fcfaff);transition:transform .18s ease,box-shadow .18s ease}
+    .contest-list-card:hover{transform:translateY(-2px);box-shadow:0 10px 26px #39234c12}
+    .contest-list-card h2{font-size:19px}
+    .contest-list-card h2 a{color:#39234c!important;text-decoration:none}
+    .contest-list-card h2 a:hover{color:#8e44ad!important}
+    .contest-list-card p{line-height:1.65}
+    .contest-list-meta{display:flex;gap:8px 18px;flex-wrap:wrap;margin-top:13px;color:#777;font-size:12px}
+    .contest-state-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:99px;background:#f1eafa;color:#754092;font-size:11px;font-weight:800;white-space:nowrap}
+    .contest-detail-layout{grid-template-columns:minmax(0,1.55fr) minmax(260px,.8fr)!important}
+    .contest-detail-hero{padding:clamp(16px,3vw,26px);border:1px solid #eee7f4;background:linear-gradient(145deg,#fff,#fbf7ff);box-shadow:0 10px 28px #39234c0a}
+    .contest-detail-hero h2{color:#39234c}
+    .contest-detail-hero .markdown-content{line-height:1.75;color:#5d5363}
+    .contest-detail-facts{margin-top:20px}
+    .contest-detail-facts div{border:1px solid #eee9f2!important;background:#fff!important}
+    .contest-enrollment-card,.contest-info-card,.contest-problems-card{border:1px solid #eee7f4;box-shadow:0 8px 24px #39234c0a}
+    .contest-enrollment-card h2,.contest-info-card h2,.contest-problems-card h2{color:#39234c}
+    .contest-problems-card ol{padding-left:24px}
+    .contest-problems-card li{padding:7px 0;color:#777}
+    .contest-review-box{margin-top:14px;padding:14px;border:1px solid #eadcf4;border-radius:11px;background:#faf6ff}
+    .contest-page button,.contest-page .oj-submit{border:0;border-radius:8px;padding:10px 14px;background:#78439a;color:#fff;font-weight:700;cursor:pointer}
+    .contest-page button:hover,.contest-page .oj-submit:hover{background:#63357f}
+    @media(max-width:760px){.contest-detail-layout{grid-template-columns:1fr!important}.contest-list-card{padding:14px}}
+`;
 
 export async function renderContestCreate(env: Env, request: Request, path: string): Promise<string> {
     const user = await getSessionUser(env, request);
@@ -23,7 +57,7 @@ export async function renderContestCreate(env: Env, request: Request, path: stri
             <h1><i class="fas fa-trophy"></i> 在「${htmlEscape(team.name)}」创建团队赛</h1>
             <p style="margin-top:4px;"><a href="/team/${teamId}">返回团队</a></p>
         </div>
-        <div class="card" style="max-width:820px;">
+        <div class="card contest-create-card">
             <form id="contestCreateForm" style="display:grid;gap:12px;">
                 <input type="hidden" name="team_id" value="${teamId}">
                 <label>比赛名称<input name="title" required maxlength="120" style="display:block;width:100%;box-sizing:border-box;padding:9px;border:1px solid #ddd;border-radius:6px;"></label>
@@ -128,7 +162,7 @@ export async function renderContestCreate(env: Env, request: Request, path: stri
         }());
         </script>
     `;
-    return getLayout(env, user, '创建团队赛', content, '', request);
+    return getLayout(env, user, '创建团队赛', `<div class="contest-page">${content}</div>`, CONTEST_STYLES, request);
 }
 
 export async function renderContestList(env: Env, request: Request): Promise<string> {
@@ -153,7 +187,7 @@ export async function renderContestList(env: Env, request: Request): Promise<str
         ORDER BY r.created_at, r.id
     `).all<any>() : { results: [] };
     const content = `
-        <div class="page-header">
+        <div class="page-header contest-page">
             <h1><i class="fas fa-trophy"></i> 比赛中心</h1>
             <p style="margin-top:4px;">查看公开赛赛程、报名状态和排行榜；团队赛请前往所属团队查看。</p>
         </div>
@@ -177,7 +211,7 @@ export async function renderContestList(env: Env, request: Request): Promise<str
             location.reload();
         }
         </script>` : ''}
-        <div class="card">
+        <div class="contest-list-shell">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
                 <strong>当前赛程</strong>
                 <a href="/oj" style="color:#8E44AD;text-decoration:none;">前往 OJ 题库</a>
@@ -187,15 +221,15 @@ export async function renderContestList(env: Env, request: Request): Promise<str
                 const labelMap = { scheduled: '未开始', running: '进行中', ended: '已结束' };
                 const modeLabel = contest.participation_mode === 'team' ? '团队赛' : '公开赛';
                 return `
-                    <div style="border:1px solid #eee;border-radius:10px;padding:14px 16px;margin-bottom:12px;background:#faf9ff;">
+                    <div class="contest-list-card">
                         <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
                             <div>
                                 <h2 style="margin:0 0 6px;font-size:18px;"><a href="/contest/${contest.id}" style="color:#8E44AD;text-decoration:none;">${htmlEscape(contest.title || `比赛 #${contest.id}`)}</a></h2>
                                 <p style="margin:0;color:#555;">${htmlEscape(contest.description || '暂无简介。')}</p>
                             </div>
-                            <span style="padding:4px 10px;border-radius:999px;background:#f2eafa;color:#73419b;font-size:12px;font-weight:700;">${labelMap[state as keyof typeof labelMap]}</span>
+                            <span class="contest-state-pill">${labelMap[state as keyof typeof labelMap]}</span>
                         </div>
-                        <div style="margin-top:10px;color:#666;font-size:13px;display:flex;gap:18px;flex-wrap:wrap;">
+                        <div class="contest-list-meta">
                             <span>模式：${modeLabel}</span>
                             <span>IOI：${contest.is_ioi ? '是' : '否'}</span>
                             <span>开始：${contest.start_at ? htmlEscape(contest.start_at) : '待定'}</span>
@@ -207,7 +241,7 @@ export async function renderContestList(env: Env, request: Request): Promise<str
             }).join('') : '<div class="oj-muted">暂无比赛，等待管理员发布赛程。</div>'}
         </div>
     `;
-    return getLayout(env, user, '比赛中心', content, '', request);
+    return getLayout(env, user, '比赛中心', `<div class="contest-page">${content}</div>`, CONTEST_STYLES, request);
 }
 
 export async function renderContestDetail(env: Env, request: Request, path: string): Promise<string> {
@@ -240,25 +274,7 @@ export async function renderContestDetail(env: Env, request: Request, path: stri
         WHERE cp.contest_id = ?
         ORDER BY cp.problem_order, cp.problem_id
     `).bind(contestId).all<any>();
-    const scoreRows = enrolled ? await env.DB.prepare(`
-        SELECT s.user_id, u.username, s.problem_id, MAX(s.score) AS best_score
-        FROM contest_submissions s JOIN users u ON u.id = s.user_id
-        WHERE s.contest_id = ?
-        GROUP BY s.user_id, u.username, s.problem_id
-    `).bind(contestId).all<any>() : { results: [] };
-    const scoreMap = new Map<number, { username: string; score: number; problems: Record<string, number> }>();
-    for (const row of scoreRows.results || []) {
-        const uid = Number(row.user_id);
-        const entry = scoreMap.get(uid) || { username: String(row.username), score: 0, problems: {} };
-        const score = Math.max(0, Math.min(100, Number(row.best_score || 0)));
-        entry.problems[String(row.problem_id)] = score;
-        entry.score += score;
-        scoreMap.set(uid, entry);
-    }
     const problemList = contestProblems.results || [];
-    const leaderboardRows = [...scoreMap.entries()].sort((a, b) =>
-        b[1].score - a[1].score || a[1].username.localeCompare(b[1].username)
-    );
     const modeLabel = contest.participation_mode === 'team' ? '团队赛' : '公开赛';
     const stateLabel = { scheduled: '未开始', running: '进行中', ended: '已结束' }[state] || '进行中';
     const isTeamManager = user && contest.team_id ? await env.DB.prepare(
@@ -271,7 +287,7 @@ export async function renderContestDetail(env: Env, request: Request, path: stri
         : null;
 
     const enrollForm = !user ? '<div class="card"><p>登录后即可报名比赛。</p><a href="/login?redirect=' + encodeURIComponent('/contest/' + contestId) + '" style="color:#8E44AD;text-decoration:none;">前往登录</a></div>' : `
-        <div class="card">
+        <div class="card contest-enrollment-card">
             <h2 style="margin-top:0;">报名状态</h2>
             ${enrolled ? '<p>已报名：' + htmlEscape(enrolled.status || 'enrolled') + '</p>' : '<p>尚未报名。</p>'}
             ${contest.participation_mode === 'team' ? `
@@ -288,18 +304,18 @@ export async function renderContestDetail(env: Env, request: Request, path: stri
     `;
 
     const content = `
-        <div class="page-header">
+        <div class="page-header contest-page">
             <h1><i class="fas fa-trophy"></i> ${htmlEscape(contest.title || `比赛 #${contest.id}`)}</h1>
             <p style="margin-top:4px;"><a href="/contest" style="color:#8E44AD;text-decoration:none;">← 返回比赛中心</a></p>
         </div>
-        <div class="oj-layout">
-            <article class="card">
+        <div class="oj-layout contest-detail-layout">
+            <article class="card contest-detail-hero">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
                     <span style="padding:4px 10px;border-radius:999px;background:#f2eafa;color:#73419b;font-size:12px;font-weight:700;">${stateLabel}</span>
                     <span class="oj-muted">${modeLabel} · IOI ${contest.is_ioi ? '模式' : '非 IOI'}</span>
                 </div>
                 <div class="markdown-content">${htmlEscape(contest.description || '暂无比赛说明。')}</div>
-                <dl class="oj-submission-fields">
+                <dl class="oj-submission-fields contest-detail-facts">
                     <div><dt>开始时间</dt><dd>${htmlEscape(contest.start_at || '待定')}</dd></div>
                     <div><dt>结束时间</dt><dd>${htmlEscape(contest.end_at || '待定')}</dd></div>
                     <div><dt>主办方</dt><dd>${renderUsernameLink(contest.organizer_name || '系统', 'purple', '', Number(contest.organizer_id || 0))}</dd></div>
@@ -329,26 +345,131 @@ export async function renderContestDetail(env: Env, request: Request, path: stri
             </article>
             <aside>
                 ${enrollForm}
-                <div class="card">
+                <div class="card contest-info-card">
                     <h2 style="margin-top:0;">题目权限</h2>
                     <p class="oj-muted">共 ${problemList.length} 题，每题最高 100 分。题库仅在比赛进行中对已报名成员开放。</p>
                     <a href="/oj?cid=${contestId}" style="color:#8E44AD;text-decoration:none;">进入比赛题库</a>
                 </div>
             </aside>
         </div>
-        <div class="card" style="margin-top:16px;">
+        <div class="card contest-problems-card" style="margin-top:16px;">
             <h2 style="margin-top:0;">比赛题目</h2>
             ${enrolled && state === 'running'
                 ? problemList.length ? `<ol>${problemList.map((problem: any) => `<li><a href="/oj/${encodeURIComponent(String(problem.problem_id))}?cid=${contestId}" style="color:#8E44AD;">${htmlEscape(String(problem.problem_name || problem.proposal_name || `题目 ${problem.problem_id}`))}</a> · 100 分</li>`).join('')}</ol>` : '<p class="oj-muted">本场比赛尚未添加题目。</p>'
                 : '<p class="oj-muted">赛题仅在比赛进行中对已报名成员开放。</p>'}
         </div>
-        ${enrolled ? `<div class="card" style="margin-top:16px;">
-            <h2 style="margin-top:0;">实时排行榜</h2>
-            <p class="oj-muted">每题取最高得分；部分分按通过测试点比例计算，单题最高 100 分。</p>
-            ${leaderboardRows.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:8px;">排名</th><th style="text-align:left;padding:8px;">参赛者</th>${problemList.map((problem: any) => `<th style="text-align:center;padding:8px;">${htmlEscape(String(problem.problem_id))}</th>`).join('')}<th style="text-align:right;padding:8px;">总分</th></tr></thead><tbody>
-                ${leaderboardRows.map(([uid, result], index) => `<tr><td style="padding:8px;">${index + 1}</td><td style="padding:8px;">${uid === user?.id ? '<strong>你</strong>' : htmlEscape(result.username)}</td>${problemList.map((problem: any) => `<td style="text-align:center;padding:8px;">${Number(result.problems[String(problem.problem_id)] || 0)}</td>`).join('')}<td style="text-align:right;padding:8px;"><strong>${result.score}</strong></td></tr>`).join('')}
-            </tbody></table></div>` : '<p class="oj-muted">暂时还没有已评测提交。</p>'}
-        </div>` : ''}
+        <div class="card contest-rank-entry" style="margin-top:16px;">
+            <div><h2 style="margin:0 0 4px;">比赛排行榜</h2><p class="oj-muted" style="margin:0;">实时查看参赛者总分及各题最高分；同分并列排名。</p></div>
+            ${enrolled
+                ? `<a class="oj-submit" href="/contest/${contestId}/rank">查看排行榜</a>`
+                : '<span class="oj-muted">报名后可查看排行榜。</span>'}
+        </div>
+        <style>.contest-rank-entry{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}.contest-rank-entry .oj-submit{text-decoration:none}</style>
     `;
-    return getLayout(env, user, contest.title || `比赛 #${contest.id}`, content, '', request);
+    return getLayout(env, user, contest.title || `比赛 #${contest.id}`, `<div class="contest-page">${content}</div>`, CONTEST_STYLES, request);
+}
+
+export async function renderContestLeaderboard(env: Env, request: Request, path: string): Promise<string> {
+    const user = await getSessionUser(env, request);
+    const contestId = Number(path.split('/')[2] || 0);
+    const access = await ensureUserCanViewContestLeaderboard(env, user, contestId);
+    if (!access.ok || !access.contest) {
+        const content = `<div class="card"><h2>无法查看排行榜</h2><p>${htmlEscape(access.error || '无权查看该比赛排行榜。')}</p><a href="/contest/${contestId || ''}">返回比赛</a></div>`;
+        return getLayout(env, user, '比赛排行榜', content, '', request);
+    }
+
+    const contest = access.contest;
+    const content = `
+        <div class="page-header contest-rank-header">
+            <div><span class="contest-rank-eyebrow">CONTEST STANDINGS</span><h1><i class="fas fa-ranking-star"></i> ${htmlEscape(contest.title || `比赛 #${contestId}`)} · 排行榜</h1>
+                <p>每题取个人最高得分，按总分排名；同分并列。比赛进行中每 15 秒自动刷新。</p></div>
+            <a class="contest-rank-back" href="/contest/${contestId}"><i class="fas fa-arrow-left"></i> 返回比赛</a>
+        </div>
+        <section class="contest-rank-summary">
+            <div><span>参赛人数</span><strong id="contestRankParticipants">—</strong></div>
+            <div><span>赛题数量</span><strong id="contestRankProblemCount">—</strong></div>
+            <div><span>我的排名</span><strong id="contestRankMyPosition">—</strong></div>
+            <div><span>最后更新</span><strong id="contestRankUpdatedAt">载入中</strong></div>
+        </section>
+        <section class="card contest-rank-card">
+            <div id="contestRankState" class="contest-rank-state" role="status">正在加载排行榜…</div>
+            <div class="contest-rank-table-wrap">
+                <table class="contest-rank-table" id="contestRankTable" hidden>
+                    <thead id="contestRankHead"></thead><tbody id="contestRankBody"></tbody>
+                </table>
+            </div>
+        </section>
+        <style>
+            .contest-rank-header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+            .contest-rank-header h1{margin:5px 0;font-size:clamp(22px,4vw,32px)}
+            .contest-rank-header p{margin:6px 0 0;color:#777}
+            .contest-rank-eyebrow{font-size:10px;letter-spacing:.16em;color:#8e44ad;font-weight:800}
+            .contest-rank-back{padding:9px 13px;border-radius:9px;background:#fff;color:#754092;text-decoration:none;box-shadow:0 5px 18px #39234c14;font-weight:700}
+            .contest-rank-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+            .contest-rank-summary>div{padding:15px 17px;border:1px solid #eee7f4;border-radius:12px;background:linear-gradient(140deg,#fff,#faf6ff);box-shadow:0 5px 18px #39234c0a}
+            .contest-rank-summary span{display:block;color:#8b8191;font-size:12px;margin-bottom:5px}
+            .contest-rank-summary strong{font-size:21px;color:#39234c;font-variant-numeric:tabular-nums}
+            .contest-rank-card{padding:0;overflow:hidden}
+            .contest-rank-state{padding:18px;color:#8b8191}
+            .contest-rank-state.error{color:#a33}
+            .contest-rank-table-wrap{overflow:auto}
+            .contest-rank-table{width:100%;border-collapse:separate;border-spacing:0;min-width:620px}
+            .contest-rank-table th,.contest-rank-table td{padding:12px 14px;border-bottom:1px solid #f0edf2;text-align:center;white-space:nowrap}
+            .contest-rank-table th{position:sticky;top:0;background:#faf8fc;color:#756b7b;font-size:11px;letter-spacing:.04em}
+            .contest-rank-table th:nth-child(2),.contest-rank-table td:nth-child(2){text-align:left;min-width:150px}
+            .contest-rank-table tbody tr:hover{background:#fbf8ff}
+            .contest-rank-table tbody tr.is-me{background:#f5edff}
+            .contest-rank-place{font-weight:800;color:#8e44ad}
+            .contest-rank-place.top-1{color:#d29a18}.contest-rank-place.top-2{color:#778899}.contest-rank-place.top-3{color:#ad7045}
+            .contest-rank-name{font-weight:700;color:#33283b}
+            .contest-rank-me{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:99px;background:#8e44ad;color:#fff;font-size:10px}
+            .contest-rank-points{font-variant-numeric:tabular-nums;color:#665a70}
+            .contest-rank-total{font-size:15px;font-weight:800;color:#39234c}
+            @media(max-width:650px){.contest-rank-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.contest-rank-summary>div{padding:12px}.contest-rank-summary strong{font-size:18px}.contest-rank-table th,.contest-rank-table td{padding:10px}}
+        </style>
+        <script>
+        (function(){
+            var contestId=${contestId},currentUserId=${Number(user?.id || 0)};
+            var state=document.getElementById('contestRankState');
+            var table=document.getElementById('contestRankTable');
+            var head=document.getElementById('contestRankHead');
+            var body=document.getElementById('contestRankBody');
+            var timer=null;
+            function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
+            function problemLabel(index){var label='';for(index++;index>0;index=Math.floor((index-1)/26))label=String.fromCharCode(65+(index-1)%26)+label;return label;}
+            function render(data){
+                var problems=Array.isArray(data.problems)?data.problems:[];
+                var standings=Array.isArray(data.standings)?data.standings:[];
+                head.innerHTML='<tr><th>排名</th><th>参赛者</th>'+problems.map(function(id,index){return '<th>'+problemLabel(index)+'<br>'+esc(id)+'</th>';}).join('')+'<th>总分</th></tr>';
+                body.innerHTML=standings.map(function(row){
+                    var mine=Number(row.user_id)===currentUserId;
+                    var rank=Number(row.rank||0);
+                    var rankClass=rank<=3?' top-'+rank:'';
+                    return '<tr class="'+(mine?'is-me':'')+'"><td><span class="contest-rank-place'+rankClass+'">'+rank+'</span></td>'+
+                        '<td><span class="contest-rank-name">'+esc(mine?'你':row.username)+'</span>'+(mine?'<span class="contest-rank-me">我</span>':'')+'</td>'+
+                        problems.map(function(id){var score=Number(row.problems&&row.problems[id]||0);return '<td class="contest-rank-points">'+(score?score:'<span style="color:#c8c1cd">—</span>')+'</td>';}).join('')+
+                        '<td class="contest-rank-total">'+Number(row.score||0)+'</td></tr>';
+                }).join('');
+                document.getElementById('contestRankParticipants').textContent=standings.length;
+                document.getElementById('contestRankProblemCount').textContent=problems.length;
+                var mine=standings.find(function(row){return Number(row.user_id)===currentUserId;});
+                document.getElementById('contestRankMyPosition').textContent=mine?'#'+mine.rank:'—';
+                document.getElementById('contestRankUpdatedAt').textContent=new Date().toLocaleTimeString();
+                state.hidden=true;
+                table.hidden=standings.length===0;
+                if(!standings.length){state.hidden=false;state.textContent='暂时没有已报名参赛者。';}
+            }
+            function load(){
+                fetch('/api/contests/'+contestId+'/leaderboard',{headers:{Accept:'application/json'}})
+                    .then(function(response){return response.json().then(function(data){if(!response.ok)throw new Error(data.error||'HTTP '+response.status);return data;});})
+                    .then(render)
+                    .catch(function(error){state.hidden=false;state.classList.add('error');state.textContent='排行榜加载失败：'+error.message;});
+            }
+            load();
+            timer=setInterval(load,15000);
+            window.addEventListener('pagehide',function(){if(timer)clearInterval(timer);});
+        }());
+        </script>
+    `;
+    return getLayout(env, user, `${contest.title || `比赛 #${contestId}`} · 排行榜`, content, '', request);
 }

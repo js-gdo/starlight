@@ -6,7 +6,7 @@ import { renderArticleDetail, renderArticleEdit, renderArticleList, renderArticl
 import { renderBackendConsole } from './routes/backendConsole';
 import { renderBenben } from './routes/benben';
 import { renderClipboard } from './routes/clipboard';
-import { renderContestCreate, renderContestDetail, renderContestList } from './routes/contest';
+import { renderContestCreate, renderContestDetail, renderContestLeaderboard, renderContestList } from './routes/contest';
 import { renderGame } from './routes/game';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
@@ -114,6 +114,7 @@ const routes: RouteDefinition[] = [
     }),
     exactPage(['/contest'], (env, request) => renderContestList(env, request)),
     matchingPage((path) => /^\/team\/\d+\/contest\/new$/.test(path), (env, request, path) => renderContestCreate(env, request, path)),
+    matchingPage((path) => /^\/contest\/\d+\/rank$/.test(path), (env, request, path) => renderContestLeaderboard(env, request, path)),
     matchingPage((path) => path.startsWith('/contest/') && path.length > '/contest/'.length, (env, request, path) => renderContestDetail(env, request, path)),
     exactPage(['/oj/propose'], (env, request) => renderOjProposal(env, request)),
     exactPage(['/oj/proposals'], (env, request) => renderOjProposalReview(env, request)),
