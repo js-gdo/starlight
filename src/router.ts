@@ -6,7 +6,7 @@ import { renderArticleDetail, renderArticleEdit, renderArticleList, renderArticl
 import { renderBackendConsole } from './routes/backendConsole';
 import { renderBenben } from './routes/benben';
 import { renderClipboard } from './routes/clipboard';
-import { renderContestDetail, renderContestList } from './routes/contest';
+import { renderContestCreate, renderContestDetail, renderContestList } from './routes/contest';
 import { renderGame } from './routes/game';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
@@ -14,7 +14,7 @@ import { renderInvite } from './routes/invite';
 import { renderJudgement } from './routes/judgement';
 import { renderLeaderboard } from './routes/leaderboard';
 import { renderMessages } from './routes/messages';
-import { renderOjList, renderOjProblem, renderOjProposal, renderOjProposalReview, renderOjSubmission } from './routes/oj';
+import { renderOjList, renderOjProblem, renderOjProposal, renderOjProposalReview, renderOjSubmission, validateOjPageAccess } from './routes/oj';
 import { renderOS } from './routes/os';
 import { renderPmChat, renderPmIndex } from './routes/pm';
 import { renderRedeem } from './routes/redeem';
@@ -108,12 +108,19 @@ const routes: RouteDefinition[] = [
             : renderTicketDetail(env, request, path),
     ),
     exactPage(['/judgement'], (env, request) => renderJudgement(env, request)),
-    exactPage(['/oj'], (env, request) => renderOjList(env, request)),
+    directRoute((path) => path === '/oj', async (env, request) => {
+        const denied = await validateOjPageAccess(env, request, '/oj');
+        return denied || htmlResponse(await renderOjList(env, request));
+    }),
     exactPage(['/contest'], (env, request) => renderContestList(env, request)),
+    matchingPage((path) => /^\/team\/\d+\/contest\/new$/.test(path), (env, request, path) => renderContestCreate(env, request, path)),
     matchingPage((path) => path.startsWith('/contest/') && path.length > '/contest/'.length, (env, request, path) => renderContestDetail(env, request, path)),
     exactPage(['/oj/propose'], (env, request) => renderOjProposal(env, request)),
     exactPage(['/oj/proposals'], (env, request) => renderOjProposalReview(env, request)),
-    matchingPage((path) => path.startsWith('/oj/submission/') && path.length > '/oj/submission/'.length, (env, request, path) => renderOjSubmission(env, request, path)),
+    directRoute((path) => path.startsWith('/oj/submission/') && path.length > '/oj/submission/'.length, async (env, request, path) => {
+        const denied = await validateOjPageAccess(env, request, path);
+        return denied || htmlResponse(await renderOjSubmission(env, request, path));
+    }),
     exactPage(['/leaderboard'], (env, request) => renderLeaderboard(env, request)),
     exactPage(['/achievements'], (env, request) => renderAchievements(env, request)),
     exactPage(['/redeem'], (env, request) => renderRedeem(env, request)),
@@ -125,7 +132,10 @@ const routes: RouteDefinition[] = [
     exactPage(['/team/requests'], (env, request) => renderTeamRequests(env, request)),
     matchingPage((path) => path.startsWith('/team/') && path.endsWith('/settings'), (env, request, path) => renderTeamSettings(env, request, path)),
     matchingPage((path) => path.startsWith('/team/') && path.length > 6, (env, request, path) => renderTeam(env, request, path)),
-    matchingPage((path) => path.startsWith('/oj/') && path.length > 4, (env, request, path) => renderOjProblem(env, request, path)),
+    directRoute((path) => path.startsWith('/oj/') && path.length > 4, async (env, request, path) => {
+        const denied = await validateOjPageAccess(env, request, path);
+        return denied || htmlResponse(await renderOjProblem(env, request, path));
+    }),
     exactPage(['/clipboard'], (env, request) => renderClipboard(env, request)),
     directRoute((path) => path === '/backend' || path.startsWith('/backend/'), async (env, request) => {
         const result = await renderBackendConsole(env, request);

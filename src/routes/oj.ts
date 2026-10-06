@@ -1,6 +1,7 @@
 import { getSessionUser } from '../utils/auth';
 import { getLayout } from '../utils/layout';
 import { htmlEscape } from '../utils/html';
+import { ensureUserCanAccessContest } from '../handlers/contest';
 import type { Env } from '../env.d';
 
 const OJ_STYLES = `
@@ -37,7 +38,14 @@ function scriptJson(value: string): string {
     })[character] || character);
 }
 
-function renderOjListContent(): string {
+function renderOjListContent(request: Request): string {
+    const incoming = new URL(request.url);
+    const context = new URLSearchParams();
+    for (const key of ['cid', 'tid']) {
+        const value = incoming.searchParams.get(key);
+        if (value) context.set(key, value);
+    }
+    const contextQuery = context.size ? `&${context.toString()}` : '';
     return `
         <div class="page-header">
             <h1><i class="fas fa-code"></i> OJ 评测</h1>
@@ -74,8 +82,9 @@ function renderOjListContent(): string {
                 });
                 count.textContent = filtered.length + ' / ' + rows.length + ' 题';
                 table.querySelector('tbody').innerHTML = filtered.map(function (p) {
-                    return '<tr><td><a href="/oj/' + encodeURIComponent(p.id) + '">' + esc(p.id) + '</a></td>' +
-                        '<td><a href="/oj/' + encodeURIComponent(p.id) + '">' + esc(p.title || p.name || '未命名题目') + '</a></td>' +
+                    var href = '/oj/' + encodeURIComponent(p.id) + ${scriptJson(contextQuery)};
+                    return '<tr><td><a href="' + href + '">' + esc(p.id) + '</a></td>' +
+                        '<td><a href="' + href + '">' + esc(p.title || p.name || '未命名题目') + '</a></td>' +
                         '<td class="oj-muted">' + esc(p.difficulty || '—') + '</td></tr>';
                 }).join('');
                 state.hidden = filtered.length > 0;
@@ -83,7 +92,7 @@ function renderOjListContent(): string {
                 if (filtered.length === 0) state.textContent = rows.length ? '没有匹配的题目。' : '暂无可用题目。';
             }
             search.addEventListener('input', draw);
-            fetch('/api/oj/problems', { headers: { Accept: 'application/json' } })
+            fetch('/api/oj/problems?' + ${scriptJson(context.toString())}, { headers: { Accept: 'application/json' } })
                 .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
                 .then(function (data) {
                     rows = Array.isArray(data.problems) ? data.problems : [];
@@ -98,12 +107,20 @@ function renderOjListContent(): string {
     `;
 }
 
-function renderOjProblemContent(problemId: string): string {
+function renderOjProblemContent(problemId: string, request: Request): string {
     const safeId = htmlEscape(problemId);
+    const incoming = new URL(request.url);
+    const context = new URLSearchParams();
+    for (const key of ['cid', 'tid']) {
+        const value = incoming.searchParams.get(key);
+        if (value) context.set(key, value);
+    }
+    const contextQuery = context.size ? `&${context.toString()}` : '';
+    const contextOnlyQuery = context.toString();
     return `
         <div class="page-header">
             <h1><i class="fas fa-laptop-code"></i> 题目 ${safeId}</h1>
-            <p style="margin-top:4px;"><a href="/oj" style="color:#8E44AD;text-decoration:none;">← 返回题目列表</a></p>
+            <p style="margin-top:4px;"><a href="/oj${context.size ? `?${contextOnlyQuery}` : ''}" style="color:#8E44AD;text-decoration:none;">← 返回题目列表</a></p>
         </div>
         <div id="ojProblemState" class="card">正在加载题面...</div>
         <div id="ojProblemView" class="oj-layout" hidden>
@@ -132,6 +149,7 @@ int main() {
         <script>
         (function () {
             var pid = ${scriptJson(problemId)};
+            var contextQuery = ${scriptJson(contextQuery)};
             var state = document.getElementById('ojProblemState');
             var view = document.getElementById('ojProblemView');
             var status = document.getElementById('ojJudgeStatus');
@@ -204,7 +222,7 @@ int main() {
                 view.hidden = false;
             }
             function pollSubmission(sid, attempt) {
-                fetch('/api/oj/submission?sid=' + encodeURIComponent(sid), { headers: { Accept: 'application/json' } })
+                fetch('/api/oj/submission?sid=' + encodeURIComponent(sid) + contextQuery, { headers: { Accept: 'application/json' } })
                     .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
                     .then(function (data) {
                         var tests = data.passed != null && data.total != null ? '（' + data.passed + '/' + data.total + ' 测试点）' : '';
@@ -220,16 +238,16 @@ int main() {
                 if (!code.trim()) { showStatus('请输入代码后再提交。', true); return; }
                 submit.disabled = true;
                 showStatus('正在提交...');
-                fetch('/api/oj/judge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pid, code: code }) })
+                fetch('/api/oj/judge?pid=' + encodeURIComponent(pid) + contextQuery, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pid, code: code }) })
                     .then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || data.message || ('HTTP ' + response.status)); return data; }); })
                     .then(function (data) {
                         var sid = data.submissionID || data.submission_id || data.id;
                         if (!sid) throw new Error('评测服务未返回提交 ID');
-                        window.location.href = '/oj/submission/' + encodeURIComponent(sid);
+                        window.location.href = '/oj/submission/' + encodeURIComponent(sid) + (contextQuery ? '?' + contextQuery.slice(1) : '');
                     })
                     .catch(function (error) { showStatus('提交失败：' + error.message, true); submit.disabled = false; });
             });
-            fetch('/api/oj/problem?pid=' + encodeURIComponent(pid), { headers: { Accept: 'application/json' } })
+            fetch('/api/oj/problem?pid=' + encodeURIComponent(pid) + contextQuery, { headers: { Accept: 'application/json' } })
                 .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
                 .then(renderProblem)
                 .catch(function (error) { state.textContent = '题面加载失败：' + error.message; });
@@ -238,12 +256,20 @@ int main() {
     `;
 }
 
-function renderOjSubmissionContent(submissionId: string): string {
+function renderOjSubmissionContent(submissionId: string, request: Request): string {
     const safeId = htmlEscape(submissionId);
+    const incoming = new URL(request.url);
+    const context = new URLSearchParams();
+    for (const key of ['cid', 'tid']) {
+        const value = incoming.searchParams.get(key);
+        if (value) context.set(key, value);
+    }
+    const contextQuery = context.size ? `&${context.toString()}` : '';
+    const contextOnlyQuery = context.toString();
     return `
         <div class="page-header">
             <h1><i class="fas fa-file-code"></i> 提交详情</h1>
-            <p style="margin-top:4px;"><a href="/oj" style="color:#8E44AD;text-decoration:none;">← 返回题目列表</a></p>
+            <p style="margin-top:4px;"><a href="/oj${context.size ? `?${contextOnlyQuery}` : ''}" style="color:#8E44AD;text-decoration:none;">← 返回题目列表</a></p>
         </div>
         <div id="ojSubmissionState" class="card">正在加载提交记录...</div>
         <div id="ojSubmissionView" class="card" hidden>
@@ -262,6 +288,7 @@ function renderOjSubmissionContent(submissionId: string): string {
         <script>
         (function () {
             var sid = ${scriptJson(submissionId)};
+            var contextQuery = ${scriptJson(contextQuery)};
             var state = document.getElementById('ojSubmissionState');
             var view = document.getElementById('ojSubmissionView');
             var status = document.getElementById('ojSubmissionStatus');
@@ -293,10 +320,19 @@ function renderOjSubmissionContent(submissionId: string): string {
                 state.hidden = true;
                 view.hidden = false;
             }
-            fetch('/api/oj/submission?sid=' + encodeURIComponent(sid), { headers: { Accept: 'application/json' } })
-                .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
-                .then(render)
-                .catch(function (error) { state.textContent = '提交记录加载失败：' + error.message; });
+            function poll(attempt) {
+                fetch('/api/oj/submission?sid=' + encodeURIComponent(sid) + contextQuery, { headers: { Accept: 'application/json' } })
+                    .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
+                    .then(function (data) {
+                        render(data);
+                        var result = String(value(data, ['status', 'result']) || '');
+                        if (/judg|queue|running|pending/i.test(result) && attempt < 60) {
+                            setTimeout(function () { poll(attempt + 1); }, 1500);
+                        }
+                    })
+                    .catch(function (error) { state.textContent = '提交记录加载失败：' + error.message; });
+            }
+            poll(0);
         }());
         </script>
     `;
@@ -304,7 +340,66 @@ function renderOjSubmissionContent(submissionId: string): string {
 
 export async function renderOjList(env: Env, req: Request) {
     const user = await getSessionUser(env, req);
-    return getLayout(env, user, 'OJ 评测', renderOjListContent(), OJ_STYLES, req);
+    return getLayout(env, user, 'OJ 评测', renderOjListContent(req), OJ_STYLES, req);
+}
+
+export async function validateOjPageAccess(env: Env, req: Request, path: string): Promise<Response | null> {
+    const user = await getSessionUser(env, req);
+    const url = new URL(req.url);
+    const rawContestId = url.searchParams.get('cid');
+    const isSubmissionPage = path.startsWith('/oj/submission/');
+    let contestId = 0;
+    if (rawContestId !== null) {
+        if (!/^\d+$/.test(rawContestId) || !Number.isSafeInteger(Number(rawContestId)) || Number(rawContestId) <= 0) {
+            return new Response('比赛编号无效或权限不足。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        }
+        contestId = Number(rawContestId);
+        const access = await ensureUserCanAccessContest(env, req, user, contestId);
+        if (!access.ok || (access.state !== 'running' && !(isSubmissionPage && access.state === 'ended'))) {
+            return new Response(access.error || '当前比赛不允许访问题库。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        }
+        if (isSubmissionPage) {
+            const sid = path.slice('/oj/submission/'.length);
+            const tracked = await env.DB.prepare(
+                'SELECT 1 FROM contest_submissions WHERE contest_id = ? AND submission_id = ? AND user_id = ?'
+            ).bind(contestId, sid, user?.id || 0).first();
+            if (!tracked) return new Response('该提交不属于当前参赛用户。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        }
+    }
+
+    const rawTeamId = url.searchParams.get('tid');
+    let teamId = 0;
+    if (rawTeamId !== null) {
+        if (!/^\d+$/.test(rawTeamId) || !Number.isSafeInteger(Number(rawTeamId)) || Number(rawTeamId) <= 0 || !user) {
+            return new Response('团队编号无效或尚未登录。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        }
+        teamId = Number(rawTeamId);
+        const member = await env.DB.prepare(
+            "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND status = 'approved'"
+        ).bind(teamId, user.id).first();
+        if (!member) return new Response('仅所属团队成员可访问团队题目。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+
+    if (!isSubmissionPage && path.startsWith('/oj/') && path !== '/oj/submission') {
+        const problemId = path.slice('/oj/'.length).trim();
+        if (contestId > 0) {
+            const included = await env.DB.prepare(
+                'SELECT 1 FROM contest_problems WHERE contest_id = ? AND problem_id = ?'
+            ).bind(contestId, problemId).first();
+            if (!included) return new Response('该题目不属于此比赛。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        } else if (/^6\d+$/.test(problemId)) {
+            return new Response('比赛题目必须通过有效比赛编号访问。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        } else if (/^5\d+$/.test(problemId)) {
+            const proposal = await env.DB.prepare(
+                "SELECT team_id, visibility FROM oj_proposals WHERE problem_id = ? AND proposal_category = 'team' AND status = 'approved' ORDER BY id DESC LIMIT 1"
+            ).bind(problemId).first<any>();
+            if (!proposal || proposal.visibility === 'private' &&
+                (!teamId || teamId !== Number(proposal.team_id) || !user)) {
+                return new Response('团队私有题必须通过所属团队题目区并携带正确的 tid 参数访问。', { status: 403, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+            }
+        }
+    }
+    return null;
 }
 
 export async function renderOjProposal(env: Env, req: Request) {
@@ -410,11 +505,11 @@ export async function renderOjProposalReview(env: Env, req: Request) {
 export async function renderOjProblem(env: Env, req: Request, path: string) {
     const user = await getSessionUser(env, req);
     const problemId = decodeURIComponent(path.slice('/oj/'.length)).trim();
-    return getLayout(env, user, `题目 ${problemId}`, renderOjProblemContent(problemId), OJ_STYLES, req);
+    return getLayout(env, user, `题目 ${problemId}`, renderOjProblemContent(problemId, req), OJ_STYLES, req);
 }
 
 export async function renderOjSubmission(env: Env, req: Request, path: string) {
     const user = await getSessionUser(env, req);
     const submissionId = decodeURIComponent(path.slice('/oj/submission/'.length)).trim();
-    return getLayout(env, user, `提交详情 ${submissionId}`, renderOjSubmissionContent(submissionId), OJ_STYLES, req);
+    return getLayout(env, user, `提交详情 ${submissionId}`, renderOjSubmissionContent(submissionId, req), OJ_STYLES, req);
 }
