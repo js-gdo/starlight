@@ -74,6 +74,31 @@ export async function ensureUserCanAccessContest(env: Env, request: Request, use
     return { ok: true, contest, state };
 }
 
+export async function ensureUserCanViewContestLeaderboard(
+    env: Env,
+    user: any,
+    contestId: number,
+): Promise<{ ok: boolean; contest?: any; error?: string; status?: number }> {
+    const contest = await getContestById(env, contestId);
+    if (!contest) return { ok: false, error: '比赛不存在。', status: 404 };
+    if (!user) return { ok: false, error: '请先登录并报名比赛后查看排行榜。', status: 403 };
+
+    const enrollment = await getUserContestEnrollment(env, contestId, user.id);
+    if (!enrollment || enrollment.status !== 'enrolled') {
+        return { ok: false, error: '请先报名比赛后查看排行榜。', status: 403 };
+    }
+    if (contest.participation_mode === 'team') {
+        if (!contest.team_id || Number(enrollment.team_id) !== Number(contest.team_id)) {
+            return { ok: false, error: '报名团队与比赛所属团队不一致。', status: 403 };
+        }
+        const isMember = await env.DB.prepare(
+            "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND status = 'approved'"
+        ).bind(contest.team_id, user.id).first();
+        if (!isMember) return { ok: false, error: '当前团队报名记录已失效。', status: 403 };
+    }
+    return { ok: true, contest };
+}
+
 async function isTeamManager(env: Env, teamId: number, userId: number): Promise<boolean> {
     const member = await env.DB.prepare(
         "SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ? AND status = 'approved' AND role IN ('owner', 'admin')"
@@ -240,16 +265,24 @@ export async function handleContests(request: Request, env: Env, path: string): 
     const leaderboardMatch = path.match(/^\/api\/contests\/(\d+)\/leaderboard$/);
     if (leaderboardMatch && request.method === 'GET') {
         const contestId = Number(leaderboardMatch[1]);
-        const access = await ensureUserCanAccessContest(env, request, user, contestId);
+        const access = await ensureUserCanViewContestLeaderboard(env, user, contestId);
         if (!access.ok) return jsonRes({ error: access.error || '无权查看排行榜。' }, access.status || 403);
         const rows = await env.DB.prepare(`
-            SELECT s.user_id, u.username, s.problem_id, MAX(s.score) AS best_score,
-                   MAX(s.passed) AS passed, MAX(s.total) AS total
-            FROM contest_submissions s
-            JOIN users u ON u.id = s.user_id
-            WHERE s.contest_id = ?
-            GROUP BY s.user_id, s.problem_id
-            ORDER BY u.username COLLATE NOCASE
+            SELECT ce.user_id, u.username
+            FROM contest_enrollments ce
+            JOIN users u ON u.id = ce.user_id
+            WHERE ce.contest_id = ? AND ce.status = 'enrolled'
+              AND (? != 'team' OR EXISTS (
+                  SELECT 1 FROM team_members tm
+                  WHERE tm.team_id = ? AND tm.user_id = ce.user_id AND tm.status = 'approved'
+              ))
+            ORDER BY u.username COLLATE NOCASE, ce.user_id
+        `).bind(contestId, access.contest?.participation_mode || 'public', access.contest?.team_id || 0).all<any>();
+        const scoreRows = await env.DB.prepare(`
+            SELECT user_id, problem_id, MAX(score) AS best_score
+            FROM contest_submissions
+            WHERE contest_id = ?
+            GROUP BY user_id, problem_id
         `).bind(contestId).all<any>();
         const problemRows = await env.DB.prepare(
             'SELECT problem_id FROM contest_problems WHERE contest_id = ? ORDER BY problem_order, problem_id'
@@ -258,22 +291,35 @@ export async function handleContests(request: Request, env: Env, path: string): 
         const standings = new Map<number, { user_id: number; username: string; score: number; problems: Record<string, number> }>();
         for (const row of rows.results || []) {
             const userId = Number(row.user_id);
-            const item = standings.get(userId) || {
+            standings.set(userId, {
                 user_id: userId,
                 username: String(row.username),
                 score: 0,
                 problems: {},
-            };
+            });
+        }
+        for (const row of scoreRows.results || []) {
+            const userId = Number(row.user_id);
+            const item = standings.get(userId);
+            if (!item) continue;
             const problemId = String(row.problem_id);
             const score = Math.max(0, Math.min(100, Number(row.best_score || 0)));
             item.problems[problemId] = score;
             item.score += score;
-            standings.set(userId, item);
         }
+        const rankedStandings = [...standings.values()]
+            .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
+        let rank = 0;
+        let previousScore: number | null = null;
+        const ranked = rankedStandings.map((standing, index) => {
+            if (standing.score !== previousScore) rank = index + 1;
+            previousScore = standing.score;
+            return { ...standing, rank };
+        });
         return jsonRes({
             contest_id: contestId,
             problems,
-            standings: [...standings.values()].sort((a, b) => b.score - a.score || a.username.localeCompare(b.username)),
+            standings: ranked,
         });
     }
 
