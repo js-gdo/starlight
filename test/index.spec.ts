@@ -9,7 +9,7 @@ import worker from "../src/index";
 import { createSession } from "../src/utils/auth";
 import { renderUsernameLink } from "../src/utils/html";
 import { getPointsRankBadgeLevel } from "../src/utils/constants";
-import { buildProblemArticleTitle, buildProblemArticleContent } from "../src/utils/problem";
+import { buildProblemArticleTitle, buildProblemArticleContent, filterVisibleOjProblems, isHiddenOjProblemId } from "../src/utils/problem";
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from "../src/utils/profile";
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
 import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
@@ -270,6 +270,22 @@ describe("worker routing", () => {
 		expect(contentType).toContain("application/json");
 		expect(contentType).not.toContain("text/html");
 		expect(await response.json()).toEqual({ error: "API not found" });
+	});
+
+	it("hides OJ problem IDs starting with 6 or 5 followed by an even digit", () => {
+		for (const id of ["6", "6001", "50", "52", "54", "56", "58", "5201"]) {
+			expect(isHiddenOjProblemId(id)).toBe(true);
+		}
+		for (const id of ["5", "51", "53", "55", "57", "59", "1001"]) {
+			expect(isHiddenOjProblemId(id)).toBe(false);
+		}
+	});
+
+	it("filters hidden IDs out of the public problem list", () => {
+		const visible = filterVisibleOjProblems([
+			{ id: "1001" }, { id: "5201" }, { id: "5101" }, { id: "6001" }, { id: "1002" },
+		]);
+		expect(visible.map((problem) => problem.id)).toEqual(["1001", "5101", "1002"]);
 	});
 
 	it("renders the home page as HTML (unit style)", async () => {

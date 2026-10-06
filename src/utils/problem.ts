@@ -5,6 +5,14 @@ export type ProblemOption = {
     difficulty?: string;
 };
 
+export function isHiddenOjProblemId(id: string | number): boolean {
+    return /^(?:6|5[02468])/.test(String(id).trim());
+}
+
+export function filterVisibleOjProblems<T extends { id?: string | number }>(problems: T[]): T[] {
+    return problems.filter((problem) => !isHiddenOjProblemId(problem.id ?? ''));
+}
+
 export function buildProblemArticleTitle(rawTitle: string, problem: ProblemOption): string {
     const prefix = `[${problem.id} ${problem.title || problem.name || 'Problem'}]`;
     const trimmed = (rawTitle ?? '').trim();
