@@ -129,6 +129,8 @@ async function createIndexes(db: Env['DB']): Promise<void> {
         'CREATE INDEX IF NOT EXISTS idx_contest_problems_order ON contest_problems (contest_id, problem_order)',
         'CREATE INDEX IF NOT EXISTS idx_contest_public_requests_status ON contest_public_requests (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_contest_submissions_score ON contest_submissions (contest_id, user_id, problem_id, score DESC)',
+        "CREATE INDEX IF NOT EXISTS idx_space_game_expeditions_user_status ON space_game_expeditions (user_id, status, ends_at)",
+        "CREATE INDEX IF NOT EXISTS idx_space_game_expeditions_leaderboard ON space_game_expeditions (user_id, status)",
         'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)',
         'CREATE INDEX IF NOT EXISTS idx_users_invite_code ON users (invite_code)',
         'CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referrals (inviter_id)',

@@ -728,13 +728,120 @@ describe("worker routing", () => {
 		expect(html).toContain("achievement-card is-root");
 	});
 
-	it("renders the redemption and pet game pages", async () => {
+	it("renders the redemption and space exploration game pages", async () => {
 		const redeem = await SELF.fetch("https://example.com/redeem");
 		const game = await SELF.fetch("https://example.com/game");
 		expect(redeem.status).toBe(200);
 		expect(game.status).toBe(200);
 		expect(await redeem.text()).toContain("积分兑换码");
-		expect(await game.text()).toContain("星光牧场");
+		const gameHtml = await game.text();
+		expect(gameHtml).toContain("星际边境");
+		expect(gameHtml).not.toContain("星光牧场");
+		expect(gameHtml).toContain("星际远征");
+		const session = await createSession(env, 1);
+		const station = await SELF.fetch(new IncomingRequest("https://example.com/game", {
+			headers: { Cookie: `uid=${session}` },
+		}));
+		const stationHtml = await station.text();
+		expect(stationHtml).toContain("空间站设施");
+		expect(stationHtml).toContain("科技树");
+		expect(stationHtml).toContain("深空远征");
+		expect(stationHtml).toContain("/api/game/state");
+	});
+
+	it("supports persistent space station upgrades, research, expeditions, and daily supplies", async () => {
+		await SELF.fetch("https://example.com/");
+		const username = `space${Date.now().toString().slice(-8)}`;
+		const inserted = await env.DB.prepare(
+			'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+		).bind(username, 'unused').run();
+		const userId = Number(inserted.meta.last_row_id);
+		const session = await createSession(env, userId);
+		const headers = { Cookie: `uid=${session}`, 'Content-Type': 'application/json' };
+		const requestGame = (path: string, init?: RequestInit) =>
+			worker.fetch(new IncomingRequest(`https://example.com${path}`, init), env, createExecutionContext());
+
+		const initialResponse = await requestGame('/api/game/state', { headers });
+		expect(initialResponse.status).toBe(200);
+		const initial = await initialResponse.json() as { buildings: Array<{ key: string; level: number }>; player: { energy: number }; sectors: Array<{ key: string; unlocked: boolean }> };
+		expect(initial.buildings).toHaveLength(5);
+		expect(initial.buildings.every(building => building.level === 1)).toBe(true);
+		expect(initial.player.energy).toBe(100);
+		expect(initial.sectors.find(sector => sector.key === 'orbit')?.unlocked).toBe(true);
+
+		await env.DB.prepare(
+			"UPDATE space_game_players SET last_resource_at = datetime('now', '-3 hours'), energy_updated_at = datetime('now', '-30 minutes'), energy = 90 WHERE user_id = ?"
+		).bind(userId).run();
+		const offlineResponse = await requestGame('/api/game/state', { headers });
+		const offline = await offlineResponse.json() as { player: { credits: number; alloy: number; crystal: number; research_points: number; energy: number } };
+		expect(offline.player.credits).toBe(initial.player.credits + 105);
+		expect(offline.player.alloy).toBe(initial.player.alloy + 72);
+		expect(offline.player.crystal).toBe(initial.player.crystal + 15);
+		expect(offline.player.research_points).toBe(initial.player.research_points + 6);
+		expect(offline.player.energy).toBe(93);
+
+		await env.DB.prepare('UPDATE space_game_players SET credits = 0 WHERE user_id = ?').bind(userId).run();
+		const insufficientUpgrade = await requestGame('/api/game/building/upgrade', {
+			method: 'POST', headers, body: JSON.stringify({ building: 'credit_works' }),
+		});
+		expect(insufficientUpgrade.status).toBe(409);
+		const unchangedBuilding = await env.DB.prepare(
+			"SELECT level FROM space_game_buildings WHERE user_id = ? AND building_key = 'credit_works'"
+		).bind(userId).first<{ level: number }>();
+		expect(unchangedBuilding?.level).toBe(1);
+		await env.DB.prepare('UPDATE space_game_players SET credits = 5000 WHERE user_id = ?').bind(userId).run();
+
+		const upgradeResponse = await requestGame('/api/game/building/upgrade', {
+			method: 'POST', headers, body: JSON.stringify({ building: 'credit_works' }),
+		});
+		expect(upgradeResponse.status).toBe(200);
+		const upgraded = await upgradeResponse.json() as { state: { buildings: Array<{ key: string; level: number }> } };
+		expect(upgraded.state.buildings.find(building => building.key === 'credit_works')?.level).toBe(2);
+
+		const insufficientResearch = await requestGame('/api/game/research/upgrade', {
+			method: 'POST', headers, body: JSON.stringify({ technology: 'industrial' }),
+		});
+		expect(insufficientResearch.status).toBe(409);
+		const unchangedTechnology = await env.DB.prepare(
+			"SELECT level FROM space_game_research WHERE user_id = ? AND technology_key = 'industrial'"
+		).bind(userId).first<{ level: number }>();
+		expect(unchangedTechnology?.level).toBe(0);
+		await env.DB.prepare('UPDATE space_game_players SET research_points = 1000, crystal = 1000 WHERE user_id = ?').bind(userId).run();
+		const researchResponse = await requestGame('/api/game/research/upgrade', {
+			method: 'POST', headers, body: JSON.stringify({ technology: 'industrial' }),
+		});
+		expect(researchResponse.status).toBe(200);
+		const researched = await researchResponse.json() as { state: { technologies: Array<{ key: string; level: number }> } };
+		expect(researched.state.technologies.find(technology => technology.key === 'industrial')?.level).toBe(1);
+
+		const launchResponse = await requestGame('/api/game/expedition/launch', {
+			method: 'POST', headers, body: JSON.stringify({ sector: 'orbit' }),
+		});
+		expect(launchResponse.status).toBe(200);
+		const expedition = await env.DB.prepare(
+			'SELECT id, reward_credits, reward_alloy, reward_crystal, reward_research FROM space_game_expeditions WHERE user_id = ?'
+		).bind(userId).first<{ id: number; reward_credits: number; reward_alloy: number; reward_crystal: number; reward_research: number }>();
+		expect(expedition).not.toBeNull();
+		await env.DB.prepare("UPDATE space_game_expeditions SET ends_at = '2000-01-01T00:00:00.000Z' WHERE id = ?").bind(expedition!.id).run();
+
+		const claimResponse = await requestGame('/api/game/expedition/claim', {
+			method: 'POST', headers, body: JSON.stringify({ expedition_id: expedition!.id }),
+		});
+		expect(claimResponse.status).toBe(200);
+		const claimAgain = await requestGame('/api/game/expedition/claim', {
+			method: 'POST', headers, body: JSON.stringify({ expedition_id: expedition!.id }),
+		});
+		expect(claimAgain.status).toBe(409);
+		const afterClaim = await env.DB.prepare('SELECT status FROM space_game_expeditions WHERE id = ?').bind(expedition!.id).first<{ status: string }>();
+		expect(afterClaim?.status).toBe('claimed');
+
+		const dailyResponse = await requestGame('/api/game/daily/claim', { method: 'POST', headers });
+		expect(dailyResponse.status).toBe(200);
+		const secondDaily = await requestGame('/api/game/daily/claim', { method: 'POST', headers });
+		expect(secondDaily.status).toBe(409);
+		const leaderboard = await requestGame('/api/game/leaderboard', { headers });
+		expect(leaderboard.status).toBe(200);
+		expect(await leaderboard.text()).toContain(username);
 	});
 
 	it("renders the site search page and sidebar entry", async () => {
