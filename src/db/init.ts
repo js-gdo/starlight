@@ -427,6 +427,54 @@ export async function initDB(env: Env) {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS space_game_players (
+      user_id INTEGER PRIMARY KEY,
+      credits INTEGER NOT NULL DEFAULT 600,
+      alloy INTEGER NOT NULL DEFAULT 400,
+      crystal INTEGER NOT NULL DEFAULT 120,
+      research_points INTEGER NOT NULL DEFAULT 0,
+      energy INTEGER NOT NULL DEFAULT 100,
+      energy_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_resource_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_daily_claim TEXT NOT NULL DEFAULT '',
+      daily_streak INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_game_buildings (
+      user_id INTEGER NOT NULL,
+      building_key TEXT NOT NULL,
+      level INTEGER NOT NULL DEFAULT 1,
+      last_upgrade_token TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY(user_id, building_key),
+      FOREIGN KEY(user_id) REFERENCES space_game_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_game_research (
+      user_id INTEGER NOT NULL,
+      technology_key TEXT NOT NULL,
+      level INTEGER NOT NULL DEFAULT 0,
+      last_upgrade_token TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY(user_id, technology_key),
+      FOREIGN KEY(user_id) REFERENCES space_game_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_game_expeditions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      sector_key TEXT NOT NULL,
+      sector_name TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ends_at TEXT NOT NULL,
+      energy_cost INTEGER NOT NULL,
+      reward_credits INTEGER NOT NULL DEFAULT 0,
+      reward_alloy INTEGER NOT NULL DEFAULT 0,
+      reward_crystal INTEGER NOT NULL DEFAULT 0,
+      reward_research INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'claimed')),
+      launch_token TEXT NOT NULL UNIQUE,
+      claim_token TEXT DEFAULT '',
+      claimed_at TEXT DEFAULT '',
+      FOREIGN KEY(user_id) REFERENCES space_game_players(user_id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS login_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -470,7 +518,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '21';
+const CURRENT_SCHEMA_VERSION = '22';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
