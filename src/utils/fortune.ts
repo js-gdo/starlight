@@ -11,12 +11,12 @@ const FORTUNES = [
 ];
 
 const FORTUNE_ACTIVITIES = [
-    { name: '上SLOJ', good: '全方位提升', bad: '被冤枉恶意卡评测封号' },
+    { name: '刷OJ', good: '全方位提升', bad: '被冤枉恶意卡评测封号' },
     { name: '玩Minecraft', good: '下界挖到远古残骸', bad: '遇到苦力怕，刚好旁边就是你家' },
     { name: '玩三角洲', good: '出非洲之星', bad: '绝航就吃20万丢包的时候还被踹死了' },
     { name: '写代码', good: '写出高质量代码', bad: '写脱发' },
     { name: '出门运动', good: '俺变得更强壮了', bad: '横纹肌溶解' },
-    { name: '看视频', good: '愉悦身心', bad: '被抓包' },
+    { name: '看视频', good: '愉悦身心', bad: '世界上根本没有这样的视频！' },
     { name: '出去玩', good: '心情好', bad: '被人碰瓷' },
     { name: '上StarLight', good: '发现有趣的东西', bad: '发现系统宕机了' },
     { name: '用豆包', good: 'AI太好用了', bad: '《请输入文本》' },
@@ -28,7 +28,11 @@ const FORTUNE_ACTIVITIES = [
 	{ name: '打OI比赛', good: 'rk1', bad: 'freopen写错'},
 	{ name: '考试', good: '分数1e9', bad: '排名1e9'},
 	{ name: '上洛谷', good: '轻松晋升紫名', bad: '被神权压制'},
-	{ name: '学whk', good: '血脉觉醒', bad: '血脉“觉醒”'}
+	{ name: '学whk', good: '血脉觉醒', bad: '血脉“觉醒”'},
+    { name: '申请当管理员' , good: '理由充分，有了', bad: '没成功还骚扰管理员，被封禁了'},
+    { name: '玩FutureServer', good: '成为op', bad: '一个人没碰见'},
+    { name: '开发SPL项目', good: '好项目', bad: '这是烂尾项目'},
+    { name: 'NULL', good: '小彩蛋awa', bad: '小彩蛋qwq'}
 ];
 
 const GAOKAO_ACTIVITY = { name: '高考', good: '金榜题名', bad: '无' };
