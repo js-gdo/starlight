@@ -2,6 +2,7 @@
     "name": "starlight-workers",
     "version": "0.0.0",
     "private": true,
+    "type": "module",
     "scripts": {
         "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --platform=neutral --format=esm --target=es2022",
         "deploy": "wrangler deploy",
@@ -11,7 +12,7 @@
         "cf-typegen": "wrangler types"
     },
     "devDependencies": {
-        "@cloudflare/vitest-pool-workers": "^0.22.0",
+        "@cloudflare/vitest-plugin": "^1.0.0",
         "@types/node": "^26.2.0",
         "esbuild": "^0.20.0",
         "typescript": "^5.5.2",
