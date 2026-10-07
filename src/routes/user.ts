@@ -6,6 +6,7 @@ import { getTranslator } from '../utils/i18n';
 import { ADMIN_ROLE_LABELS, parseAdminRoles } from '../utils/adminRoles';
 import { getAchievementBadges } from '../utils/achievements';
 import { formatTimeToChina } from '../utils/time';
+import { createInviteCode } from '../utils/invite';
 import type { Env } from '../env.d';
 
 function getLoginDeviceLabel(userAgent: string): string {
@@ -49,6 +50,7 @@ export async function renderUser(env: Env, req: Request, path: string) {
                     ${user.real_name ? `<span style="font-size:14px;color:#444;"><i class="fas fa-user"></i> ${htmlEscape(user.real_name)}</span>` : ''}
                     ${user.location ? `<span style="font-size:14px;color:#666;"><i class="fas fa-map-marker-alt"></i> ${htmlEscape(user.location)}</span>` : ''}
                     ${user.profile_link ? `<a href="${htmlEscape(user.profile_link)}" target="_blank" rel="noopener noreferrer" style="font-size:14px;color:#8E44AD;text-decoration:none;"><i class="fas fa-link"></i> 主页</a>` : ''}
+                    ${user.luogu_uid ? `<a href="https://www.luogu.com.cn/user/${Number(user.luogu_uid)}" target="_blank" rel="noopener noreferrer" style="font-size:14px;color:#8E44AD;text-decoration:none;"><i class="fas fa-link"></i> 洛谷：${htmlEscape(String(user.luogu_username || '已绑定'))}</a>` : ''}
                 </div>
                 <p style="margin-top:8px;font-size:14px;"><i class="fas fa-quote-left" style="color:#999;"></i> ${htmlEscape(user.bio || '')}</p>
                 <p style="font-size:13px;color:#999;">UID: ${user.id} · ${user.admin ? t('roleAdmin') : t('roleUser')} · ${t('points')}: ${user.points || 0}</p>
@@ -100,6 +102,7 @@ export async function renderUserSettings(env: Env, req: Request) {
     const t = getTranslator(req);
     const user = await getSessionUser(env, req);
     if (!user) return t('apiNotLoggedIn');
+    const luoguVerificationCode = await createInviteCode(user.username);
     const loginHistory = await env.DB.prepare(
         'SELECT ip_address, user_agent, created_at FROM login_history WHERE user_id = ? ORDER BY id DESC LIMIT 10'
     ).bind(user.id).all<any>();
@@ -145,6 +148,18 @@ export async function renderUserSettings(env: Env, req: Request) {
             </form>
         </div>
         <div class="card" style="max-width:720px;margin-top:14px;">
+            <h3 style="font-size:16px;margin-bottom:8px;">绑定洛谷账号</h3>
+            ${user.luogu_uid
+                ? `<p style="font-size:14px;color:#555;">已绑定：<a href="https://www.luogu.com.cn/user/${Number(user.luogu_uid)}" target="_blank" rel="noopener noreferrer">${htmlEscape(String(user.luogu_username || '洛谷用户'))}</a></p>`
+                : `<p style="font-size:13px;color:#777;line-height:1.7;">将下方验证码添加到洛谷个人签名的任意位置，保存后输入洛谷用户名并验证。验证成功后无法自行更换绑定。</p>
+                    <p><strong>专属验证码：</strong><code style="padding:4px 8px;background:#f3eef8;border-radius:4px;font-size:16px;letter-spacing:1px;">${htmlEscape(luoguVerificationCode)}</code></p>
+                    <form id="luoguBindForm" style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <input name="username" required maxlength="40" autocomplete="off" placeholder="洛谷用户名" style="flex:1;min-width:180px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;">
+                        <button type="submit" style="background:#8E44AD;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;">验证并绑定</button>
+                    </form>
+                    <div id="luoguBindStatus" role="status" aria-live="polite" style="margin-top:8px;font-size:13px;"></div>`}
+        </div>
+        <div class="card" style="max-width:720px;margin-top:14px;">
             <h3 style="font-size:16px;margin-bottom:12px;">账号安全</h3>
             <div style="margin-bottom:14px;padding:12px;background:#f7f8fa;border-radius:6px;">
                 <strong>个人数据</strong>
@@ -174,6 +189,31 @@ export async function renderUserSettings(env: Env, req: Request) {
             </form>
         </div>
         <script>
+            (function() {
+                var form = document.getElementById('luoguBindForm');
+                if (!form) return;
+                var status = document.getElementById('luoguBindStatus');
+                form.addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    var button = form.querySelector('button[type="submit"]');
+                    button.disabled = true;
+                    status.textContent = '正在查询洛谷用户…';
+                    status.style.color = '#777';
+                    try {
+                        var response = await fetch('/api/user/luogu/bind', { method: 'POST', body: new FormData(form) });
+                        var data = await response.json();
+                        if (!response.ok) throw new Error(data.error || '绑定失败');
+                        status.textContent = '绑定成功：' + data.luogu_username;
+                        status.style.color = '#18794e';
+                        window.location.reload();
+                    } catch (error) {
+                        status.textContent = error.message || '绑定失败，请稍后重试。';
+                        status.style.color = '#b42318';
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            })();
             (function() {
                 var form = document.querySelector('form[action="/api/user/bio"]');
                 var input = form && form.querySelector('[name="background_url"]');

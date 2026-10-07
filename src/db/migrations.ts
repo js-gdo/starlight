@@ -12,6 +12,8 @@ async function runColumnMigration(db: Env['DB'], sql: string): Promise<void> {
 async function addLegacyColumns(db: Env['DB']): Promise<void> {
     const columns = [
         'ALTER TABLE users ADD COLUMN invite_code TEXT NOT NULL DEFAULT ""',
+        'ALTER TABLE users ADD COLUMN luogu_uid INTEGER',
+        'ALTER TABLE users ADD COLUMN luogu_username TEXT NOT NULL DEFAULT ""',
         'ALTER TABLE users ADD COLUMN registered_ip TEXT NOT NULL DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_ip TEXT DEFAULT ""',
         'ALTER TABLE users ADD COLUMN last_region TEXT DEFAULT ""',
@@ -135,6 +137,7 @@ async function createIndexes(db: Env['DB']): Promise<void> {
         "CREATE INDEX IF NOT EXISTS idx_space_game_expeditions_leaderboard ON space_game_expeditions (user_id, status)",
         'CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements (user_id)',
         'CREATE INDEX IF NOT EXISTS idx_users_invite_code ON users (invite_code)',
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_luogu_uid ON users (luogu_uid) WHERE luogu_uid IS NOT NULL',
         'CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referrals (inviter_id)',
         `CREATE TRIGGER IF NOT EXISTS referral_registration_reward
            AFTER INSERT ON referrals
