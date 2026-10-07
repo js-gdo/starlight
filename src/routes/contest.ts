@@ -1,4 +1,5 @@
 ﻿import { getSessionUser } from '../utils/auth';
+import { hasAdminPermission } from '../utils/adminPermissions';
 import { getLayout } from '../utils/layout';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { contestScheduleState, ensureUserCanViewContestLeaderboard } from '../handlers/contest';
@@ -176,7 +177,7 @@ export async function renderContestList(env: Env, request: Request): Promise<str
         ORDER BY c.start_at DESC, c.id DESC
     `).bind(user?.id || 0).all<any>();
     const contests = rows.results || [];
-    const pendingRequests = user?.id === 1 ? await env.DB.prepare(`
+    const pendingRequests = hasAdminPermission(user, 'admin.reviews.handle') ? await env.DB.prepare(`
         SELECT r.id, r.contest_id, r.review_note, r.created_at,
                c.title AS contest_title, t.name AS team_name, u.username AS requester_name
         FROM contest_public_requests r

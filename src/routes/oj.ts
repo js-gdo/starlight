@@ -1,4 +1,5 @@
 import { getSessionUser } from '../utils/auth';
+import { hasAdminPermission } from '../utils/adminPermissions';
 import { getLayout } from '../utils/layout';
 import { htmlEscape } from '../utils/html';
 import { ensureUserCanAccessContest } from '../handlers/contest';
@@ -464,10 +465,12 @@ export async function renderOjProposal(env: Env, req: Request) {
     return getLayout(env, user, 'OJ 投题', content, OJ_STYLES, req);
 }
 
-export async function renderOjProposalReview(env: Env, req: Request) {
+export async function renderOjProposalReview(env: Env, req: Request): Promise<Response> {
     const user = await getSessionUser(env, req);
-    if (user?.id !== 1) {
-        return getLayout(env, user, 'OJ 投题审核', '<div class="card"><h2>无权访问</h2><p class="oj-muted">只有 superuser（UID 1）可以查看审核队列。</p></div>', OJ_STYLES, req);
+    const canReview = hasAdminPermission(user, 'admin.reviews.handle');
+    if (!canReview) {
+        const denied = await getLayout(env, user, 'OJ 投题审核', '<div class="card"><h2>无权访问</h2><p class="oj-muted">需要 admin.reviews.handle 权限节点才能查看审核队列。</p></div>', OJ_STYLES, req);
+        return new Response(denied, { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
     const rows = await env.DB.prepare(
         `SELECT p.*, u.username AS proposer_name FROM oj_proposals p
@@ -499,7 +502,9 @@ export async function renderOjProposalReview(env: Env, req: Request) {
             }).join('') : '<p class="oj-muted">暂无投题记录。</p>'}
         </div>
         <style>.oj-proposal-row{display:flex;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid #eee;align-items:center}.oj-proposal-row:last-child{border-bottom:0}.oj-proposal-status{margin-left:8px;padding:2px 6px;border-radius:8px;font-size:11px}.status-pending{background:#fff8dc;color:#765b14}.status-approved{background:#effaf3;color:#18794e}.status-rejected{background:#fff0f0;color:#a33}.oj-proposal-review{display:flex;gap:6px;flex-wrap:wrap}.oj-proposal-review input,.oj-proposal-review select{padding:7px;border:1px solid #ddd;border-radius:5px;max-width:180px}</style>`;
-    return getLayout(env, user, 'OJ 投题审核', content, OJ_STYLES, req);
+    return new Response(await getLayout(env, user, 'OJ 投题审核', content, OJ_STYLES, req), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
 }
 
 export async function renderOjProblem(env: Env, req: Request, path: string) {

@@ -117,7 +117,7 @@ const routes: RouteDefinition[] = [
     matchingPage((path) => /^\/contest\/\d+\/rank$/.test(path), (env, request, path) => renderContestLeaderboard(env, request, path)),
     matchingPage((path) => path.startsWith('/contest/') && path.length > '/contest/'.length, (env, request, path) => renderContestDetail(env, request, path)),
     exactPage(['/oj/propose'], (env, request) => renderOjProposal(env, request)),
-    exactPage(['/oj/proposals'], (env, request) => renderOjProposalReview(env, request)),
+    directRoute((path) => path === '/oj/proposals', (env, request) => renderOjProposalReview(env, request)),
     directRoute((path) => path.startsWith('/oj/submission/') && path.length > '/oj/submission/'.length, async (env, request, path) => {
         const denied = await validateOjPageAccess(env, request, path);
         return denied || htmlResponse(await renderOjSubmission(env, request, path));
@@ -130,7 +130,7 @@ const routes: RouteDefinition[] = [
     directRoute((path) => path === '/invite', (env, request) => renderInvite(env, request)),
     exactPage(['/team'], (env, request) => renderTeamList(env, request)),
     exactPage(['/team/new'], (env, request) => renderTeamNew(env, request)),
-    exactPage(['/team/requests'], (env, request) => renderTeamRequests(env, request)),
+    directRoute((path) => path === '/team/requests', (env, request) => renderTeamRequests(env, request)),
     matchingPage((path) => path.startsWith('/team/') && path.endsWith('/settings'), (env, request, path) => renderTeamSettings(env, request, path)),
     directRoute((path) => /^\/team\/\d+\/posts$/.test(path), (env, request, path) => renderTeamPosts(env, request, path)),
     directRoute((path) => /^\/team\/\d+\/posts\/\d+$/.test(path), (env, request, path) => renderTeamPostDetail(env, request, path)),

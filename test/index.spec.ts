@@ -15,7 +15,7 @@ import { buildReportAuditText, normalizeReportReason } from "../src/handlers/rep
 import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
 import { createInviteCode } from "../src/utils/invite";
 import { sha256 } from "../src/utils/crypto";
-import { hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
+import { ADMIN_PERMISSION_NODES, hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 import type { Env as WorkerEnv } from '../src/env.d';
 
 // For now, you'll need to do something like this to get a correctly-typed
@@ -470,7 +470,71 @@ describe("worker routing", () => {
 				expect(hasAdminPermission({ ...scopedAdmin, admin_permissions: JSON.stringify(['admin.users.view']) }, 'admin.users.profile.edit')).toBe(false);
 				expect(normalizeAdminPermissions(['admin.users.*', 'bad node', '*'])).toEqual(['admin.users.*', '*']);
 			});
+
+			it('keeps review handling disabled unless the explicit node is assigned', () => {
+				const reviewer = { id: 99, admin: 1, admin_permissions: '[]' };
+				expect(ADMIN_PERMISSION_NODES).toContainEqual(expect.objectContaining({
+					key: 'admin.reviews.handle',
+					label: '查看并处理审核队列',
+				}));
+				expect(hasAdminPermission(reviewer, 'admin.reviews.handle')).toBe(false);
+				expect(hasAdminPermission({
+					...reviewer,
+					admin_permissions: JSON.stringify(['admin.reviews.handle']),
+				}, 'admin.reviews.handle')).toBe(true);
+			});
 		});
+
+	it("grants review queues only to admins assigned the review permission node", async () => {
+		await SELF.fetch('https://example.com/');
+		const insert = await env.DB.prepare(
+			"INSERT INTO users (username, password, admin, admin_permissions) VALUES (?, 'unused', 1, '[]')"
+		).bind(`review-admin-${Date.now()}`).run();
+		const adminId = Number(insert.meta.last_row_id);
+		const session = await createSession(env, adminId);
+		const headers = { Cookie: `uid=${session}` };
+		const request = (path: string, init: RequestInit = {}) => worker.fetch(
+			new IncomingRequest(`https://example.com${path}`, { ...init, headers }),
+			env,
+			createExecutionContext(),
+		);
+
+		for (const path of ['/team/requests', '/oj/proposals']) {
+			expect((await request(path)).status).toBe(403);
+		}
+		for (const path of ['/api/teams/requests', '/api/oj/proposals', '/api/contests/public-requests']) {
+			expect((await request(path)).status).toBe(403);
+		}
+		const reviewForm = new FormData();
+		reviewForm.set('status', 'approved');
+		reviewForm.set('decision', 'approve');
+		for (const path of [
+			'/api/teams/requests/999999/approve',
+			'/api/oj/proposals/999999',
+			'/api/contests/public-requests/999999/review',
+		]) {
+			expect((await request(path, { method: 'POST', body: reviewForm })).status).toBe(403);
+		}
+
+		await env.DB.prepare('UPDATE users SET admin_permissions = ? WHERE id = ?')
+			.bind(JSON.stringify(['admin.reviews.handle']), adminId).run();
+		expect((await request('/backend/reviews')).status).toBe(200);
+		expect((await request('/team/requests')).status).toBe(200);
+		expect((await request('/oj/proposals')).status).toBe(200);
+		for (const path of ['/api/teams/requests', '/api/oj/proposals', '/api/contests/public-requests']) {
+			expect((await request(path)).status).toBe(200);
+		}
+		for (const path of [
+			'/api/teams/requests/999999/approve',
+			'/api/oj/proposals/999999',
+			'/api/contests/public-requests/999999/review',
+		]) {
+			expect((await request(path, { method: 'POST', body: reviewForm })).status).toBe(404);
+		}
+		const proposalForm = new FormData();
+		proposalForm.set('problem_name', 'Must remain superuser-only');
+		expect((await request('/api/oj/proposals', { method: 'POST', body: proposalForm })).status).toBe(403);
+	});
 
 	it("does not dump the full user list into ordinary pages", async () => {
 		const response = await SELF.fetch("https://example.com");

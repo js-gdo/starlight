@@ -110,7 +110,7 @@ const styles = `
 
 function adminShell(user: any, section: AdminSection, body: string): string {
     const nav = (Object.keys(sectionNames) as AdminSection[])
-        .filter(key => (key === 'dashboard' && hasAdminPermission(user, 'admin.dashboard.view')) || (key === 'content' && hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])) || hasAdminPermission(user, getAdminSectionPermission(key)) ||
+        .filter(key => (key === 'dashboard' && hasAdminPermission(user, 'admin.dashboard.view')) || (key === 'content' && hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])) || (key === 'reviews' && canHandleReviews(user)) || hasAdminPermission(user, getAdminSectionPermission(key)) ||
             (key === 'security' && hasAdminPermission(user, 'admin.security.audit.view')) ||
             (key === 'site' && ['admin.site.banners.manage', 'admin.site.announcements.manage'].some(node => hasAdminPermission(user, node))) ||
             (key === 'permissions' && hasAdminPermission(user, 'admin.permissions.manage')))
@@ -131,6 +131,11 @@ function hasAny(user: any, nodes: string[]): boolean {
     return nodes.some(node => hasAdminPermission(user, node));
 }
 
+function canHandleReviews(user: any): boolean {
+    return hasAdminPermission(user, 'admin.reviews.handle')
+        || !!user?.admin && String(user.admin_roles || '').includes('super');
+}
+
 function sectionForPath(path: string): AdminSection {
     const key = path.replace(/^\/backend\/?/, '').split('/')[0] as AdminSection;
     return key && key in sectionNames ? key : 'dashboard';
@@ -148,6 +153,8 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
             ? hasAny(user, ['admin.site.settings.edit', 'admin.site.banners.manage', 'admin.site.announcements.manage'])
             : section === 'content'
                 ? hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])
+                : section === 'reviews'
+                    ? canHandleReviews(user)
                 : hasAdminPermission(user, getAdminSectionPermission(section));
     if (!accessible) {
         return new Response(await getLayout(env, user, '无权访问', adminShell(user, section,
@@ -176,6 +183,8 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
                     ? hasAny(user, ['admin.site.settings.edit', 'admin.site.banners.manage', 'admin.site.announcements.manage'])
                     : key === 'content'
                         ? hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])
+                        : key === 'reviews'
+                            ? canHandleReviews(user)
                         : hasAdminPermission(user, getAdminSectionPermission(key))))
             .map(key => `<a class="admin-shortcut" href="${sectionPaths[key]}"><span class="admin-shortcut-icon"><i class="fas ${sectionIcons[key]}"></i></span><span><strong>${sectionNames[key]}</strong><small>${key === 'user' ? '账号资料、权限与登录问题' : key === 'content' ? '文章与工单处理' : key === 'security' ? '举报处置和操作记录' : key === 'site' ? '站点状态、公告和导出' : key === 'permissions' ? '精确分配管理节点' : '待审核项目集中处理'}</small></span></a>`)
             .join('');
@@ -188,12 +197,13 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
         </div>`);
         body += panel('快捷入口', 'fa-arrow-right', `<div class="admin-shortcuts">${shortcuts || '<p class="admin-muted">当前账号尚未获分配其他管理分区。</p>'}</div>`);
         if (hasAdminPermission(user, 'admin.dashboard.view')) {
-            const [pendingTeams, pendingOj] = await Promise.all([
+            const [pendingTeams, pendingOj, pendingPublicRequests] = await Promise.all([
                 db.prepare("SELECT COUNT(*) AS total FROM team_creation_requests WHERE status = 'pending'").first<any>(),
                 db.prepare("SELECT COUNT(*) AS total FROM oj_proposals WHERE status = 'pending'").first<any>(),
+                db.prepare("SELECT COUNT(*) AS total FROM contest_public_requests WHERE status = 'pending'").first<any>(),
             ]);
             body += panel('待审核', 'fa-inbox', `<div class="admin-list">
-                ${user.id === 1 ? `<div class="admin-list-item"><span>团队创建申请</span><a class="admin-btn" href="/team/requests">查看 ${Number(pendingTeams?.total || 0)} 条 <i class="fas fa-arrow-up-right-from-square"></i></a></div><div class="admin-list-item"><span>OJ 投题</span><a class="admin-btn" href="/oj/proposals">查看 ${Number(pendingOj?.total || 0)} 条 <i class="fas fa-arrow-up-right-from-square"></i></a></div>` : '<div class="admin-muted">审核队列由 superuser 处理。</div>'}
+                ${canHandleReviews(user) ? `<div class="admin-list-item"><span>团队创建申请</span><a class="admin-btn" href="/team/requests">查看 ${Number(pendingTeams?.total || 0)} 条 <i class="fas fa-arrow-up-right-from-square"></i></a></div><div class="admin-list-item"><span>OJ 投题</span><a class="admin-btn" href="/oj/proposals">查看 ${Number(pendingOj?.total || 0)} 条 <i class="fas fa-arrow-up-right-from-square"></i></a></div><div class="admin-list-item"><span>比赛转公开申请</span><a class="admin-btn" href="/contest">查看 ${Number(pendingPublicRequests?.total || 0)} 条 <i class="fas fa-arrow-up-right-from-square"></i></a></div>` : '<div class="admin-muted">审核队列需要 admin.reviews.handle 节点。</div>'}
             </div>`);
         }
     } else if (section === 'user') {
@@ -237,12 +247,13 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
             body += panel('操作审计', 'fa-clipboard-list', `<div class="admin-list">${logs.results.map((log: any) => `<div class="admin-list-item"><span><strong>${htmlEscape(log.action)}</strong><br><span class="admin-muted">${htmlEscape(log.admin_name || '未知')} · ${formatTimeToChina(log.created_at)} · ${htmlEscape(log.target_type || '')} #${Number(log.target_id || 0)}</span></span><span class="admin-muted">${htmlEscape(log.details || '')}</span></div>`).join('') || '<div class="admin-empty">暂无审计记录</div>'}</div>`);
         }
     } else if (section === 'reviews') {
-        const [pendingTeams, pendingOj, pendingTickets] = await Promise.all([
+        const [pendingTeams, pendingOj, pendingPublicRequests, pendingTickets] = await Promise.all([
             db.prepare("SELECT COUNT(*) AS total FROM team_creation_requests WHERE status = 'pending'").first<any>(),
             db.prepare("SELECT COUNT(*) AS total FROM oj_proposals WHERE status = 'pending'").first<any>(),
+            db.prepare("SELECT COUNT(*) AS total FROM contest_public_requests WHERE status = 'pending'").first<any>(),
             db.prepare("SELECT COUNT(*) AS total FROM tickets WHERE status = 'pending'").first<any>(),
         ]);
-        body = panel('待办队列', 'fa-inbox', `<div class="admin-shortcuts"><a class="admin-shortcut" href="/backend/content"><span class="admin-shortcut-icon"><i class="fas fa-ticket"></i></span><span><strong>待处理工单</strong><small>${Number(pendingTickets?.total || 0)} 个 · 前往内容管理</small></span></a>${user.id === 1 ? `<a class="admin-shortcut" href="/team/requests"><span class="admin-shortcut-icon"><i class="fas fa-people-group"></i></span><span><strong>团队申请</strong><small>${Number(pendingTeams?.total || 0)} 个待审核</small></span></a><a class="admin-shortcut" href="/oj/proposals"><span class="admin-shortcut-icon"><i class="fas fa-code"></i></span><span><strong>OJ 投题</strong><small>${Number(pendingOj?.total || 0)} 个待审核</small></span></a>` : ''}</div>`);
+        body = panel('待办队列', 'fa-inbox', `<div class="admin-shortcuts">${hasAdminPermission(user, 'admin.content.tickets.manage') ? `<a class="admin-shortcut" href="/backend/content"><span class="admin-shortcut-icon"><i class="fas fa-ticket"></i></span><span><strong>待处理工单</strong><small>${Number(pendingTickets?.total || 0)} 个 · 前往内容管理</small></span></a>` : ''}<a class="admin-shortcut" href="/team/requests"><span class="admin-shortcut-icon"><i class="fas fa-people-group"></i></span><span><strong>团队申请</strong><small>${Number(pendingTeams?.total || 0)} 个待审核</small></span></a><a class="admin-shortcut" href="/oj/proposals"><span class="admin-shortcut-icon"><i class="fas fa-code"></i></span><span><strong>OJ 投题</strong><small>${Number(pendingOj?.total || 0)} 个待审核</small></span></a><a class="admin-shortcut" href="/contest"><span class="admin-shortcut-icon"><i class="fas fa-trophy"></i></span><span><strong>比赛转公开申请</strong><small>${Number(pendingPublicRequests?.total || 0)} 个待审核</small></span></a></div>`);
     } else if (section === 'site') {
         if (hasAdminPermission(user, 'admin.site.settings.edit')) {
             const status = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first<any>();

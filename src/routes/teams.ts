@@ -3,6 +3,7 @@ import { getLayout } from '../utils/layout';
 import { htmlEscape, renderUsernameLink } from '../utils/html';
 import { contestScheduleState } from '../handlers/contest';
 import type { Env } from '../env.d';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 const TEAM_ROLE_LABELS: Record<string, string> = { owner: '队长', admin: '管理员', member: '成员' };
 const TEAM_ANNOUNCEMENT_TITLE = '团队公告';
@@ -451,8 +452,11 @@ export async function renderTeamSettings(env: Env, req: Request, path: string) {
 
 export async function renderTeamRequests(env: Env, req: Request) {
   const user = await getSessionUser(env, req);
-  if (!user || user.id !== 1) return getLayout(env, user, '团队审核', '<div class="card">仅 superuser 可访问团队审核队列。</div>', '', req);
+  const canReview = user?.id === 1 || !!user?.admin && String(user.admin_roles || '').includes('super');
+  if (!canReview && !hasAdminPermission(user, 'admin.reviews.handle')) {
+    return privateTeamPage(env, req, user, '团队审核', '<div class="card">无权访问团队审核队列。</div>', 403);
+  }
   const rows = await env.DB.prepare("SELECT r.*,u.username FROM team_creation_requests r JOIN users u ON u.id=r.requester_id ORDER BY r.created_at DESC").all<any>();
   const content = `<div class="page-header"><h1>团队创建审核</h1></div><div class="card">${(rows.results || []).map((row: any) => `<div style="padding:12px 0;border-bottom:1px solid #eee"><strong>${htmlEscape(row.name)}</strong><p>${htmlEscape(row.description || '')}</p><small>申请人：${htmlEscape(row.username)} · ${htmlEscape(row.level)} · ${htmlEscape(row.join_mode || 'application')} · ${htmlEscape(row.status)}</small>${row.status === 'pending' ? `<form method="POST" action="/api/teams/requests/${row.id}/approve" style="display:inline;margin-left:12px"><button>通过</button></form><form method="POST" action="/api/teams/requests/${row.id}/reject" style="display:inline;margin-left:6px"><button>拒绝</button></form>` : ''}</div>`).join('') || '<p>暂无申请。</p>'}</div>`;
-  return getLayout(env, user, '团队审核', content, '', req);
+  return privateTeamPage(env, req, user, '团队审核', content);
 }
