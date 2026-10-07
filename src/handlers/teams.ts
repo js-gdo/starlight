@@ -1,5 +1,7 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
+import { checkViolation, violationErrorPage } from '../utils/violation';
+import { getTranslator } from '../utils/i18n';
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 const joinModes = new Set(['application', 'free', 'closed']);
@@ -10,6 +12,123 @@ const isSuper = (user: any) => !!user?.admin && (user.id === 1 || String(user.ad
 
 export async function handleTeams(request: Request, env: Env, path: string) {
   const user = await getSessionUser(env, request);
+
+  const privatePostPath = path.match(/^\/api\/teams\/(\d+)\/posts(?:\/(\d+)(?:\/(comments|like))?)?$/);
+  if (privatePostPath) {
+    const teamId = Number(privatePostPath[1]);
+    if (!user) return jsonRes({ error: '团队帖子仅对已审核成员开放。' }, 403);
+    const member = await env.DB.prepare(
+      "SELECT m.role FROM team_members m JOIN teams t ON t.id=m.team_id WHERE m.team_id=? AND m.user_id=? AND m.status='approved' AND t.status='active'"
+    ).bind(teamId, user.id).first<{ role: string }>();
+    if (!member) return jsonRes({ error: '团队帖子仅对已审核成员开放。' }, 403);
+
+    const postId = Number(privatePostPath[2] || 0);
+    if (postId) {
+      const exists = await env.DB.prepare(
+        'SELECT id FROM team_posts WHERE id=? AND team_id=? AND is_announcement=0'
+      ).bind(postId, teamId).first();
+      if (!exists) return jsonRes({ error: '团队帖子不存在。' }, 404);
+    }
+
+    if (privatePostPath[3] === 'like' && request.method !== 'POST') {
+      return jsonRes({ error: '请求方法不支持。' }, 405);
+    }
+    if (privatePostPath[3] === 'like' && request.method === 'POST' && postId) {
+      const existing = await env.DB.prepare(
+        'SELECT post_id FROM team_post_likes WHERE post_id=? AND user_id=?'
+      ).bind(postId, user.id).first();
+      if (existing) {
+        await env.DB.prepare('DELETE FROM team_post_likes WHERE post_id=? AND user_id=?').bind(postId, user.id).run();
+      } else {
+        await env.DB.prepare('INSERT INTO team_post_likes (post_id,user_id) VALUES (?,?)').bind(postId, user.id).run();
+      }
+      const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM team_post_likes WHERE post_id=?')
+        .bind(postId).first<{ total: number }>();
+      return jsonRes({ liked: !existing, count: Number(count?.total || 0) });
+    }
+
+    if (privatePostPath[3] === 'comments' && postId) {
+      if (request.method === 'GET') {
+        const comments = await env.DB.prepare(`
+          SELECT c.*,u.username,u.color,u.tag
+          FROM team_post_comments c JOIN users u ON u.id=c.author_id
+          WHERE c.post_id=? ORDER BY c.created_at,c.id LIMIT 200
+        `).bind(postId).all<any>();
+        return jsonRes({ comments: comments.results || [] });
+      }
+      if (request.method !== 'POST') return jsonRes({ error: '请求方法不支持。' }, 405);
+      if (!user.speak) return jsonRes({ error: '当前账号无法发布评论。' }, 403);
+      const form = await request.formData();
+      const content = String(form.get('content') || '').trim();
+      if (!content || content.length > 5000) return jsonRes({ error: '评论不能为空且最多 5000 个字符。' }, 400);
+      const violation = await checkViolation(content);
+      if (violation.violated) return violationErrorPage(violation, getTranslator(request));
+      const rawParentId = Number(form.get('parent_id') || 0);
+      const parentId = Number.isSafeInteger(rawParentId) && rawParentId > 0 ? rawParentId : 0;
+      if (parentId) {
+        const parent = await env.DB.prepare(
+          'SELECT id FROM team_post_comments WHERE id=? AND post_id=?'
+        ).bind(parentId, postId).first();
+        if (!parent) return jsonRes({ error: '回复目标不属于该帖子。' }, 400);
+      }
+      await env.DB.prepare(
+        'INSERT INTO team_post_comments (post_id,author_id,content,parent_id) VALUES (?,?,?,?)'
+      ).bind(postId, user.id, content, parentId).run();
+      return new Response(null, { status: 302, headers: { Location: `/team/${teamId}/posts/${postId}#comments` } });
+    }
+
+    if (privatePostPath[3]) return jsonRes({ error: '请求路径不存在。' }, 404);
+    if (request.method === 'GET' && postId) {
+      const post = await env.DB.prepare(`
+        SELECT p.id,p.title,p.content,p.created_at,u.id AS author_id,u.username,u.color,u.tag,
+               (SELECT COUNT(*) FROM team_post_comments c WHERE c.post_id=p.id) AS comment_count,
+               (SELECT COUNT(*) FROM team_post_likes l WHERE l.post_id=p.id) AS like_count,
+               EXISTS(SELECT 1 FROM team_post_likes l WHERE l.post_id=p.id AND l.user_id=?) AS liked
+        FROM team_posts p JOIN users u ON u.id=p.author_id
+        WHERE p.id=? AND p.team_id=? AND p.is_announcement=0
+      `).bind(user.id, postId, teamId).first<any>();
+      return jsonRes({ post });
+    }
+    if (request.method === 'GET') {
+      const posts = await env.DB.prepare(`
+        SELECT p.id,p.title,p.content,p.created_at,u.id AS author_id,u.username,u.color,u.tag,
+               (SELECT COUNT(*) FROM team_post_comments c WHERE c.post_id=p.id) AS comment_count,
+               (SELECT COUNT(*) FROM team_post_likes l WHERE l.post_id=p.id) AS like_count,
+               EXISTS(SELECT 1 FROM team_post_likes l WHERE l.post_id=p.id AND l.user_id=?) AS liked
+        FROM team_posts p JOIN users u ON u.id=p.author_id
+        WHERE p.team_id=? AND p.is_announcement=0
+        ORDER BY p.created_at DESC,p.id DESC LIMIT 50
+      `).bind(user.id, teamId).all<any>();
+      return jsonRes({ posts: posts.results || [] });
+    }
+    if (postId) return jsonRes({ error: '请求方法不支持。' }, 405);
+    if (request.method === 'POST') {
+      if (!user.speak) return jsonRes({ error: '当前账号无法发布团队帖子。' }, 403);
+      const form = await request.formData();
+      const title = String(form.get('title') || '').trim();
+      const content = String(form.get('content') || '').trim();
+      if (!title || !content) return jsonRes({ error: '标题和内容均不能为空。' }, 400);
+      if (title.length > 120 || content.length > 20000) {
+        return jsonRes({ error: '标题最多 120 个字符，内容最多 20000 个字符。' }, 400);
+      }
+      const announcement = form.get('announcement') === '1' || form.get('announcement') === 'on';
+      if (announcement && !['owner', 'admin'].includes(member.role)) {
+        return jsonRes({ error: '只有团队管理员可以发布公告。' }, 403);
+      }
+      const violation = await checkViolation(`${title}\n${content}`);
+      if (violation.violated) return violationErrorPage(violation, getTranslator(request));
+      const result = await env.DB.prepare(
+        'INSERT INTO team_posts (team_id,author_id,title,content,is_announcement) VALUES (?,?,?,?,?)'
+      ).bind(teamId, user.id, title, content, announcement ? 1 : 0).run();
+      const createdPostId = Number(result.meta?.last_row_id || 0);
+      if (!createdPostId) throw new Error('Team post insert completed without returning an ID.');
+      return new Response(null, {
+        status: 302,
+        headers: { Location: announcement ? `/team/${teamId}#announcements` : `/team/${teamId}/posts/${createdPostId}` },
+      });
+    }
+    return jsonRes({ error: '请求方法不支持。' }, 405);
+  }
 
   if (path === '/api/teams/requests' && request.method === 'GET') {
     if (!isSuper(user)) return jsonRes({ error: '无权限' }, 403);
@@ -76,19 +195,6 @@ export async function handleTeams(request: Request, env: Env, path: string) {
     const status = team.join_mode === 'free' ? 'approved' : 'pending';
     await env.DB.prepare('INSERT INTO team_members (team_id,user_id,role,status,reason) VALUES (?,?,?, ?, ?) ON CONFLICT(team_id,user_id) DO UPDATE SET status=excluded.status, reason=excluded.reason').bind(Number(join[1]), user.id, 'member', status, reason).run();
     return jsonRes({ ok: true, status });
-  }
-
-  const post = path.match(/^\/api\/teams\/(\d+)\/posts$/);
-  if (post && request.method === 'POST') {
-    if (!user) return jsonRes({ error: '请先登录' }, 403);
-    const member = await env.DB.prepare("SELECT role,status FROM team_members WHERE team_id=? AND user_id=?").bind(Number(post[1]), user.id).first<any>();
-    if (!member || member.status !== 'approved' || !['owner', 'admin'].includes(member.role)) return jsonRes({ error: '无权限' }, 403);
-    const form = await request.formData();
-    const title = String(form.get('title') || '').trim() || (form.get('announcement') ? '团队公告' : '团队动态');
-    const content = String(form.get('content') || '').trim();
-    if (!content) return jsonRes({ error: '内容不能为空' }, 400);
-    await env.DB.prepare('INSERT INTO team_posts (team_id,author_id,title,content,is_announcement) VALUES (?,?,?,?,?)').bind(Number(post[1]), user.id, title, content, form.get('announcement') ? 1 : 0).run();
-    return new Response(null, { status: 302, headers: { Location: `/team/${post[1]}` } });
   }
 
   const announcement = path.match(/^\/api\/teams\/(\d+)\/announcement$/);

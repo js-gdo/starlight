@@ -80,7 +80,7 @@ export async function renderTeam(env: Env, req: Request, path: string) {
   const member = user ? await env.DB.prepare('SELECT * FROM team_members WHERE team_id=? AND user_id=?').bind(id, user.id).first<any>() : null;
   const members = await env.DB.prepare("SELECT tm.*,u.username,u.color,u.tag FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? AND tm.status='approved' ORDER BY tm.role DESC,tm.created_at").bind(id).all<any>();
   const pending = await env.DB.prepare("SELECT tm.*,u.username,u.color,u.tag FROM team_members tm JOIN users u ON u.id=tm.user_id WHERE tm.team_id=? AND tm.status='pending' ORDER BY tm.created_at DESC").bind(id).all<any>();
-  const posts = await env.DB.prepare("SELECT p.*,u.username,u.color,u.tag FROM team_posts p JOIN users u ON u.id=p.author_id WHERE p.team_id=? ORDER BY p.created_at DESC LIMIT 50").bind(id).all<any>();
+  const posts = await env.DB.prepare("SELECT p.*,u.username,u.color,u.tag FROM team_posts p JOIN users u ON u.id=p.author_id WHERE p.team_id=? AND p.is_announcement=1 ORDER BY p.created_at DESC LIMIT 50").bind(id).all<any>();
   const teamContests = await env.DB.prepare(`
     SELECT c.*,
            (SELECT COUNT(*) FROM contest_enrollments ce WHERE ce.contest_id=c.id AND ce.status='enrolled') AS enrolled_count,
@@ -125,6 +125,7 @@ export async function renderTeam(env: Env, req: Request, path: string) {
         <a href="#announcements" class="team-tab is-active">公告</a>
         <a href="#overview" class="team-tab">概览</a>
         <a href="#members" class="team-tab">成员</a>
+        ${member?.status === 'approved' ? `<a href="/team/${id}/posts" class="team-tab">团队帖子</a>` : ''}
         ${member?.status === 'approved' ? '<a href="#team-oj" class="team-tab">团队题目</a>' : ''}
         ${member?.status === 'approved' ? '<a href="#team-contests" class="team-tab">团队比赛</a>' : ''}
         ${canManage ? '<a href="#settings" class="team-tab">设置</a>' : ''}
@@ -238,6 +239,150 @@ export async function renderTeam(env: Env, req: Request, path: string) {
         });
       })();
     </script>`, '', req);
+}
+
+async function privateTeamPage(env: Env, req: Request, user: any, title: string, content: string, status = 200): Promise<Response> {
+  return new Response(await getLayout(env, user, title, content, '', req), {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+async function getPrivateTeamContext(env: Env, req: Request, teamId: number) {
+  const user = await getSessionUser(env, req);
+  const team = await env.DB.prepare(
+    "SELECT id,name FROM teams WHERE id=? AND status='active'"
+  ).bind(teamId).first<any>();
+  if (!team) return { user, team: null, authorized: false };
+  if (!user) return { user, team, authorized: false };
+  const member = await env.DB.prepare(
+    "SELECT role FROM team_members WHERE team_id=? AND user_id=? AND status='approved'"
+  ).bind(teamId, user.id).first<any>();
+  return { user, team, authorized: !!member };
+}
+
+export async function renderTeamPosts(env: Env, req: Request, path: string): Promise<Response> {
+  const match = path.match(/^\/team\/(\d+)\/posts$/);
+  const teamId = Number(match?.[1]);
+  const context = await getPrivateTeamContext(env, req, teamId);
+  if (!context.team) return privateTeamPage(env, req, context.user, '团队不存在', '<div class="card">团队不存在或已被移除。</div>', 404);
+  if (!context.authorized) return privateTeamPage(env, req, context.user, '无权访问', '<div class="card">团队帖子仅对已审核成员开放。</div>', 403);
+
+  const posts = await env.DB.prepare(`
+    SELECT p.id,p.title,p.content,p.created_at,u.id AS author_id,u.username,u.color,u.tag,
+           (SELECT COUNT(*) FROM team_post_comments c WHERE c.post_id=p.id) AS comment_count,
+           (SELECT COUNT(*) FROM team_post_likes l WHERE l.post_id=p.id) AS like_count
+    FROM team_posts p JOIN users u ON u.id=p.author_id
+    WHERE p.team_id=? AND p.is_announcement=0
+    ORDER BY p.created_at DESC,p.id DESC LIMIT 50
+  `).bind(teamId).all<any>();
+  const user = context.user!;
+  const content = `
+    <div class="page-header"><h1><i class="fas fa-comments"></i> ${htmlEscape(context.team.name)} · 团队帖子</h1>
+      <p><a href="/team/${teamId}" class="team-link">返回团队主页</a></p></div>
+    <section class="card team-private-compose">
+      <h2>发布团队帖子</h2>
+      ${user.speak ? `<form method="POST" action="/api/teams/${teamId}/posts">
+        <label>标题<input name="title" maxlength="120" required placeholder="帖子标题"></label>
+        <label>内容<textarea name="content" rows="6" maxlength="20000" required placeholder="分享团队动态、问题或想法"></textarea></label>
+        <button type="submit">发布帖子</button>
+      </form>` : '<p>当前账号无法发布内容。</p>'}
+    </section>
+    <section class="team-private-list">
+      ${(posts.results || []).map((post: any) => `<article class="card team-private-post">
+        <h2><a href="/team/${teamId}/posts/${post.id}">${htmlEscape(post.title)}</a></h2>
+        <div class="team-private-meta">${renderUsernameLink(post.username, post.color, post.tag, post.author_id)} · ${htmlEscape(post.created_at)}</div>
+        <div class="markdown-content">${htmlEscape(String(post.content).slice(0, 1200))}${String(post.content).length > 1200 ? '…' : ''}</div>
+        <a href="/team/${teamId}/posts/${post.id}" class="team-link">查看全文 · ${Number(post.comment_count)} 条评论 · ${Number(post.like_count)} 个赞</a>
+      </article>`).join('') || '<div class="card team-private-empty">团队还没有帖子，来发布第一条吧。</div>'}
+    </section>
+    <style>
+      .team-private-compose,.team-private-post{padding:20px;margin-bottom:16px}
+      .team-private-compose form{display:grid;gap:12px}
+      .team-private-compose label{display:grid;gap:6px;color:#555;font-size:13px}
+      .team-private-compose input,.team-private-compose textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font:inherit}
+      .team-private-compose button{justify-self:start;padding:9px 16px;border:0;border-radius:8px;background:#8E44AD;color:#fff;cursor:pointer}
+      .team-private-post h2{font-size:20px;margin:0 0 8px}
+      .team-private-post h2 a,.team-link{color:#8E44AD;text-decoration:none}
+      .team-private-meta{color:#777;font-size:13px;margin-bottom:12px}
+      .team-private-post .markdown-content{margin-bottom:12px;line-height:1.7;overflow-wrap:anywhere}
+      .team-private-empty{padding:24px;text-align:center;color:#777}
+    </style>`;
+  return privateTeamPage(env, req, user, `${context.team.name} · 团队帖子`, content);
+}
+
+export async function renderTeamPostDetail(env: Env, req: Request, path: string): Promise<Response> {
+  const match = path.match(/^\/team\/(\d+)\/posts\/(\d+)$/);
+  const teamId = Number(match?.[1]);
+  const postId = Number(match?.[2]);
+  const context = await getPrivateTeamContext(env, req, teamId);
+  if (!context.team) return privateTeamPage(env, req, context.user, '团队不存在', '<div class="card">团队不存在或已被移除。</div>', 404);
+  if (!context.authorized) return privateTeamPage(env, req, context.user, '无权访问', '<div class="card">团队帖子仅对已审核成员开放。</div>', 403);
+
+  const post = await env.DB.prepare(`
+    SELECT p.*,u.id AS author_id,u.username,u.color,u.tag,
+           (SELECT COUNT(*) FROM team_post_likes l WHERE l.post_id=p.id) AS like_count,
+           EXISTS(SELECT 1 FROM team_post_likes l WHERE l.post_id=p.id AND l.user_id=?) AS liked
+    FROM team_posts p JOIN users u ON u.id=p.author_id
+    WHERE p.id=? AND p.team_id=? AND p.is_announcement=0
+  `).bind(context.user!.id, postId, teamId).first<any>();
+  if (!post) return privateTeamPage(env, req, context.user, '帖子不存在', '<div class="card">团队帖子不存在。</div>', 404);
+  const comments = await env.DB.prepare(`
+    SELECT c.*,u.id AS author_id,u.username,u.color,u.tag
+    FROM team_post_comments c JOIN users u ON u.id=c.author_id
+    WHERE c.post_id=? ORDER BY c.created_at,c.id LIMIT 200
+  `).bind(postId).all<any>();
+  const user = context.user!;
+  const content = `
+    <p><a href="/team/${teamId}/posts" class="team-link">← 返回团队帖子</a></p>
+    <article class="card team-private-detail">
+      <h1>${htmlEscape(post.title)}</h1>
+      <div class="team-private-meta">${renderUsernameLink(post.username, post.color, post.tag, post.author_id)} · ${htmlEscape(post.created_at)}</div>
+      <div class="markdown-content team-private-content">${htmlEscape(post.content)}</div>
+      <button id="team-post-like" type="button" aria-pressed="${post.liked ? 'true' : 'false'}">${post.liked ? '已赞' : '点赞'} · <span>${Number(post.like_count)}</span></button>
+    </article>
+    <section id="comments" class="card team-private-comments">
+      <h2>评论 (${(comments.results || []).length})</h2>
+      ${(comments.results || []).map((comment: any) => `<article class="team-private-comment">
+        <div class="team-private-meta">${renderUsernameLink(comment.username, comment.color, comment.tag, comment.author_id)} · ${htmlEscape(comment.created_at)}</div>
+        <div class="markdown-content">${htmlEscape(comment.content)}</div>
+      </article>`).join('') || '<p class="team-private-muted">暂无评论。</p>'}
+      ${user.speak ? `<form method="POST" action="/api/teams/${teamId}/posts/${postId}/comments">
+        <textarea name="content" rows="3" maxlength="5000" required placeholder="写下评论…"></textarea>
+        <button type="submit">发表评论</button>
+      </form>` : '<p class="team-private-muted">当前账号无法发表评论。</p>'}
+    </section>
+    <style>
+      .team-link{color:#8E44AD;text-decoration:none}
+      .team-private-detail,.team-private-comments{padding:20px;margin:14px 0}
+      .team-private-detail h1{font-size:25px;margin:0 0 8px}
+      .team-private-meta{color:#777;font-size:13px;margin-bottom:12px}
+      .team-private-content{line-height:1.8;overflow-wrap:anywhere}
+      .team-private-detail button,.team-private-comments button{border:0;border-radius:7px;padding:8px 14px;background:#8E44AD;color:#fff;cursor:pointer}
+      .team-private-comments h2{font-size:18px}
+      .team-private-comment{padding:12px 0;border-bottom:1px solid #eee}
+      .team-private-comments form{display:grid;gap:8px;margin-top:14px}
+      .team-private-comments textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font:inherit}
+      .team-private-comments form button{justify-self:start}
+      .team-private-muted{color:#888}
+    </style>
+    <script>
+      document.getElementById('team-post-like').addEventListener('click', async function(){
+        var button=this;
+        button.disabled=true;
+        try {
+          var response=await fetch('/api/teams/${teamId}/posts/${postId}/like',{method:'POST'});
+          var data=await response.json();
+          if(!response.ok){if(typeof toast==='function')toast(data.error||'操作失败','error');return;}
+          button.setAttribute('aria-pressed',data.liked?'true':'false');
+          button.firstChild.textContent=(data.liked?'已赞':'点赞')+' · ';
+          button.querySelector('span').textContent=data.count;
+        } catch(error) {
+          if(typeof toast==='function')toast('网络错误，操作失败','error');
+        } finally { button.disabled=false; }
+      });
+    </script>`;
+  return privateTeamPage(env, req, user, post.title, content);
 }
 
 export async function renderTeamSettings(env: Env, req: Request, path: string) {

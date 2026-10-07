@@ -659,6 +659,78 @@ describe("worker routing", () => {
 		expect(await teams.json()).toEqual([]);
 	});
 
+	it("restricts team posts to approved members and supports posting, comments, and likes", async () => {
+		await SELF.fetch("https://example.com/");
+		const suffix = Date.now().toString().slice(-8);
+		const memberResult = await env.DB.prepare(
+			'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+		).bind(`team-member-${suffix}`, 'unused').run();
+		const outsiderResult = await env.DB.prepare(
+			'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+		).bind(`team-outsider-${suffix}`, 'unused').run();
+		const memberId = Number(memberResult.meta.last_row_id);
+		const outsiderId = Number(outsiderResult.meta.last_row_id);
+		const teamResult = await env.DB.prepare(
+			'INSERT INTO teams (name, slug, owner_id) VALUES (?, ?, ?)'
+		).bind(`Private posts ${suffix}`, `private-posts-${suffix}`, memberId).run();
+		const teamId = Number(teamResult.meta.last_row_id);
+		await env.DB.prepare(
+			"INSERT INTO team_members (team_id, user_id, role, status) VALUES (?, ?, 'owner', 'approved')"
+		).bind(teamId, memberId).run();
+		const memberSession = await createSession(env, memberId);
+		const outsiderSession = await createSession(env, outsiderId);
+		const requestWorker = (path: string, init?: RequestInit) =>
+			worker.fetch(new IncomingRequest(`https://example.com${path}`, init), env, createExecutionContext());
+		const outsiderHeaders = { Cookie: `uid=${outsiderSession}` };
+
+		const outsiderPage = await requestWorker(`/team/${teamId}/posts`, { headers: outsiderHeaders });
+		expect(outsiderPage.status).toBe(403);
+		const outsiderFeed = await requestWorker(`/api/teams/${teamId}/posts`, { headers: outsiderHeaders });
+		expect(outsiderFeed.status).toBe(403);
+
+		const postForm = new FormData();
+		postForm.set('title', '仅成员可见的帖子');
+		postForm.set('content', '这是私密团队内容。');
+		const createResponse = await requestWorker(`/api/teams/${teamId}/posts`, {
+			method: 'POST',
+			headers: { Cookie: `uid=${memberSession}` },
+			body: postForm,
+		});
+		expect(createResponse.status).toBe(302);
+		const location = createResponse.headers.get('Location');
+		expect(location).toMatch(new RegExp(`^/team/${teamId}/posts/\\d+$`));
+		const postId = Number(location?.split('/').at(-1));
+
+		const memberDetail = await requestWorker(location!, { headers: { Cookie: `uid=${memberSession}` } });
+		expect(memberDetail.status).toBe(200);
+		expect(await memberDetail.text()).toContain('这是私密团队内容。');
+		const outsiderDetail = await requestWorker(location!, { headers: outsiderHeaders });
+		expect(outsiderDetail.status).toBe(403);
+		const publicTeamPage = await requestWorker(`/team/${teamId}`);
+		expect(publicTeamPage.status).toBe(200);
+		expect(await publicTeamPage.text()).not.toContain('这是私密团队内容。');
+
+		const commentForm = new FormData();
+		commentForm.set('content', '团队成员评论');
+		const commentResponse = await requestWorker(`/api/teams/${teamId}/posts/${postId}/comments`, {
+			method: 'POST',
+			headers: { Cookie: `uid=${memberSession}` },
+			body: commentForm,
+		});
+		expect(commentResponse.status).toBe(302);
+		const likeResponse = await requestWorker(`/api/teams/${teamId}/posts/${postId}/like`, {
+			method: 'POST',
+			headers: { Cookie: `uid=${memberSession}` },
+		});
+		expect(likeResponse.status).toBe(200);
+		expect(await likeResponse.json()).toEqual({ liked: true, count: 1 });
+		const outsiderLike = await requestWorker(`/api/teams/${teamId}/posts/${postId}/like`, {
+			method: 'POST',
+			headers: outsiderHeaders,
+		});
+		expect(outsiderLike.status).toBe(403);
+	});
+
 	it("renders the OJ problem list and exposes it in the sidebar", async () => {
 		const response = await SELF.fetch("https://example.com/oj");
 		expect(response.status).toBe(200);
