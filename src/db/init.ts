@@ -281,6 +281,16 @@ export async function initDB(env: Env) {
       FOREIGN KEY(post_id) REFERENCES team_posts(id) ON DELETE CASCADE,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS weekly_challenge_claims (
+      user_id INTEGER NOT NULL,
+      week_start TEXT NOT NULL,
+      challenge_key TEXT NOT NULL,
+      team_id INTEGER NOT NULL DEFAULT 0,
+      reward_points INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY(user_id, week_start, challenge_key, team_id),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS team_creation_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       requester_id INTEGER NOT NULL,
@@ -538,7 +548,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '24';
+const CURRENT_SCHEMA_VERSION = '25';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

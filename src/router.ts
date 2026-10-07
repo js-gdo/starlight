@@ -7,6 +7,7 @@ import { renderBackendConsole } from './routes/backendConsole';
 import { renderBenben } from './routes/benben';
 import { renderClipboard } from './routes/clipboard';
 import { renderContestCreate, renderContestDetail, renderContestLeaderboard, renderContestList } from './routes/contest';
+import { renderChallenges } from './routes/challenges';
 import { renderGame } from './routes/game';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
@@ -124,6 +125,7 @@ const routes: RouteDefinition[] = [
     }),
     exactPage(['/leaderboard'], (env, request) => renderLeaderboard(env, request)),
     exactPage(['/achievements'], (env, request) => renderAchievements(env, request)),
+    exactPage(['/challenges'], (env, request) => renderChallenges(env, request)),
     exactPage(['/redeem'], (env, request) => renderRedeem(env, request)),
     exactPage(['/game'], (env, request) => renderGame(env, request)),
     exactPage(['/search'], (env, request) => renderSearch(env, request)),

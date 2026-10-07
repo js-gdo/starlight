@@ -128,6 +128,7 @@ async function createIndexes(db: Env['DB']): Promise<void> {
         'CREATE INDEX IF NOT EXISTS idx_team_posts_team ON team_posts (team_id, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_team_post_comments_post ON team_post_comments (post_id, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_team_post_likes_user ON team_post_likes (user_id, post_id)',
+        'CREATE INDEX IF NOT EXISTS idx_weekly_challenge_claims_period ON weekly_challenge_claims (week_start, challenge_key, team_id)',
         'CREATE INDEX IF NOT EXISTS idx_team_creation_requests_status ON team_creation_requests (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_contests_team_schedule ON contests (team_id, start_at)',
         'CREATE INDEX IF NOT EXISTS idx_contest_problems_order ON contest_problems (contest_id, problem_order)',
@@ -149,6 +150,11 @@ async function createIndexes(db: Env['DB']): Promise<void> {
            BEGIN
              UPDATE users SET points = points + 1
              WHERE id = (SELECT inviter_id FROM referrals WHERE invitee_id = NEW.invitee_id);
+           END`,
+        `CREATE TRIGGER IF NOT EXISTS weekly_challenge_reward
+           AFTER INSERT ON weekly_challenge_claims
+           BEGIN
+             UPDATE users SET points = points + NEW.reward_points WHERE id = NEW.user_id;
            END`,
     ];
     for (const sql of statements) {
