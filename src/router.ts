@@ -21,7 +21,7 @@ import { renderRedeem } from './routes/redeem';
 import { renderSearch } from './routes/search';
 import { renderServer } from './routes/server';
 import { renderStatusPage } from './routes/status';
-import { renderTeam, renderTeamList, renderTeamNew, renderTeamRequests, renderTeamSettings } from './routes/teams';
+import { renderTeam, renderTeamList, renderTeamNew, renderTeamPostDetail, renderTeamPosts, renderTeamRequests, renderTeamSettings } from './routes/teams';
 import { renderTicketDetail, renderTicketEdit, renderTicketList, renderTicketNew } from './routes/tickets';
 import { renderUser, renderUserSettings } from './routes/user';
 import { renderLogin, renderRegister } from './routes/auth';
@@ -132,6 +132,8 @@ const routes: RouteDefinition[] = [
     exactPage(['/team/new'], (env, request) => renderTeamNew(env, request)),
     exactPage(['/team/requests'], (env, request) => renderTeamRequests(env, request)),
     matchingPage((path) => path.startsWith('/team/') && path.endsWith('/settings'), (env, request, path) => renderTeamSettings(env, request, path)),
+    directRoute((path) => /^\/team\/\d+\/posts$/.test(path), (env, request, path) => renderTeamPosts(env, request, path)),
+    directRoute((path) => /^\/team\/\d+\/posts\/\d+$/.test(path), (env, request, path) => renderTeamPostDetail(env, request, path)),
     matchingPage((path) => path.startsWith('/team/') && path.length > 6, (env, request, path) => renderTeam(env, request, path)),
     directRoute((path) => path.startsWith('/oj/') && path.length > 4, async (env, request, path) => {
         const denied = await validateOjPageAccess(env, request, path);

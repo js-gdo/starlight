@@ -261,6 +261,24 @@ export async function initDB(env: Env) {
       FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
       FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+       `CREATE TABLE IF NOT EXISTS team_post_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL,
+      author_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      parent_id INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY(post_id) REFERENCES team_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY(author_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+       `CREATE TABLE IF NOT EXISTS team_post_likes (
+      post_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(post_id, user_id),
+      FOREIGN KEY(post_id) REFERENCES team_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS team_creation_requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       requester_id INTEGER NOT NULL,
@@ -518,7 +536,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '22';
+const CURRENT_SCHEMA_VERSION = '23';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
