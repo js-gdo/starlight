@@ -1524,6 +1524,8 @@ export async function getLayout(
       }
 
       let pageTimers = [];
+      let navigationId = 0;
+      let activeNavigationController = null;
 
       function executePageScripts(root) {
         pageTimers.forEach(id => window.clearInterval(id));
@@ -1593,23 +1595,43 @@ export async function getLayout(
       }
 
       async function navigate(url, pushState = true) {
+        const currentNavigationId = ++navigationId;
+        if (activeNavigationController) {
+          activeNavigationController.abort();
+          activeNavigationController = null;
+        }
         if (!canUseSpa(url)) {
           window.location.href = url.href;
           return;
         }
         const cached = canCache(url) ? getCached(url) : null;
-        if (cached && replaceMain(cached, url, pushState)) return;
+        if (cached && replaceMain(cached, url, pushState)) {
+          document.body.classList.remove('spa-loading');
+          return;
+        }
+        const controller = new AbortController();
+        activeNavigationController = controller;
         document.body.classList.add('spa-loading');
         try {
-          const response = await fetch(url.href, { headers: { 'X-Starlight-SPA': '1' }, credentials: 'same-origin' });
+          const response = await fetch(url.href, {
+            headers: { 'X-Starlight-SPA': '1' },
+            credentials: 'same-origin',
+            signal: controller.signal,
+          });
+          if (currentNavigationId !== navigationId) return;
           if (!response.ok) throw new Error('SPA navigation failed');
           const html = await response.text();
+          if (currentNavigationId !== navigationId) return;
           if (canCache(url)) setCached(url, html);
           if (!replaceMain(html, url, pushState)) throw new Error('SPA content missing');
-        } catch (_) {
+        } catch (error) {
+          if (currentNavigationId !== navigationId || (error && error.name === 'AbortError')) return;
           window.location.href = url.href;
         } finally {
-          document.body.classList.remove('spa-loading');
+          if (currentNavigationId === navigationId) {
+            activeNavigationController = null;
+            document.body.classList.remove('spa-loading');
+          }
         }
       }
 
