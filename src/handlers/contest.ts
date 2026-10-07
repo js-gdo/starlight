@@ -1,4 +1,5 @@
 ﻿import { getSessionUser, jsonRes } from '../utils/auth';
+import { hasAdminPermission } from '../utils/adminPermissions';
 import type { TypedD1PreparedStatement } from '../env.d';
 import type { Env } from '../env.d';
 
@@ -200,7 +201,7 @@ export async function handleContests(request: Request, env: Env, path: string): 
 
     const publicRequestsMatch = path === '/api/contests/public-requests';
     if (publicRequestsMatch && request.method === 'GET') {
-        if (!user || user.id !== 1) return jsonRes({ error: '仅 superuser 可以审核公开赛申请。' }, 403);
+        if (!hasAdminPermission(user, 'admin.reviews.handle')) return jsonRes({ error: '无权处理审核队列。' }, 403);
         const rows = await env.DB.prepare(`
             SELECT r.*, c.title AS contest_title, c.team_id, t.name AS team_name, u.username AS requester_name
             FROM contest_public_requests r
@@ -215,7 +216,7 @@ export async function handleContests(request: Request, env: Env, path: string): 
 
     const publicRequestReviewMatch = path.match(/^\/api\/contests\/public-requests\/(\d+)\/review$/);
     if (publicRequestReviewMatch && request.method === 'POST') {
-        if (!user || user.id !== 1) return jsonRes({ error: '仅 superuser 可以审核公开赛申请。' }, 403);
+        if (!hasAdminPermission(user, 'admin.reviews.handle')) return jsonRes({ error: '无权处理审核队列。' }, 403);
         const body = await request.formData();
         const decision = String(body.get('decision') || '');
         const note = String(body.get('note') || '').trim().slice(0, 500);

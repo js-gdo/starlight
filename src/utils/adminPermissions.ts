@@ -17,6 +17,7 @@ export const ADMIN_PERMISSION_NODES = [
     { key: 'admin.security.reports.view', label: '查看举报', group: '内容安全' },
     { key: 'admin.security.reports.resolve', label: '处理举报', group: '内容安全' },
     { key: 'admin.security.audit.view', label: '查看操作审计', group: '内容安全' },
+    { key: 'admin.reviews.handle', label: '查看并处理审核队列', group: '审核' },
     { key: 'admin.site.settings.edit', label: '修改站点状态', group: '站点管理' },
     { key: 'admin.site.banners.manage', label: '管理轮播图', group: '站点管理' },
     { key: 'admin.site.announcements.manage', label: '管理公告', group: '站点管理' },
@@ -66,7 +67,7 @@ export function getAdminSectionPermission(section: string): string {
         user: 'admin.users.view',
         content: 'admin.content.articles.view',
         security: 'admin.security.reports.view',
-        reviews: 'admin.dashboard.view',
+        reviews: 'admin.reviews.handle',
         site: 'admin.site.settings.edit',
         permissions: 'admin.permissions.view',
     };

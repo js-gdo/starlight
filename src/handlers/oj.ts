@@ -1,5 +1,6 @@
 ﻿import type { Env } from '../env.d';
 import { getSessionUser, jsonRes } from '../utils/auth';
+import { hasAdminPermission } from '../utils/adminPermissions';
 import { writeAudit } from '../utils/audit';
 import { ensureUserCanAccessContest } from './contest';
 import { filterVisibleOjProblems } from '../utils/problem';
@@ -85,11 +86,14 @@ function validateProposalCategory(categoryValue: string, problemIdValue: string)
 }
 
 async function handleProposalApi(request: Request, env: Env, path: string): Promise<Response | null> {
-    const user = await requireSuperuser(request, env);
-    if (!user) return jsonRes({ error: 'Only superuser (UID 1) can manage OJ proposals.' }, 403);
+    const user = await getSessionUser(env, request);
+    if (!user) return jsonRes({ error: 'Please log in.' }, 403);
     const db = env.DB;
 
     if (path === '/api/oj/proposals' && request.method === 'GET') {
+        if (!hasAdminPermission(user, 'admin.reviews.handle')) {
+            return jsonRes({ error: 'Missing admin.reviews.handle permission.' }, 403);
+        }
         const rows = await db.prepare(
             `SELECT p.*, u.username AS proposer_name
              FROM oj_proposals p LEFT JOIN users u ON u.id = p.proposer_id
@@ -102,6 +106,7 @@ async function handleProposalApi(request: Request, env: Env, path: string): Prom
     }
 
     if (path === '/api/oj/proposals' && request.method === 'POST') {
+        if (user.id !== 1) return jsonRes({ error: 'Only superuser (UID 1) can submit OJ proposals.' }, 403);
         const form = await request.formData();
         const problemName = String(form.get('problem_name') || '').trim().slice(0, 120);
         const tags = parseTags(form.get('tags'));
@@ -150,6 +155,9 @@ async function handleProposalApi(request: Request, env: Env, path: string): Prom
 
     const reviewMatch = path.match(/^\/api\/oj\/proposals\/(\d+)$/);
     if (reviewMatch && request.method === 'POST') {
+        if (!hasAdminPermission(user, 'admin.reviews.handle')) {
+            return jsonRes({ error: 'Missing admin.reviews.handle permission.' }, 403);
+        }
         const id = Number(reviewMatch[1]);
         const form = await request.formData();
         const status = String(form.get('status') || '');

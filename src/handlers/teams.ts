@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes } from '../utils/auth';
 import type { Env } from '../env.d';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
+import { hasAdminPermission } from '../utils/adminPermissions';
 
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 const joinModes = new Set(['application', 'free', 'closed']);
@@ -131,14 +132,14 @@ export async function handleTeams(request: Request, env: Env, path: string) {
   }
 
   if (path === '/api/teams/requests' && request.method === 'GET') {
-    if (!isSuper(user)) return jsonRes({ error: '无权限' }, 403);
+    if (!isSuper(user) && !hasAdminPermission(user, 'admin.reviews.handle')) return jsonRes({ error: '无权限' }, 403);
     const rows = await env.DB.prepare("SELECT r.*, u.username FROM team_creation_requests r JOIN users u ON u.id=r.requester_id WHERE r.status='pending' ORDER BY r.created_at").all();
     return jsonRes(rows.results);
   }
 
   const review = path.match(/^\/api\/teams\/requests\/(\d+)\/(approve|reject)$/);
   if (review && request.method === 'POST') {
-    if (!isSuper(user)) return jsonRes({ error: '无权限' }, 403);
+    if (!isSuper(user) && !hasAdminPermission(user, 'admin.reviews.handle')) return jsonRes({ error: '无权限' }, 403);
     const requestId = Number(review[1]);
     const pending = await env.DB.prepare("SELECT * FROM team_creation_requests WHERE id=? AND status='pending'").bind(requestId).first<any>();
     if (!pending) return jsonRes({ error: '申请不存在' }, 404);
