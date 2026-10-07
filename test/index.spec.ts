@@ -16,6 +16,7 @@ import { buildReportAuditText, normalizeReportReason } from "../src/handlers/rep
 import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
 import { createInviteCode } from "../src/utils/invite";
 import { findLuoguUser, hasLuoguVerificationCode } from "../src/utils/luogu";
+import { getChinaWeekRange } from "../src/handlers/challenges";
 import { sha256 } from "../src/utils/crypto";
 import { ADMIN_PERMISSION_NODES, hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 import type { Env as WorkerEnv } from '../src/env.d';
@@ -34,6 +35,90 @@ describe("points rank username badges", () => {
 		expect(getPointsRankBadgeLevel(31, 100)).toBe("green");
 		expect(getPointsRankBadgeLevel(60, 100)).toBe("green");
 		expect(getPointsRankBadgeLevel(61, 100)).toBeNull();
+	});
+
+	describe("weekly community challenges", () => {
+		it("calculates Monday-to-Monday weeks in China Standard Time", () => {
+			expect(getChinaWeekRange(new Date("2026-03-08T15:59:59Z"))).toEqual({
+				start: "2026-03-02",
+				end: "2026-03-09",
+			});
+			expect(getChinaWeekRange(new Date("2026-03-08T16:00:00Z"))).toEqual({
+				start: "2026-03-09",
+				end: "2026-03-16",
+			});
+		});
+
+		it("tracks eligible activity and awards each weekly challenge only once", async () => {
+			await SELF.fetch("https://example.com/");
+			const suffix = Date.now().toString().slice(-8);
+			const userResult = await env.DB.prepare(
+				'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+			).bind(`challenge-user-${suffix}`, 'unused').run();
+			const teammateResult = await env.DB.prepare(
+				'INSERT INTO users (username, password, points) VALUES (?, ?, 0)'
+			).bind(`challenge-teammate-${suffix}`, 'unused').run();
+			const userId = Number(userResult.meta.last_row_id);
+			const teammateId = Number(teammateResult.meta.last_row_id);
+			const teamResult = await env.DB.prepare(
+				'INSERT INTO teams (name, slug, owner_id) VALUES (?, ?, ?)'
+			).bind(`Challenge team ${suffix}`, `challenge-team-${suffix}`, userId).run();
+			const teamId = Number(teamResult.meta.last_row_id);
+			await env.DB.prepare(
+				"INSERT INTO team_members (team_id, user_id, role, status) VALUES (?, ?, 'owner', 'approved'), (?, ?, 'member', 'approved')"
+			).bind(teamId, userId, teamId, teammateId).run();
+			const postResult = await env.DB.prepare(
+				'INSERT INTO team_posts (team_id, author_id, title, content) VALUES (?, ?, ?, ?)'
+			).bind(teamId, userId, 'Weekly challenge post', 'Discussion').run();
+			const postId = Number(postResult.meta.last_row_id);
+			const { start } = getChinaWeekRange();
+			const activityTime = `${start}T04:00:00.000Z`;
+			for (let index = 0; index < 6; index++) {
+				const authorId = index < 3 ? userId : teammateId;
+				await env.DB.prepare(
+					'INSERT INTO team_post_comments (post_id, author_id, content, created_at) VALUES (?, ?, ?, ?)'
+				).bind(postId, authorId, `Comment ${index}`, activityTime).run();
+			}
+			const contestResult = await env.DB.prepare(
+				"INSERT INTO contests (title, slug, organizer_id, participation_mode, start_at, end_at) VALUES (?, ?, ?, 'public', '', '')"
+			).bind(`Challenge contest ${suffix}`, `challenge-contest-${suffix}`, userId).run();
+			await env.DB.prepare(
+				"INSERT INTO contest_enrollments (contest_id, user_id, status, created_at) VALUES (?, ?, 'enrolled', ?)"
+			).bind(Number(contestResult.meta.last_row_id), userId, activityTime).run();
+
+			const session = await createSession(env, userId);
+			const headers = { Cookie: `uid=${session}` };
+			const activityResponse = await SELF.fetch("https://example.com/api/challenges", { headers });
+			expect(activityResponse.status).toBe(200);
+			const activity = await activityResponse.json() as {
+				personal: Array<{ key: string; progress: number; target: number }>;
+				teams: Array<{ id: number; comments: number; contributors: number }>;
+			};
+			expect(activity.personal.find((task) => task.key === 'public_contest')).toMatchObject({ progress: 1, target: 1 });
+			expect(activity.personal.find((task) => task.key === 'team_discussion')).toMatchObject({ progress: 2, target: 2 });
+			expect(activity.teams.find((team) => team.id === teamId)).toMatchObject({ comments: 6, contributors: 2 });
+
+			for (const claim of [
+				{ key: 'public_contest' },
+				{ key: 'team_discussion' },
+				{ key: 'team_collaboration', team_id: teamId },
+			]) {
+				const response = await SELF.fetch('https://example.com/api/challenges/claim', {
+					method: 'POST',
+					headers: { ...headers, 'Content-Type': 'application/json' },
+					body: JSON.stringify(claim),
+				});
+				expect(response.status).toBe(200);
+			}
+			const duplicate = await SELF.fetch('https://example.com/api/challenges/claim', {
+				method: 'POST',
+				headers: { ...headers, 'Content-Type': 'application/json' },
+				body: JSON.stringify({ key: 'public_contest' }),
+			});
+			expect(duplicate.status).toBe(409);
+			const awardedUser = await env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(userId).first<{ points: number }>();
+			expect(Number(awardedUser?.points)).toBe(28);
+		});
 	});
 
 	it("does not render a fixed UID-based badge in username links", () => {

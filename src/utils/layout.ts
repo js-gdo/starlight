@@ -155,6 +155,7 @@ export async function getLayout(
         { href: '/contest', label: '比赛中心', active: title === '比赛中心' || title.startsWith('比赛 #') },
         { href: '/leaderboard', label: '排行榜', active: title === '排行榜' },
         { href: '/achievements', label: '成就系统', active: title === '成就系统' },
+        { href: '/challenges', label: '每周挑战', active: title === '每周社区挑战' },
         { href: '/game', label: '星际远征', active: title === '星际远征' || title === '星际边境' },
         { href: '/redeem', label: '积分兑换', active: title === '积分兑换' },
         { href: '/search', label: '站内搜索', active: title === '站内搜索' },
