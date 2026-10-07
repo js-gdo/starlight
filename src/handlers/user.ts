@@ -3,6 +3,8 @@ import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from '../utils/profile';
 import { sha256 } from '../utils/crypto';
+import { createInviteCode } from '../utils/invite';
+import { findLuoguUser, hasLuoguVerificationCode } from '../utils/luogu';
 import type { Env } from '../env.d';
 
 export async function handleUser(request: Request, env: Env, path: string) {
@@ -10,6 +12,89 @@ export async function handleUser(request: Request, env: Env, path: string) {
     const method = request.method;
     const db = env.DB;
     const user = await getSessionUser(env, request);
+
+    if (path === '/api/user/luogu/bind' && method === 'POST') {
+        if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+        const current = await db.prepare(
+            'SELECT luogu_uid, luogu_username FROM users WHERE id = ?'
+        ).bind(user.id).first<{ luogu_uid: number | null; luogu_username: string }>();
+        if (current?.luogu_uid) {
+            return jsonRes({ error: `此账号已绑定洛谷用户 ${current.luogu_username}。` }, 409);
+        }
+
+        const form = await request.formData();
+        const username = String(form.get('username') || '').trim();
+        if (!username || username.length > 40 || /[\u0000-\u0020\u007f]/.test(username)) {
+            return jsonRes({ error: '请输入有效的洛谷用户名（最多 40 个字符，不含空格）。' }, 400);
+        }
+
+        const verificationCode = await createInviteCode(user.username);
+        const url = new URL('https://www.luogu.com.cn/api/user/search');
+        url.searchParams.set('keyword', username);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        let response: Response;
+        try {
+            response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    Referer: 'https://www.luogu.com.cn/',
+                },
+                signal: controller.signal,
+            });
+        } catch (error) {
+            clearTimeout(timeout);
+            console.error('Failed to fetch Luogu user search results:', error);
+            return jsonRes({ error: '暂时无法连接洛谷，请稍后重试。' }, 502);
+        }
+        if (!response.ok) {
+            clearTimeout(timeout);
+            console.error(`Luogu user search returned HTTP ${response.status}.`);
+            return jsonRes({ error: '洛谷用户查询暂时失败，请稍后重试。' }, 502);
+        }
+        let data: unknown;
+        try {
+            data = await response.json();
+        } catch (error) {
+            clearTimeout(timeout);
+            console.error('Luogu user search returned invalid JSON:', error);
+            return jsonRes({ error: '洛谷返回了无法识别的数据，请稍后重试。' }, 502);
+        } finally {
+            clearTimeout(timeout);
+        }
+        const luoguUser = findLuoguUser(data, username);
+        if (!luoguUser) return jsonRes({ error: '未找到完全匹配的洛谷用户名。' }, 404);
+        if (!hasLuoguVerificationCode(luoguUser.slogan, verificationCode)) {
+            return jsonRes({
+                error: `请先在洛谷个人签名中加入验证码 ${verificationCode}，保存后再验证。`,
+                verification_code: verificationCode,
+            }, 400);
+        }
+
+        const update = await db.prepare(
+            `UPDATE users SET luogu_uid = ?, luogu_username = ?
+             WHERE id = ? AND luogu_uid IS NULL
+               AND NOT EXISTS (SELECT 1 FROM users WHERE luogu_uid = ?)`
+        ).bind(luoguUser.uid, luoguUser.name, user.id, luoguUser.uid).run();
+        if (Number(update.meta.changes || 0) !== 1) {
+            const [latest, existingOwner] = await Promise.all([
+                db.prepare('SELECT luogu_uid, luogu_username FROM users WHERE id = ?').bind(user.id)
+                    .first<{ luogu_uid: number | null; luogu_username: string }>(),
+                db.prepare('SELECT id FROM users WHERE luogu_uid = ? AND id != ?')
+                    .bind(luoguUser.uid, user.id).first(),
+            ]);
+            if (latest?.luogu_uid) return jsonRes({ error: '此账号已绑定洛谷账号，不能重复绑定。' }, 409);
+            if (existingOwner) return jsonRes({ error: '该洛谷账号已被其他站点账号绑定。' }, 409);
+            throw new Error('Luogu binding update did not affect exactly one user.');
+        }
+        return jsonRes({
+            ok: true,
+            luogu_uid: luoguUser.uid,
+            luogu_username: luoguUser.name,
+            avatar: luoguUser.avatar,
+        });
+    }
 
     if (path === '/api/user/export' && method === 'GET') {
         if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
@@ -58,6 +143,8 @@ export async function handleUser(request: Request, env: Env, path: string) {
                 profileLink: user.profile_link,
                 bio: user.bio,
                 avatarUrl: user.avatar_url,
+                luoguUid: user.luogu_uid,
+                luoguUsername: user.luogu_username,
             },
             articles: articles.results,
             comments: comments.results,

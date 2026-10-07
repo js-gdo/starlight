@@ -6,6 +6,7 @@ import {
 } from "cloudflare:test";
 import { describe, it, expect, vi } from "vitest";
 import worker from "../src/index";
+import { handleUser } from "../src/handlers/user";
 import { createSession } from "../src/utils/auth";
 import { renderUsernameLink } from "../src/utils/html";
 import { getPointsRankBadgeLevel } from "../src/utils/constants";
@@ -14,6 +15,7 @@ import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validate
 import { buildReportAuditText, normalizeReportReason } from "../src/handlers/reports";
 import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from "../src/utils/sitePopup";
 import { createInviteCode } from "../src/utils/invite";
+import { findLuoguUser, hasLuoguVerificationCode } from "../src/utils/luogu";
 import { sha256 } from "../src/utils/crypto";
 import { ADMIN_PERMISSION_NODES, hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 import type { Env as WorkerEnv } from '../src/env.d';
@@ -1041,6 +1043,7 @@ describe("profile field normalization", () => {
 			location: "  Beijing  ",
 			profile_link: "https://example.com/profile",
 		});
+
 		expect(fields.bio).toBe("hello world");
 		expect(fields.location).toBe("Beijing");
 		expect(fields.avatar_url).toBe("https://example.com/avatar.png");
@@ -1054,6 +1057,105 @@ describe("profile field normalization", () => {
 		expect(normalizeBackgroundMode('tile')).toBe('tile');
 		expect(normalizeBackgroundMode('stretch')).toBe('stretch');
 		expect(normalizeBackgroundMode('unexpected')).toBe('cover');
+	});
+});
+
+describe("Luogu account binding", () => {
+	it("matches exact Luogu usernames and accepts the four-character code anywhere in the slogan", () => {
+		const profile = {
+			users: [
+				{ uid: 1, name: 'somebody-else', slogan: 'not this profile' },
+				{ uid: 1392988, name: '_114514_114514_', slogan: 'prefixa1B2suffix' },
+			],
+		};
+		const user = findLuoguUser(profile, '_114514_114514_');
+		expect(user).toEqual({
+			uid: 1392988,
+			name: '_114514_114514_',
+			avatar: '',
+			slogan: 'prefixa1B2suffix',
+		});
+		expect(findLuoguUser(profile, '_114514_114514')).toBeNull();
+		expect(hasLuoguVerificationCode(user!.slogan, 'A1b2')).toBe(true);
+		expect(hasLuoguVerificationCode(user!.slogan, 'a1b3')).toBe(false);
+	});
+
+	it("verifies and uniquely binds a Luogu account using the site invite code", async () => {
+		await SELF.fetch('https://example.com/');
+		const suffix = crypto.randomUUID().slice(0, 8);
+		const [firstInsert, secondInsert] = await Promise.all([
+			env.DB.prepare('INSERT INTO users (username, password) VALUES (?, ?)').bind(`luogu-first-${suffix}`, 'unused').run(),
+			env.DB.prepare('INSERT INTO users (username, password) VALUES (?, ?)').bind(`luogu-second-${suffix}`, 'unused').run(),
+		]);
+		const firstId = Number(firstInsert.meta.last_row_id);
+		const secondId = Number(secondInsert.meta.last_row_id);
+		const firstUsername = `luogu-first-${suffix}`;
+		const secondUsername = `luogu-second-${suffix}`;
+		const firstCode = await createInviteCode(firstUsername);
+		const secondCode = await createInviteCode(secondUsername);
+		const firstSession = await createSession(env, firstId);
+		const secondSession = await createSession(env, secondId);
+		let slogan = 'verification not set';
+		const mockedFetch = vi.fn(async (input: URL) => {
+			const url = new URL(String(input));
+			expect(url.origin + url.pathname).toBe('https://www.luogu.com.cn/api/user/search');
+			expect(url.searchParams.get('keyword')).toBe('_114514_114514_');
+			return new Response(JSON.stringify({
+				users: [{
+					uid: 1392988,
+					name: '_114514_114514_',
+					avatar: 'https://cdn.luogu.com.cn/upload/usericon/1392988.png',
+					slogan,
+				}],
+			}), { headers: { 'Content-Type': 'application/json' } });
+		});
+		vi.stubGlobal('fetch', mockedFetch);
+		const bind = async (session: string) => {
+			const form = new FormData();
+			form.set('username', '_114514_114514_');
+			return handleUser(new Request('https://example.com/api/user/luogu/bind', {
+				method: 'POST',
+				headers: { Cookie: `uid=${session}` },
+				body: form,
+			}), env, '/api/user/luogu/bind');
+		};
+		try {
+			const settings = await worker.fetch(new IncomingRequest('https://example.com/settings', {
+				headers: { Cookie: `uid=${firstSession}` },
+			}), env, createExecutionContext());
+			expect(settings.status).toBe(200);
+			expect(await settings.text()).toContain(firstCode);
+
+			const missingCode = await bind(firstSession);
+			expect(missingCode.status).toBe(400);
+			expect(await missingCode.json()).toMatchObject({ verification_code: firstCode });
+
+			slogan = `Luogu slogan contains the code inline:${firstCode.toUpperCase()}!`;
+			const bound = await bind(firstSession);
+			expect(bound.status).toBe(200);
+			expect(await bound.json()).toMatchObject({
+				ok: true,
+				luogu_uid: 1392988,
+				luogu_username: '_114514_114514_',
+			});
+
+			slogan = `prefix-${secondCode}-suffix`;
+			const claimedByOther = await bind(secondSession);
+			expect(claimedByOther.status).toBe(409);
+			const users = await env.DB.prepare(
+				'SELECT id, luogu_uid, luogu_username FROM users WHERE id IN (?, ?) ORDER BY id'
+			).bind(firstId, secondId).all<any>();
+			expect(users.results.find((row: any) => Number(row.id) === firstId)).toMatchObject({
+				luogu_uid: 1392988,
+				luogu_username: '_114514_114514_',
+			});
+			expect(users.results.find((row: any) => Number(row.id) === secondId).luogu_uid).toBeNull();
+
+			const publicProfile = await worker.fetch(new IncomingRequest(`https://example.com/user/${firstId}`), env, createExecutionContext());
+			expect(await publicProfile.text()).toContain('洛谷：_114514_114514_');
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });
 

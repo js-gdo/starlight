@@ -10,6 +10,8 @@ export async function initDB(env: Env) {
       username TEXT UNIQUE,
       password TEXT,
       invite_code TEXT NOT NULL DEFAULT '',
+      luogu_uid INTEGER,
+      luogu_username TEXT NOT NULL DEFAULT '',
       registered_ip TEXT NOT NULL DEFAULT '',
       use INTEGER DEFAULT 1,
       speak INTEGER DEFAULT 1,
@@ -536,7 +538,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '23';
+const CURRENT_SCHEMA_VERSION = '24';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
