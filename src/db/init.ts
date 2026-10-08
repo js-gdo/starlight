@@ -505,6 +505,48 @@ export async function initDB(env: Env) {
       claimed_at TEXT DEFAULT '',
       FOREIGN KEY(user_id) REFERENCES space_game_players(user_id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS ruins_players (
+      user_id INTEGER PRIMARY KEY,
+      class_key TEXT NOT NULL DEFAULT 'guardian',
+      level INTEGER NOT NULL DEFAULT 1,
+      experience INTEGER NOT NULL DEFAULT 0,
+      gold INTEGER NOT NULL DEFAULT 160,
+      crystals INTEGER NOT NULL DEFAULT 8,
+      potions INTEGER NOT NULL DEFAULT 3,
+      stamina INTEGER NOT NULL DEFAULT 10,
+      stamina_updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      weapon_level INTEGER NOT NULL DEFAULT 1,
+      armor_level INTEGER NOT NULL DEFAULT 1,
+      best_floor INTEGER NOT NULL DEFAULT 0,
+      defeated_monsters INTEGER NOT NULL DEFAULT 0,
+      completed_runs INTEGER NOT NULL DEFAULT 0,
+      last_daily_claim TEXT NOT NULL DEFAULT '',
+      daily_streak INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS ruins_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      floor INTEGER NOT NULL,
+      room INTEGER NOT NULL DEFAULT 1,
+      room_type TEXT NOT NULL,
+      room_cleared INTEGER NOT NULL DEFAULT 0,
+      hp INTEGER NOT NULL,
+      monster_key TEXT NOT NULL DEFAULT '',
+      monster_name TEXT NOT NULL DEFAULT '',
+      monster_hp INTEGER NOT NULL DEFAULT 0,
+      monster_max_hp INTEGER NOT NULL DEFAULT 0,
+      monster_attack INTEGER NOT NULL DEFAULT 0,
+      skill_ready_turn INTEGER NOT NULL DEFAULT 0,
+      turn INTEGER NOT NULL DEFAULT 0,
+      last_action_token TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'defeated', 'retreated')),
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT NOT NULL DEFAULT '',
+      launch_token TEXT NOT NULL UNIQUE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS login_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -548,7 +590,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '25';
+const CURRENT_SCHEMA_VERSION = '26';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

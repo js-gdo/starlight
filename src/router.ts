@@ -9,6 +9,7 @@ import { renderClipboard } from './routes/clipboard';
 import { renderContestCreate, renderContestDetail, renderContestLeaderboard, renderContestList } from './routes/contest';
 import { renderChallenges } from './routes/challenges';
 import { renderGame } from './routes/game';
+import { renderRuins } from './routes/ruins';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
 import { renderInvite } from './routes/invite';
@@ -128,6 +129,7 @@ const routes: RouteDefinition[] = [
     exactPage(['/challenges'], (env, request) => renderChallenges(env, request)),
     exactPage(['/redeem'], (env, request) => renderRedeem(env, request)),
     exactPage(['/game'], (env, request) => renderGame(env, request)),
+    exactPage(['/ruins'], (env, request) => renderRuins(env, request)),
     exactPage(['/search'], (env, request) => renderSearch(env, request)),
     directRoute((path) => path === '/invite', (env, request) => renderInvite(env, request)),
     exactPage(['/team'], (env, request) => renderTeamList(env, request)),

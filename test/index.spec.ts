@@ -17,6 +17,7 @@ import { formatChinaDateTime, parseChinaDateTime, parseSitePopupConfig } from ".
 import { createInviteCode } from "../src/utils/invite";
 import { findLuoguUser, hasLuoguVerificationCode } from "../src/utils/luogu";
 import { getChinaWeekRange } from "../src/handlers/challenges";
+import { computeRuinsDamage, getRuinsStats } from "../src/handlers/ruins";
 import { sha256 } from "../src/utils/crypto";
 import { ADMIN_PERMISSION_NODES, hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 import type { Env as WorkerEnv } from '../src/env.d';
@@ -42,6 +43,100 @@ describe("points rank username badges", () => {
 			expect(getChinaWeekRange(new Date("2026-03-08T15:59:59Z"))).toEqual({
 				start: "2026-03-02",
 				end: "2026-03-09",
+			});
+
+			describe("ruins adventure game", () => {
+				it("calculates distinct class stats and bounded combat damage", () => {
+					const guardian = getRuinsStats({ class_key: "guardian", level: 1, weapon_level: 1, armor_level: 1 });
+					const ranger = getRuinsStats({ class_key: "ranger", level: 1, weapon_level: 1, armor_level: 1 });
+					const arcanist = getRuinsStats({ class_key: "arcanist", level: 1, weapon_level: 1, armor_level: 1 });
+					expect(guardian.maxHp).toBeGreaterThan(ranger.maxHp);
+					expect(ranger.attack).toBeGreaterThan(guardian.attack);
+					expect(arcanist.maxHp).toBeLessThan(ranger.maxHp);
+					expect(computeRuinsDamage(10, 12)).toBe(1);
+					expect(computeRuinsDamage(20, 0, true)).toBe(36);
+				});
+
+				it("persists class choice, combats with turn checks, and blocks duplicate daily rewards", async () => {
+					await SELF.fetch("https://example.com/");
+					const username = `ruins-test-${Date.now().toString().slice(-8)}`;
+					const insert = await env.DB.prepare(
+						"INSERT INTO users (username, password, points) VALUES (?, 'unused', 0)"
+					).bind(username).run();
+					const userId = Number(insert.meta.last_row_id);
+					const session = await createSession(env, userId);
+					const requestWorker = (path: string, init: RequestInit = {}) => worker.fetch(
+						new IncomingRequest(`https://example.com${path}`, {
+							...init,
+							headers: { Cookie: `uid=${session}`, ...(init.headers || {}) },
+						}),
+						env,
+						createExecutionContext(),
+					);
+					const page = await requestWorker("/ruins");
+					expect(page.status).toBe(200);
+					expect(await page.text()).toContain("遗迹远征");
+
+					const selectClass = await requestWorker("/api/ruins/class/select", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ class: "ranger" }),
+					});
+					expect(selectClass.status).toBe(200);
+					const start = await requestWorker("/api/ruins/run/start", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: "{}",
+					});
+					expect(start.status).toBe(200);
+
+					await env.DB.prepare(`
+						UPDATE ruins_runs
+						SET room_type = 'monster', room_cleared = 0, monster_key = 'mossling',
+						    monster_name = '测试怪物', monster_hp = 1, monster_max_hp = 1, monster_attack = 1, turn = 0
+						WHERE user_id = ? AND status = 'active'
+					`).bind(userId).run();
+					const attackRequests = await Promise.all([0, 1].map(() => requestWorker("/api/ruins/run/action", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ action: "attack", turn: 0 }),
+					})));
+					expect(attackRequests.map((response) => response.status).sort()).toEqual([200, 409]);
+					const afterAttack = await env.DB.prepare(
+						"SELECT room_cleared, monster_hp FROM ruins_runs WHERE user_id = ? AND status = 'active'"
+					).bind(userId).first<{ room_cleared: number; monster_hp: number }>();
+					expect(afterAttack).toMatchObject({ room_cleared: 1, monster_hp: 0 });
+					const rewards = await env.DB.prepare(
+						'SELECT defeated_monsters FROM ruins_players WHERE user_id = ?'
+					).bind(userId).first<{ defeated_monsters: number }>();
+					expect(Number(rewards?.defeated_monsters)).toBe(1);
+
+					const replay = await requestWorker("/api/ruins/run/action", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ action: "attack", turn: 0 }),
+					});
+					expect(replay.status).toBe(409);
+					const changeClass = await requestWorker("/api/ruins/class/select", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ class: "guardian" }),
+					});
+					expect(changeClass.status).toBe(409);
+
+					const daily = await requestWorker("/api/ruins/daily/claim", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: "{}",
+					});
+					expect(daily.status).toBe(200);
+					const duplicateDaily = await requestWorker("/api/ruins/daily/claim", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: "{}",
+					});
+					expect(duplicateDaily.status).toBe(409);
+				});
 			});
 			expect(getChinaWeekRange(new Date("2026-03-08T16:00:00Z"))).toEqual({
 				start: "2026-03-09",
