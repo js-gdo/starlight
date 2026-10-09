@@ -415,7 +415,7 @@ async function advanceRoom(env: Env, user: Player, body: Record<string, unknown>
     const results = await env.DB.prepare(`
         UPDATE ruins_runs SET room = ?, room_type = ?, room_cleared = 0,
             monster_key = ?, monster_name = ?, monster_hp = ?, monster_max_hp = ?,
-            monster_attack = ?, guarding = 0, turn = turn + 1
+            monster_attack = ?, turn = turn + 1
         WHERE id = ? AND user_id = ? AND status = 'active' AND turn = ? AND room_cleared = 1
     `).bind(
         nextRoomNumber, nextRoom.type, nextRoom.monster?.key || '', nextRoom.monster?.name || '',

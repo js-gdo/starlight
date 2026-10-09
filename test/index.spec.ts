@@ -117,6 +117,14 @@ describe("points rank username badges", () => {
 						body: JSON.stringify({ action: "attack", turn: 0 }),
 					});
 					expect(replay.status).toBe(409);
+					const advance = await requestWorker("/api/ruins/run/advance", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ turn: 1 }),
+					});
+					expect(advance.status).toBe(200);
+					const advancedState = await advance.json() as { state: { run: { room: number; turn: number; room_cleared: number } } };
+					expect(advancedState.state.run).toMatchObject({ room: 2, turn: 2, room_cleared: 0 });
 					const changeClass = await requestWorker("/api/ruins/class/select", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
