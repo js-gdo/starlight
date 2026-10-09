@@ -158,6 +158,7 @@ export async function getLayout(
         { href: '/challenges', label: '每周挑战', active: title === '每周社区挑战' },
         { href: '/game', label: '星际远征', active: title === '星际远征' || title === '星际边境' },
         { href: '/ruins', label: '遗迹远征', active: title === '遗迹远征' },
+        { href: '/space-shop', label: '星际商店', active: title === '星际商店' },
         { href: '/redeem', label: '积分兑换', active: title === '积分兑换' },
         { href: '/search', label: '站内搜索', active: title === '站内搜索' },
         { href: '/team', label: '团队', active: title === '创建团队' || title.includes('团队') },
@@ -196,6 +197,7 @@ export async function getLayout(
             '/achievements': 'fa-medal',
             '/game': 'fa-rocket',
             '/ruins': 'fa-dungeon',
+            '/space-shop': 'fa-shop',
             '/redeem': 'fa-ticket',
             '/search': 'fa-search',
             '/team/new': 'fa-users',
@@ -216,7 +218,7 @@ export async function getLayout(
     const renderTopNavItem = (item: typeof navItems[number], mobile = false) => {
       const icons: Record<string, string> = {
         '/': 'fa-home', '/os': 'fa-desktop', '/articles/list': 'fa-file-alt', '/ticket/list': 'fa-ticket-alt', '/oj': 'fa-code',
-        '/contest': 'fa-trophy', '/leaderboard': 'fa-ranking-star', '/achievements': 'fa-medal', '/game': 'fa-gamepad', '/ruins': 'fa-dungeon',
+        '/contest': 'fa-trophy', '/leaderboard': 'fa-ranking-star', '/achievements': 'fa-medal', '/game': 'fa-gamepad', '/ruins': 'fa-dungeon', '/space-shop': 'fa-shop',
         '/server': 'fa-server', '/admin-list': 'fa-user-shield', '/health': 'fa-heart-pulse', '/benben': 'fa-comment',
         '/judgement': 'fa-gavel', '/clipboard': 'fa-clipboard', '/redeem': 'fa-ticket', '/search': 'fa-search',
         '/team': 'fa-users', '/messages': 'fa-bell', '/pm': 'fa-envelope', '/backend': 'fa-cog', '/oj/propose': 'fa-file-circle-plus',

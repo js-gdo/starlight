@@ -131,6 +131,8 @@ async function createIndexes(db: Env['DB']): Promise<void> {
         'CREATE INDEX IF NOT EXISTS idx_weekly_challenge_claims_period ON weekly_challenge_claims (week_start, challenge_key, team_id)',
         'CREATE INDEX IF NOT EXISTS idx_ruins_runs_user_status ON ruins_runs (user_id, status, id DESC)',
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_ruins_runs_one_active ON ruins_runs (user_id) WHERE status = 'active'",
+        'CREATE INDEX IF NOT EXISTS idx_space_shop_sales_user_date ON space_shop_sales (user_id, sold_at)',
+        'CREATE INDEX IF NOT EXISTS idx_space_shop_sales_product_date ON space_shop_sales (user_id, product_key, sold_at)',
         'CREATE INDEX IF NOT EXISTS idx_team_creation_requests_status ON team_creation_requests (status, created_at)',
         'CREATE INDEX IF NOT EXISTS idx_contests_team_schedule ON contests (team_id, start_at)',
         'CREATE INDEX IF NOT EXISTS idx_contest_problems_order ON contest_problems (contest_id, problem_order)',

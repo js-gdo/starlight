@@ -18,6 +18,7 @@ import { createInviteCode } from "../src/utils/invite";
 import { findLuoguUser, hasLuoguVerificationCode } from "../src/utils/luogu";
 import { getChinaWeekRange } from "../src/handlers/challenges";
 import { computeRuinsDamage, getRuinsStats } from "../src/handlers/ruins";
+import { getShopLevelProgress, getShopPriceBounds } from "../src/handlers/spaceShop";
 import { sha256 } from "../src/utils/crypto";
 import { ADMIN_PERMISSION_NODES, hasAdminPermission, normalizeAdminPermissions } from '../src/utils/adminPermissions';
 import type { Env as WorkerEnv } from '../src/env.d';
@@ -1547,5 +1548,93 @@ describe("community essentials", () => {
 		expect(body).toContain('export bio');
 		expect(body).not.toContain('must-not-export-this-password');
 		expect(body).not.toContain('session_version');
+	});
+});
+
+describe("space shop management game", () => {
+	it("exposes bounded pricing and growing store-level requirements", () => {
+		expect(getShopPriceBounds(20)).toEqual({ min: 20, max: 100 });
+		expect(getShopLevelProgress(120, 1)).toEqual({ current: 120, required: 350, level: 1 });
+		expect(getShopLevelProgress(0, 75)).toEqual({ current: 0, required: 9970, level: 50 });
+	});
+
+	it("renders the visual store and persists inventory, prices, offline sales, and daily rewards", async () => {
+		await SELF.fetch("https://example.com/");
+		const suffix = Date.now().toString().slice(-8);
+		const inserted = await env.DB.prepare(
+			"INSERT INTO users (username, password, points) VALUES (?, 'unused', 0)"
+		).bind(`space-shop-${suffix}`).run();
+		const userId = Number(inserted.meta.last_row_id);
+		const session = await createSession(env, userId);
+		const request = (path: string, init: RequestInit = {}) => worker.fetch(
+			new IncomingRequest(`https://example.com${path}`, {
+				...init,
+				headers: { Cookie: `uid=${session}`, ...(init.headers || {}) },
+			}),
+			env,
+			createExecutionContext(),
+		);
+		const page = await request("/space-shop");
+		expect(page.status).toBe(200);
+		const html = await page.text();
+		expect(html).toContain("星际商店");
+		expect(html).toContain('id="shopFloor"');
+		expect(html).toContain('id="shopChart"');
+
+		const initialResponse = await request("/api/space-shop/state");
+		expect(initialResponse.status).toBe(200);
+		const initial = await initialResponse.json() as {
+			player: { stock_used: number; inventory_capacity: number; credits: number };
+			products: Array<{ key: string; stock: number; price: number; price_min: number; price_max: number }>;
+			upgrades: Array<{ key: string }>;
+		};
+		expect(initial.player.stock_used).toBe(52);
+		expect(initial.player.inventory_capacity).toBeGreaterThan(initial.player.stock_used);
+		expect(initial.products).toHaveLength(12);
+		expect(initial.upgrades.map((upgrade) => upgrade.key)).toEqual([
+			"store", "decor", "marketing", "staff", "storage",
+		]);
+
+		const postJson = (path: string, data: unknown) => request(path, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(data),
+		});
+		const invalidPrice = await postJson("/api/space-shop/inventory/price", {
+			product: "moon_cookie",
+			price: 999999,
+		});
+		expect(invalidPrice.status).toBe(400);
+
+		const restock = await postJson("/api/space-shop/inventory/restock", {
+			product: "moon_cookie",
+			quantity: 10,
+		});
+		expect(restock.status).toBe(200);
+		const priceChange = await postJson("/api/space-shop/inventory/price", {
+			product: "moon_cookie",
+			price: 24,
+		});
+		expect(priceChange.status).toBe(200);
+		await env.DB.prepare('UPDATE space_shop_players SET last_simulated_at = ? WHERE user_id = ?')
+			.bind(new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), userId).run();
+		const afterOffline = await request("/api/space-shop/state");
+		expect(afterOffline.status).toBe(200);
+		const settled = await afterOffline.json() as {
+			player: { total_units_sold: number; total_revenue: number; stock_used: number };
+			products: Array<{ key: string; stock: number; lifetime_sold: number; price: number }>;
+			sales_chart: Array<{ revenue: number; units: number }>;
+		};
+		const cookies = settled.products.find((product) => product.key === "moon_cookie");
+		expect(cookies?.price).toBe(24);
+		expect(Number(cookies?.lifetime_sold)).toBeGreaterThan(0);
+		expect(settled.player.total_units_sold).toBeGreaterThan(0);
+		expect(settled.player.total_revenue).toBeGreaterThan(0);
+		expect(settled.player.stock_used).toBeLessThan(initial.player.stock_used + 10);
+
+		const daily = await postJson("/api/space-shop/daily/claim", {});
+		expect(daily.status).toBe(200);
+		const duplicateDaily = await postJson("/api/space-shop/daily/claim", {});
+		expect(duplicateDaily.status).toBe(409);
 	});
 });

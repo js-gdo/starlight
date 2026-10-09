@@ -547,6 +547,51 @@ export async function initDB(env: Env) {
       launch_token TEXT NOT NULL UNIQUE,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS space_shop_players (
+      user_id INTEGER PRIMARY KEY,
+      store_name TEXT NOT NULL DEFAULT '星际集市',
+      level INTEGER NOT NULL DEFAULT 1,
+      experience INTEGER NOT NULL DEFAULT 0,
+      credits INTEGER NOT NULL DEFAULT 1800,
+      reputation INTEGER NOT NULL DEFAULT 55,
+      store_level INTEGER NOT NULL DEFAULT 1,
+      decor_level INTEGER NOT NULL DEFAULT 1,
+      marketing_level INTEGER NOT NULL DEFAULT 0,
+      staff_level INTEGER NOT NULL DEFAULT 0,
+      capacity_level INTEGER NOT NULL DEFAULT 1,
+      stock_used INTEGER NOT NULL DEFAULT 0,
+      last_simulated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_sync_token TEXT NOT NULL DEFAULT '',
+      last_action_token TEXT NOT NULL DEFAULT '',
+      daily_claim_date TEXT NOT NULL DEFAULT '',
+      daily_streak INTEGER NOT NULL DEFAULT 0,
+      quest_claim_date TEXT NOT NULL DEFAULT '',
+      total_revenue INTEGER NOT NULL DEFAULT 0,
+      total_units_sold INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_shop_inventory (
+      user_id INTEGER NOT NULL,
+      product_key TEXT NOT NULL,
+      stock INTEGER NOT NULL DEFAULT 0,
+      price INTEGER NOT NULL,
+      lifetime_sold INTEGER NOT NULL DEFAULT 0,
+      action_token TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY(user_id, product_key),
+      FOREIGN KEY(user_id) REFERENCES space_shop_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_shop_sales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      product_key TEXT NOT NULL,
+      units INTEGER NOT NULL,
+      revenue INTEGER NOT NULL,
+      sold_at TEXT NOT NULL,
+      sync_token TEXT NOT NULL,
+      UNIQUE(user_id, sync_token, product_key),
+      FOREIGN KEY(user_id) REFERENCES space_shop_players(user_id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS login_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -590,7 +635,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '26';
+const CURRENT_SCHEMA_VERSION = '27';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
