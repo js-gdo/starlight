@@ -468,6 +468,7 @@ export async function initDB(env: Env) {
       last_resource_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_daily_claim TEXT NOT NULL DEFAULT '',
       daily_streak INTEGER NOT NULL DEFAULT 0,
+      last_exchange_token TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
@@ -522,6 +523,7 @@ export async function initDB(env: Env) {
       completed_runs INTEGER NOT NULL DEFAULT 0,
       last_daily_claim TEXT NOT NULL DEFAULT '',
       daily_streak INTEGER NOT NULL DEFAULT 0,
+      last_exchange_token TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`,
@@ -592,6 +594,38 @@ export async function initDB(env: Env) {
       UNIQUE(user_id, sync_token, product_key),
       FOREIGN KEY(user_id) REFERENCES space_shop_players(user_id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS space_station_players (
+      user_id INTEGER PRIMARY KEY,
+      credits INTEGER NOT NULL DEFAULT 1200,
+      battery INTEGER NOT NULL DEFAULT 75,
+      oxygen INTEGER NOT NULL DEFAULT 80,
+      cleanliness INTEGER NOT NULL DEFAULT 72,
+      integrity INTEGER NOT NULL DEFAULT 100,
+      technology INTEGER NOT NULL DEFAULT 0,
+      last_simulated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_operation_token TEXT NOT NULL DEFAULT '',
+      contract_claim_date TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS space_station_components (
+      user_id INTEGER NOT NULL,
+      component_key TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 0,
+      last_operation_token TEXT NOT NULL DEFAULT '',
+      PRIMARY KEY(user_id, component_key),
+      FOREIGN KEY(user_id) REFERENCES space_station_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS game_points_exchanges (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      game_key TEXT NOT NULL,
+      resource_key TEXT NOT NULL,
+      points_spent INTEGER NOT NULL,
+      amount_granted INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS login_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -635,7 +669,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '27';
+const CURRENT_SCHEMA_VERSION = '29';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

@@ -31,6 +31,9 @@ const RUINS_STYLES = `
     .ruins .progress-track{height:8px;margin:9px 0 3px;overflow:hidden;border-radius:99px;background:#36334e}
     .ruins .progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#9a7ce7,#e2bd6b);transition:width .25s}
     .ruins button,.ruins select{font:inherit}
+    .ruins select,.ruins input{padding:8px 10px;border:1px solid #4a4566;border-radius:8px;background:#19192c;color:#f0efff;font:inherit;font-size:11px}
+    .ruins-exchange-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .ruins-exchange-rate{margin-top:8px;color:#aaa6c1;font-size:10px}
     .ruins button{border:1px solid #8065bd;border-radius:9px;padding:9px 12px;background:linear-gradient(135deg,#8064cf,#6344a8);color:#fff;font-size:11px;font-weight:800;cursor:pointer;transition:filter .15s,transform .15s}
     .ruins button:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
     .ruins button:disabled{opacity:.42;cursor:not-allowed}
@@ -91,6 +94,19 @@ function gameMarkup(): string {
             </section>
             <section class="ruins-stats" id="ruinsStats"><div class="ruins-empty">正在读取冒险者档案…</div></section>
             <section class="ruins-panel">
+                <div class="ruins-heading"><div><h2><i class="fas fa-right-left"></i> 社区积分兑换</h2><p>兑换金币、星晶或体力。每次最多兑换 2,000 积分，体力不能超过 10 点上限。</p></div><span class="ruins-label" id="ruinsPointBalance">积分 —</span></div>
+                <div class="ruins-exchange-controls">
+                    <select id="ruinsExchangeResource" aria-label="选择遗迹远征兑换资源">
+                        <option value="gold">金币 · 10 积分换 20</option>
+                        <option value="crystals">星晶 · 100 积分换 1</option>
+                        <option value="stamina">体力 · 50 积分换 1</option>
+                    </select>
+                    <input id="ruinsExchangePoints" type="number" min="10" max="2000" step="10" value="100" aria-label="投入社区积分">
+                    <button id="ruinsExchangeButton" type="button">确认兑换</button>
+                </div>
+                <div class="ruins-exchange-rate" id="ruinsExchangeRate">输入积分后可预览到账数量。星晶和体力兑换需符合对应比例。</div>
+            </section>
+            <section class="ruins-panel">
                 <div class="ruins-heading"><div><h2><i class="fas fa-scroll"></i> 每日悬赏</h2><p>补给每日刷新，连续登录可累积额外金币。</p></div><span class="ruins-label" id="ruinsStreak">连续 — 天</span></div>
                 <div class="daily-card"><div><h3>领取远征补给</h3><p>金币、星晶、治疗药剂和 3 点体力。体力每小时恢复 1 点，上限 10 点。</p></div><button class="button-gold" id="ruinsDaily">领取补给</button></div>
             </section>
@@ -137,6 +153,18 @@ function gameMarkup(): string {
                 var daily=document.getElementById('ruinsDaily');
                 daily.disabled=!p.can_claim_daily;
                 daily.textContent=p.can_claim_daily?'领取今日补给':'今日已领取';
+                document.getElementById('ruinsPointBalance').textContent='可用积分 '+num(p.community_points);
+                updateExchangeRate();
+            }
+            function updateExchangeRate(){
+                var resource=document.getElementById('ruinsExchangeResource').value;
+                var points=Number(document.getElementById('ruinsExchangePoints').value)||0;
+                var rates={gold:[10,20,'金币'],crystals:[100,1,'星晶'],stamina:[50,1,'遗迹体力']};
+                var rate=rates[resource];
+                var amount=points%rate[0]===0?points/rate[0]*rate[1]:0;
+                document.getElementById('ruinsExchangeRate').textContent=amount
+                    ?'本次将消耗 '+num(points)+' 积分，兑换 '+num(amount)+' '+rate[2]+'。'+(resource==='stamina'?'体力上限为 10。':'')
+                    :'该兑换需要按 '+num(rate[0])+' 积分的整数倍输入。';
             }
             function drawClassSelector(){
                 if(state.class_locked)return '';
@@ -206,7 +234,9 @@ function gameMarkup(): string {
                     var response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload||{})});
                     var data=await response.json();
                     if(!response.ok)throw new Error(data.error||'操作失败');
-                    state=data.state;draw();setNotice(data.notice||'行动完成。',false);
+                    if(data.state){state=data.state;draw();}
+                    else await load();
+                    setNotice(data.notice||'行动完成。',false);
                 }catch(error){setNotice(error.message||'操作失败，请稍后重试。',true);}
                 finally{
                     if(button&&button.isConnected){
@@ -230,6 +260,14 @@ function gameMarkup(): string {
                 post('/api/ruins/run/action',{action:action,turn:Number(button.dataset.turn)},button);
             });
             document.getElementById('ruinsDaily').dataset.action='daily';
+            document.getElementById('ruinsExchangeResource').addEventListener('change',updateExchangeRate);
+            document.getElementById('ruinsExchangePoints').addEventListener('input',updateExchangeRate);
+            document.getElementById('ruinsExchangeButton').addEventListener('click',function(){
+                post('/api/ruins/exchange',{
+                    resource:document.getElementById('ruinsExchangeResource').value,
+                    points:Number(document.getElementById('ruinsExchangePoints').value)
+                },this);
+            });
             load().catch(function(error){setNotice(error.message||'冒险档案暂不可用。',true);});
         }());
         </script>`;

@@ -30,6 +30,9 @@ const GAME_STYLES = `
     .space-daily{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #695692;border-radius:13px;background:linear-gradient(110deg,#30254b,#1a2640 70%);margin-top:13px}
     .space-daily h3{margin:0 0 4px;color:#fff;font-size:14px}
     .space-daily p{margin:0;color:#c2b9d8;font-size:11px;line-height:1.5}
+    .space-exchange-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .space-exchange-controls select,.space-exchange-controls input{padding:8px 10px;border:1px solid #405471;border-radius:8px;background:#111c30;color:#f4f6ff;font:inherit;font-size:11px}
+    .space-exchange-rate{margin-top:8px;color:#9eabc4;font-size:10px}
     .space-game button{border:1px solid #6958a0;border-radius:9px;padding:9px 12px;background:linear-gradient(135deg,#8064cf,#6344a8);color:#fff;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:filter .15s,transform .15s}
     .space-game button:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-1px)}
     .space-game button:disabled{opacity:.42;cursor:not-allowed}
@@ -85,6 +88,21 @@ function renderGameContent(): string {
                 </div>
             </section>
             <div class="space-resource-grid" id="spaceResources"><div class="space-game-loading">正在载入基地数据…</div></div>
+            <section class="space-section">
+                <div class="space-section-heading"><div><h2><i class="fas fa-right-left"></i> 社区积分兑换</h2><p>将社区积分兑换为远征资源。每次最多兑换 2,000 积分；能量兑换受当前能量上限约束。</p></div><span class="space-label" id="spacePointBalance">积分 —</span></div>
+                <div class="space-exchange-controls">
+                    <select id="spaceExchangeResource" aria-label="选择星际远征兑换资源">
+                        <option value="credits">信用点 · 10 积分换 50</option>
+                        <option value="alloy">合金 · 10 积分换 10</option>
+                        <option value="crystal">能源晶体 · 100 积分换 1</option>
+                        <option value="research_points">研究点 · 10 积分换 1</option>
+                        <option value="energy">舰队能量 · 20 积分换 1</option>
+                    </select>
+                    <input id="spaceExchangePoints" type="number" min="10" max="2000" step="10" value="100" aria-label="投入社区积分">
+                    <button id="spaceExchangeButton" type="button">确认兑换</button>
+                </div>
+                <div class="space-exchange-rate" id="spaceExchangeRate">输入积分后可预览到账数量。晶体兑换需 100 积分的整数倍。</div>
+            </section>
             <section class="space-daily">
                 <div><h3><i class="fas fa-calendar-check"></i> 每日星际补给</h3><p id="spaceDailyText">每日领取信用点、合金、晶体和研究点。连续签到可提高补给。</p></div>
                 <button id="spaceDailyClaim" type="button" disabled>领取今日补给</button>
@@ -128,6 +146,16 @@ function renderGameContent(): string {
                 if(!cost)return '<span class="space-cost">已达最高等级</span>';
                 return '<span class="space-cost">'+Object.keys(cost).map(function(key){return '<b>'+esc(resourceNames[key]||key)+' '+number(cost[key])+'</b>';}).join(' · ')+'</span>';
             }
+            function updateExchangeRate(){
+                var resource=document.getElementById('spaceExchangeResource').value;
+                var points=Number(document.getElementById('spaceExchangePoints').value)||0;
+                var rates={credits:[10,50,'信用点'],alloy:[10,10,'合金'],crystal:[100,1,'能源晶体'],research_points:[10,1,'研究点'],energy:[20,1,'舰队能量']};
+                var rate=rates[resource];
+                var amount=points%rate[0]===0?points/rate[0]*rate[1]:0;
+                document.getElementById('spaceExchangeRate').textContent=amount
+                    ?'本次将消耗 '+number(points)+' 积分，兑换 '+number(amount)+' '+rate[2]+'。'+(resource==='energy'?'能量不可超过当前上限。':'')
+                    :'该兑换需要按 '+number(rate[0])+' 积分的整数倍输入。';
+            }
             function resources(player){
                 document.getElementById('spaceResources').innerHTML=resourceConfig.map(function(item){
                     var value=item[0]==='energy'?number(player.energy)+' / '+number(player.energy_cap):number(player[item[0]]);
@@ -140,6 +168,8 @@ function renderGameContent(): string {
                 document.getElementById('spaceDailyText').textContent=player.can_claim_daily
                     ?'今日连续补给第 '+(Number(player.daily_streak)+1)+' 天：领取信用点、合金、晶体与研究点。连续补给奖励逐日提升。'
                     :'已连续补给 '+number(player.daily_streak)+' 天。明天回来领取下一份补给。';
+                document.getElementById('spacePointBalance').textContent='可用积分 '+number(player.community_points);
+                updateExchangeRate();
             }
             function buildings(items){
                 document.getElementById('spaceBuildings').innerHTML=items.map(function(item){
@@ -206,8 +236,10 @@ function renderGameContent(): string {
                     var response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload||{})});
                     var data=await response.json();
                     if(!response.ok)throw new Error(data.error||'HTTP '+response.status);
-                    draw(data.state);
+                    if(data.state)draw(data.state);
+                    else await load();
                     setFeedback('操作完成，基地数据已更新。',false);
+                    if(data.notice)setFeedback(data.notice,false);
                     loadLeaderboard();
                 }catch(error){setFeedback(error.message,true);}
                 finally{if(button&&button.isConnected)button.disabled=false;}
@@ -223,6 +255,14 @@ function renderGameContent(): string {
                 }catch(error){host.innerHTML='<div class="space-empty">排行榜暂不可用：'+esc(error.message)+'</div>';}
             }
             document.getElementById('spaceDailyClaim').addEventListener('click',function(){post('/api/game/daily/claim',{},this);});
+            document.getElementById('spaceExchangeResource').addEventListener('change',updateExchangeRate);
+            document.getElementById('spaceExchangePoints').addEventListener('input',updateExchangeRate);
+            document.getElementById('spaceExchangeButton').addEventListener('click',function(){
+                post('/api/game/exchange',{
+                    resource:document.getElementById('spaceExchangeResource').value,
+                    points:Number(document.getElementById('spaceExchangePoints').value)
+                },this);
+            });
             load();
             loadLeaderboard();
             window.setInterval(load,60000);

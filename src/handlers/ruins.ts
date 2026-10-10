@@ -1,5 +1,6 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import type { Env, TypedD1PreparedStatement } from '../env.d';
+import { exchangeGameCurrency } from './spaceStation';
 
 const MAX_STAMINA = 10;
 const RUN_STAMINA_COST = 3;
@@ -142,7 +143,7 @@ async function getState(env: Env, userId: number) {
     player = await env.DB.prepare('SELECT * FROM ruins_players WHERE user_id = ?').bind(userId).first<Player>();
     if (!player) throw new Error('Ruins player disappeared after stamina update.');
 
-    const [activeRun, standings, recentRuns, historyCount] = await Promise.all([
+    const [activeRun, standings, recentRuns, historyCount, userRow] = await Promise.all([
         env.DB.prepare("SELECT * FROM ruins_runs WHERE user_id = ? AND status = 'active' LIMIT 1").bind(userId).first<Run>(),
         env.DB.prepare(`
             SELECT p.user_id, u.username, p.level, p.best_floor, p.defeated_monsters, p.completed_runs,
@@ -157,6 +158,7 @@ async function getState(env: Env, userId: number) {
             FROM ruins_runs WHERE user_id = ? ORDER BY id DESC LIMIT 8
         `).bind(userId).all<any>(),
         env.DB.prepare('SELECT COUNT(*) AS count FROM ruins_runs WHERE user_id = ?').bind(userId).first<{ count: number }>(),
+        env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(userId).first<{ points: number }>(),
     ]);
     const stats = getRuinsStats(player);
     const nextLevelXp = player.level * 100;
@@ -177,6 +179,7 @@ async function getState(env: Env, userId: number) {
             weapon_cost: player.weapon_level >= WEAPON_CAP ? null : weaponCost,
             armor_cost: player.armor_level >= ARMOR_CAP ? null : armorCost,
             potion_cost: 35,
+            community_points: Number(userRow?.points || 0),
         },
         run: activeRun,
         leaderboard: standings.results || [],
@@ -510,6 +513,10 @@ export async function handleRuins(request: Request, env: Env, path: string): Pro
     if (request.method !== 'POST') return jsonRes({ error: '请求方法不支持。' }, 405);
     const body = await parseBody(request);
     if (!body) return jsonRes({ error: '请求内容必须是有效的 JSON 对象。' }, 400);
+    if (path === '/api/ruins/exchange') {
+        await getState(env, Number(user.id));
+        return exchangeGameCurrency(env, Number(user.id), 'ruins', body);
+    }
     const player = await env.DB.prepare('SELECT * FROM ruins_players WHERE user_id = ?').bind(user.id).first<Player>();
     if (!player) throw new Error('Ruins player initialization failed.');
     if (path === '/api/ruins/run/start') return createRun(env, player);

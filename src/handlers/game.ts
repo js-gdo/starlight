@@ -1,5 +1,6 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
 import type { Env, TypedD1PreparedStatement } from '../env.d';
+import { exchangeGameCurrency } from './spaceStation';
 
 const HOUR_MS = 60 * 60 * 1000;
 const ENERGY_INTERVAL_MS = 10 * 60 * 1000;
@@ -151,7 +152,7 @@ function randomBetween(min: number, max: number): number {
 
 async function getGameState(env: Env, userId: number): Promise<Record<string, unknown>> {
     await prepareGame(env, userId);
-    const [player, buildingRows, researchRows, expeditionRows] = await Promise.all([
+    const [player, buildingRows, researchRows, expeditionRows, userRow] = await Promise.all([
         env.DB.prepare('SELECT * FROM space_game_players WHERE user_id = ?').bind(userId).first<PlayerRow>(),
         env.DB.prepare('SELECT building_key, level FROM space_game_buildings WHERE user_id = ?').bind(userId).all<{ building_key: string; level: number }>(),
         env.DB.prepare('SELECT technology_key, level FROM space_game_research WHERE user_id = ?').bind(userId).all<{ technology_key: string; level: number }>(),
@@ -163,6 +164,7 @@ async function getGameState(env: Env, userId: number): Promise<Record<string, un
             ORDER BY id DESC
             LIMIT 12
         `).bind(userId).all<any>(),
+        env.DB.prepare('SELECT points FROM users WHERE id = ?').bind(userId).first<{ points: number }>(),
     ]);
     if (!player) throw new Error('Space game player state is missing.');
 
@@ -217,6 +219,7 @@ async function getGameState(env: Env, userId: number): Promise<Record<string, un
             daily_streak: Number(player.daily_streak),
             last_daily_claim: player.last_daily_claim,
             can_claim_daily: player.last_daily_claim !== today,
+            community_points: Number(userRow?.points || 0),
         },
         production: rates,
         buildings: structureList,
@@ -498,6 +501,10 @@ export async function handleGame(request: Request, env: Env, path: string): Prom
     if (path === '/api/game/daily/claim') return claimDailyReward(env, user.id);
     const body = await parseJsonBody(request);
     if (!body) return jsonRes({ error: '请求内容必须是有效的 JSON 对象。' }, 400);
+    if (path === '/api/game/exchange') {
+        await prepareGame(env, Number(user.id));
+        return exchangeGameCurrency(env, Number(user.id), 'frontier', body);
+    }
     if (path === '/api/game/building/upgrade') return upgradeBuilding(env, user.id, body);
     if (path === '/api/game/research/upgrade') return upgradeTechnology(env, user.id, body);
     if (path === '/api/game/expedition/launch') return launchExpedition(env, user.id, body);
