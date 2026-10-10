@@ -1077,6 +1077,14 @@ describe("worker routing", () => {
 		expect(stationHtml).toContain("data-expedition-countdown");
 		expect(stationHtml).toContain("item.id===Number(countdown.getAttribute('data-expedition-countdown'))");
 		expect(stationHtml).not.toContain("heading.textContent.indexOf(item.sector_name)");
+		const management = await SELF.fetch(new IncomingRequest("https://example.com/space-station", {
+			headers: { Cookie: `uid=${session}` },
+		}));
+		expect(management.status).toBe(200);
+		const managementHtml = await management.text();
+		expect(managementHtml).toContain("空间站管理");
+		expect(managementHtml).toContain("stationExchangeButton");
+		expect(managementHtml).toContain("/api/space-station/exchange");
 	});
 
 	it("supports persistent space station upgrades, research, expeditions, and daily supplies", async () => {
@@ -1114,6 +1122,7 @@ describe("worker routing", () => {
 		const insufficientUpgrade = await requestGame('/api/game/building/upgrade', {
 			method: 'POST', headers, body: JSON.stringify({ building: 'credit_works' }),
 		});
+
 		expect(insufficientUpgrade.status).toBe(409);
 		const unchangedBuilding = await env.DB.prepare(
 			"SELECT level FROM space_game_buildings WHERE user_id = ? AND building_key = 'credit_works'"
@@ -1183,6 +1192,38 @@ describe("worker routing", () => {
 		const leaderboard = await requestGame('/api/game/leaderboard', { headers });
 		expect(leaderboard.status).toBe(200);
 		expect(await leaderboard.text()).toContain(username);
+	});
+
+	it("exchanges community points for space station credits and rejects invalid requests", async () => {
+		await SELF.fetch("https://example.com/");
+		const username = `station${Date.now().toString().slice(-8)}`;
+		const inserted = await env.DB.prepare(
+			'INSERT INTO users (username, password, points) VALUES (?, ?, 120)'
+		).bind(username, 'unused').run();
+		const userId = Number(inserted.meta.last_row_id);
+		const session = await createSession(env, userId);
+		const headers = { Cookie: `uid=${session}`, 'Content-Type': 'application/json' };
+		const requestStation = (body: unknown) => worker.fetch(new IncomingRequest(
+			'https://example.com/api/space-station/exchange',
+			{ method: 'POST', headers, body: JSON.stringify(body) },
+		), env, createExecutionContext());
+
+		const invalid = await requestStation({ resource: 'credits', points: 11 });
+		expect(invalid.status).toBe(400);
+
+		const response = await requestStation({ resource: 'credits', points: 50 });
+		expect(response.status).toBe(200);
+		const result = await response.json() as { notice: string; state: { player: { credits: number; community_points: number } } };
+		expect(result.state.player.credits).toBe(1300);
+		expect(result.state.player.community_points).toBe(70);
+		expect(result.notice).toContain('100 建设星币');
+
+		const noPoints = await requestStation({ resource: 'credits', points: 100 });
+		expect(noPoints.status).toBe(409);
+		const ledger = await env.DB.prepare(
+			"SELECT COUNT(*) AS count FROM game_points_exchanges WHERE user_id = ? AND game_key = 'space_station'"
+		).bind(userId).first<{ count: number }>();
+		expect(ledger?.count).toBe(1);
 	});
 
 	it("renders the site search page and sidebar entry", async () => {
