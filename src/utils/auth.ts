@@ -41,14 +41,6 @@ export function getSessionMaxAge(): number {
     return SESSION_TTL_SECONDS;
 }
 
-export function serializeSessionCookie(request: Request, value: string, maxAge: number): string {
-    const url = new URL(request.url);
-    const localDevelopment = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    const secure = url.protocol === 'https:' || !localDevelopment ? '; Secure' : '';
-    const expiry = maxAge === 0 ? '; Expires=Thu, 01 Jan 1970 00:00:00 GMT' : '';
-    return `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${expiry}${secure}`;
-}
-
 /**
  * 签发会话 Cookie 值，格式为 uid.expires.signature
  */
@@ -111,7 +103,7 @@ export async function getSessionUser(env: Env, req: Request): Promise<any | null
  * 生成一个 16 位随机十六进制字符串（用于帖子 hex_id）
  */
 export function generateHex(): string {
-    return randomHex(8);
+    return 'xxxxxxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16));
 }
 
 /**
@@ -134,6 +126,41 @@ export function getPermissionName(permission: string): string {
         'admin': '管理员'
     };
     return map[permission] || permission;
+}
+
+/**
+ * 根据 IP 地址获取大致的地理位置（省份、城市）
+ * 使用外部 API https://v2.xxapi.cn，超时 3 秒，失败则返回传入的备用值
+ */
+export async function getLocationInfo(
+    ip: string,
+    cfRegion?: string,
+    cfCity?: string
+): Promise<{ region: string; city: string }> {
+    let region = cfRegion || '';
+    let city = cfCity || '';
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        const ipRes = await fetch(`https://v2.xxapi.cn/api/ip?ip=${encodeURIComponent(ip)}`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (ipRes.ok) {
+            const ipData = await ipRes.json() as { code?: number; data?: { address?: string } };
+            if (ipData.code === 200 && ipData.data && ipData.data.address) {
+                const addr = ipData.data.address.replace(/^中国/, '');
+                const m = addr.match(/^(.+?(?:省|市|自治区|特别行政区))(.*)$/);
+                if (m) {
+                    region = m[1];
+                    city = m[2] || '';
+                } else {
+                    region = addr;
+                }
+            }
+        }
+    } catch {
+        // 忽略错误，返回备用值
+    }
+    return { region, city };
 }
 
 async function recordOnlinePeak(env: Env, now: Date): Promise<void> {

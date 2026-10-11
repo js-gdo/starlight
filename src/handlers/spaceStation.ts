@@ -1,5 +1,4 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
-import { enforceRateLimit } from '../utils/rateLimit';
 import type { Env, TypedD1PreparedStatement } from '../env.d';
 
 const SIMULATION_INTERVAL_MS = 60 * 60 * 1000;
@@ -290,12 +289,6 @@ async function exchangeStationCredits(
         return jsonRes({ error: `兑换积分必须是 10 的倍数，且每次不超过 ${MAX_REDEMPTION_POINTS} 积分。` }, 400);
     }
     if (body.resource !== 'credits') return jsonRes({ error: '空间站仅支持兑换建设星币。' }, 400);
-    const limited = await enforceRateLimit(
-        env.ECONOMY_RATE_LIMITER,
-        `economy:user:${userId}`,
-        '兑换操作过于频繁，请稍后再试。',
-    );
-    if (limited) return limited;
     await ensurePlayer(env, userId);
     const token = crypto.randomUUID();
     const amount = points * 2;
@@ -365,12 +358,6 @@ export async function exchangeGameCurrency(
     if (!Number.isSafeInteger(points) || points < 10 || points > MAX_REDEMPTION_POINTS || points % 10 !== 0) {
         return jsonRes({ error: `兑换积分必须是 10 的倍数，且每次不超过 ${MAX_REDEMPTION_POINTS} 积分。` }, 400);
     }
-    const limited = await enforceRateLimit(
-        env.ECONOMY_RATE_LIMITER,
-        `economy:user:${userId}`,
-        '兑换操作过于频繁，请稍后再试。',
-    );
-    if (limited) return limited;
     const resource = body.resource;
     const token = crypto.randomUUID();
     let amount: number;

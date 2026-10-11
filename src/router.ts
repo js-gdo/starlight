@@ -12,7 +12,6 @@ import { renderGame } from './routes/game';
 import { renderRuins } from './routes/ruins';
 import { renderSpaceShop } from './routes/space-shop';
 import { renderSpaceStation } from './routes/space-station';
-import { serializeSessionCookie } from './utils/auth';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
 import { renderInvite } from './routes/invite';
@@ -85,11 +84,11 @@ const routes: RouteDefinition[] = [
         if (typeof result.html !== 'string') throw new Error('Registration renderer returned neither HTML nor a redirect');
         return htmlResponse(result.html);
     }),
-    directRoute((path) => path === '/logout', (_env, request) => new Response(null, {
+    directRoute((path) => path === '/logout', () => new Response(null, {
         status: 302,
         headers: {
             Location: '/',
-            'Set-Cookie': serializeSessionCookie(request, '', 0),
+            'Set-Cookie': 'uid=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/',
         },
     })),
     exactPage(['/benben'], (env, request) => renderBenben(env, request)),
