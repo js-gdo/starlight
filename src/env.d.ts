@@ -13,4 +13,8 @@ export interface TypedD1Database extends Omit<D1Database, 'prepare' | 'batch'> {
 
 export interface Env {
     DB: TypedD1Database;
+    LOGIN_RATE_LIMITER: RateLimit;
+    REGISTER_RATE_LIMITER: RateLimit;
+    CHECKIN_RATE_LIMITER: RateLimit;
+    ECONOMY_RATE_LIMITER: RateLimit;
 }

@@ -2,17 +2,53 @@ name: Deploy Cloudflare Worker
 on:
     push:
         branches: [ main ]
+    pull_request:
+        branches: [ main ]
     workflow_dispatch: # 支持在GitHub页面手动触发部署
 
 jobs:
-    deploy:
+    test:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
               uses: actions/checkout@v6
 
-            - name: Deploy Worker with Wrangler
+            - name: Setup Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Type-check
+              run: npx tsc --noEmit
+
+            - name: Build
+              run: npm run build
+
+            - name: Test
+              run: npm test -- --run
+
+    deploy:
+        if: github.event_name != 'pull_request'
+        needs: test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Apply D1 migrations
               uses: cloudflare/wrangler-action@v3
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  command: d1 migrations apply sl-db --remote
+
+            - name: Deploy Worker
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  command: deploy

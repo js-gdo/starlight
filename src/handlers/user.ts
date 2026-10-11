@@ -1,4 +1,4 @@
-import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
+import { getSessionUser, jsonRes, createSession, getSessionMaxAge, serializeSessionCookie } from '../utils/auth';
 import { checkViolation, violationErrorPage } from '../utils/violation';
 import { getTranslator } from '../utils/i18n';
 import { normalizeProfileFields, validateAvatarUrl, validateProfileUrl, validateBackgroundUrl, normalizeBackgroundMode } from '../utils/profile';
@@ -176,7 +176,7 @@ export async function handleUser(request: Request, env: Env, path: string) {
         return new Response(JSON.stringify({ ok: true, message: '密码已更新，其他设备已退出' }), {
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `uid=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`,
+                'Set-Cookie': serializeSessionCookie(request, session, getSessionMaxAge()),
             },
         });
     }
@@ -188,7 +188,7 @@ export async function handleUser(request: Request, env: Env, path: string) {
         return new Response(JSON.stringify({ ok: true, message: '其他设备已退出登录' }), {
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `uid=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`,
+                'Set-Cookie': serializeSessionCookie(request, session, getSessionMaxAge()),
             },
         });
     }

@@ -2,6 +2,7 @@ import { getSessionUser, jsonRes } from '../utils/auth';
 import { generateFortune } from '../utils/fortune';
 import { getChinaDateString } from '../utils/time';
 import { getTranslator } from '../utils/i18n';
+import { enforceRateLimit } from '../utils/rateLimit';
 import type { Env } from '../env.d';
 
 export async function handleCheckin(request: Request, env: Env) {
@@ -10,6 +11,12 @@ export async function handleCheckin(request: Request, env: Env) {
 
     const user = await getSessionUser(env, request);
     if (!user) return jsonRes({ error: t('apiNotLoggedIn') }, 403);
+    const limited = await enforceRateLimit(
+        env.CHECKIN_RATE_LIMITER,
+        `checkin:user:${user.id}`,
+        '签到请求过于频繁，请稍后再试。',
+    );
+    if (limited) return limited;
 
     const db = env.DB;
     const today = getChinaDateString();

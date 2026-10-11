@@ -1,7 +1,7 @@
-import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
+import { getSessionUser, jsonRes, createSession, getSessionMaxAge, serializeSessionCookie } from '../utils/auth';
 import { sha256 } from '../utils/crypto';
 import { createInviteCode } from '../utils/invite';
-import { getLocationInfo } from '../utils/auth';
+import { getIpRateLimitKey, enforceRateLimit } from '../utils/rateLimit';
 import { getTranslator } from '../utils/i18n';
 import type { Env } from '../env.d';
 
@@ -9,6 +9,23 @@ export async function handleAuth(request: Request, env: Env, path: string) {
     const t = getTranslator(request);
     const method = request.method;
     const db = env.DB;
+
+    if (method === 'POST' && path === '/api/login') {
+        const limited = await enforceRateLimit(
+            env.LOGIN_RATE_LIMITER,
+            await getIpRateLimitKey(request, 'login'),
+            '登录尝试过于频繁，请稍后再试。',
+        );
+        if (limited) return limited;
+    }
+    if (method === 'POST' && path === '/api/register') {
+        const limited = await enforceRateLimit(
+            env.REGISTER_RATE_LIMITER,
+            await getIpRateLimitKey(request, 'register'),
+            '注册请求过于频繁，请稍后再试。',
+        );
+        if (limited) return limited;
+    }
 
     if (path === '/api/login' && method === 'GET') {
         const user = await getSessionUser(env, request);
@@ -38,14 +55,9 @@ export async function handleAuth(request: Request, env: Env, path: string) {
         if (!dbUser.use) return jsonRes({ error: t('apiBanned') }, 403);
 
         const loginIp = request.headers.get('CF-Connecting-IP') || '';
-        let loginRegion = String(request.cf?.region || '');
-        let loginCity = String(request.cf?.city || '');
+        const loginRegion = String(request.cf?.region || '');
+        const loginCity = String(request.cf?.city || '');
         const loginTime = new Date().toISOString();
-        try {
-            const info = await getLocationInfo(loginIp, loginRegion, loginCity);
-            loginRegion = info.region || loginRegion;
-            loginCity = info.city || loginCity;
-        } catch { }
 
         await db.prepare('UPDATE users SET last_ip = ?, last_region = ?, last_city = ?, last_login_at = ? WHERE id = ?')
             .bind(loginIp, loginRegion, loginCity, loginTime, dbUser.id).run();
@@ -61,7 +73,7 @@ export async function handleAuth(request: Request, env: Env, path: string) {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Set-Cookie': `uid=${await createSession(env, dbUser.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${getSessionMaxAge()}`
+                'Set-Cookie': serializeSessionCookie(request, await createSession(env, dbUser.id), getSessionMaxAge())
             }
         });
     }
