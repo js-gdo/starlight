@@ -1,0 +1,73 @@
+name: Release version after merged PR
+
+on:
+    pull_request:
+        branches: [ main ]
+        types: [ closed ]
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout main
+              uses: actions/checkout@v6
+              with:
+                  ref: main
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 22
+
+            - name: Configure release commit identity
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Increment version and create tag
+              env:
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  for attempt in {1..10}; do
+                      git fetch origin main --tags
+                      git reset --hard origin/main
+
+                      release_record="$(git log origin/main --format='%H%x09%s' --grep="chore(release): PR #${PR_NUMBER} ->" -1)"
+                      if [[ -n "$release_record" ]]; then
+                          release_commit="${release_record%%$'\t'*}"
+                          release_subject="${release_record#*$'\t'}"
+                          version="${release_subject##* -> }"
+
+                          if ! git tag --list "$version" | grep -Fxq "$version"; then
+                              git tag -a "$version" "$release_commit" -m "Release $version from PR #${PR_NUMBER}"
+                          fi
+                          git push origin "refs/tags/$version"
+                          exit 0
+                      fi
+
+                      version="$(node scripts/version.mjs bump)"
+                      git add version.json package.json package-lock.json
+                      git commit \
+                          -m "chore(release): PR #${PR_NUMBER} -> ${version}" \
+                          -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+
+                      if git push origin HEAD:main; then
+                          git tag -a "$version" -m "Release $version from PR #${PR_NUMBER}"
+                          git push origin "refs/tags/$version"
+                          exit 0
+                      fi
+
+                      echo "main advanced during release; retrying against its latest version." >&2
+                      sleep "$attempt"
+                  done
+
+                  echo "Could not publish the version commit after 10 retries." >&2
+                  exit 1
