@@ -1,4 +1,4 @@
-import { getSessionUser, jsonRes, createSession, getSessionMaxAge } from '../utils/auth';
+import { getSessionUser, jsonRes, createSession, getSessionMaxAge, getLoginThrottleState, recordLoginFailure, clearLoginFailures } from '../utils/auth';
 import { sha256 } from '../utils/crypto';
 import { createInviteCode } from '../utils/invite';
 import { getLocationInfo } from '../utils/auth';
@@ -27,25 +27,43 @@ export async function handleAuth(request: Request, env: Env, path: string) {
     }
 
     if (path === '/api/login' && method === 'POST') {
-        const body = await request.json() as { username: string; password: string };
+        const loginIp = request.headers.get('CF-Connecting-IP') || '';
+        // 登录暴力破解防护：同一 IP 失败次数达到阈值后临时锁定
+        const throttle = await getLoginThrottleState(env, loginIp);
+        if (throttle.blocked) {
+            return jsonRes({
+                error: `登录尝试过于频繁，请 ${throttle.retryAfterSeconds} 秒后再试`,
+                retry_after: throttle.retryAfterSeconds,
+            }, 429);
+        }
+        let body: { username: string; password: string };
+        try {
+            body = await request.json() as { username: string; password: string };
+        } catch {
+            return jsonRes({ error: t('apiMissingParams') }, 400);
+        }
         const { username, password } = body;
         if (!username || !password) return jsonRes({ error: t('apiMissingParams') }, 400);
 
         const hashedPassword = await sha256(password);
         const dbUser = await db.prepare('SELECT * FROM users WHERE username = ? AND password = ?')
             .bind(username, hashedPassword).first();
-        if (!dbUser) return jsonRes({ error: t('apiLoginFailed') }, 401);
-        if (!dbUser.use) return jsonRes({ error: t('apiBanned') }, 403);
+        if (!dbUser) {
+            await recordLoginFailure(env, loginIp);
+            return jsonRes({ error: t('apiLoginFailed') }, 401);
+        }
+        if (!dbUser.use) {
+            await recordLoginFailure(env, loginIp);
+            return jsonRes({ error: t('apiBanned') }, 403);
+        }
+        await clearLoginFailures(env, loginIp);
 
-        const loginIp = request.headers.get('CF-Connecting-IP') || '';
-        let loginRegion = String(request.cf?.region || '');
-        let loginCity = String(request.cf?.city || '');
+        // 位置信息直接取自 Cloudflare 内置 request.cf（region 为地区码，映射为中文省份），不再调用外部 IP 定位 API
+        const { region: loginRegion, city: loginCity } = getLocationInfo(
+            String(request.cf?.region || ''),
+            String(request.cf?.city || '')
+        );
         const loginTime = new Date().toISOString();
-        try {
-            const info = await getLocationInfo(loginIp, loginRegion, loginCity);
-            loginRegion = info.region || loginRegion;
-            loginCity = info.city || loginCity;
-        } catch { }
 
         await db.prepare('UPDATE users SET last_ip = ?, last_region = ?, last_city = ?, last_login_at = ? WHERE id = ?')
             .bind(loginIp, loginRegion, loginCity, loginTime, dbUser.id).run();

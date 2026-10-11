@@ -17,3 +17,16 @@ export function randomHex(byteLength: number): string {
     crypto.getRandomValues(buffer);
     return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+/**
+ * 恒定时间字符串比较，用于签名/哈希等安全敏感校验，避免计时侧信道。
+ * 长度不同时直接返回 false（长度信息泄露对 HMAC 场景风险可忽略）。
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
