@@ -1,0 +1,47 @@
+name: 自动打 Tag 版本号
+
+# 在 PR 合并到 main 时触发，从 .github/version.json 读取主/次版本号，
+# 结合动态 PR 号生成并推送 git tag：v{主}.{次}.{PR号}
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 读取主/次版本号并计算 Tag
+        id: version
+        run: |
+          MAJOR="$(jq -r '.major // "1"' .github/version.json)"
+          MINOR="$(jq -r '.minor // "0"' .github/version.json)"
+          PR="${{ github.event.pull_request.number }}"
+          echo "主版本号 MAJOR=$MAJOR"
+          echo "次版本号 MINOR=$MINOR"
+          echo "动态 PR 号 = $PR"
+          echo "TAG=v${MAJOR}.${MINOR}.${PR}" >> "$GITHUB_ENV"
+          echo "本次生成的标签: v${MAJOR}.${MINOR}.${PR}"
+
+      - name: 打 Tag 并推送
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "标签 $TAG 已存在，跳过（防止重复触发）。"
+            exit 0
+          fi
+          git config user.name "starlight-official"
+          git config user.email "l@lin114514.top"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "已创建并推送标签: $TAG"
