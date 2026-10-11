@@ -17,21 +17,22 @@ async function addPointRankBadges(html: string, db: Env['DB']): Promise<string> 
     if (!uniqueUserIds.length) return html;
 
     const ranks = new Map<number, { level: 'gold' | 'blue' | 'green'; rank: number; total: number }>();
+    // total 对整页而言是常量，提前一次性查出，避免在每一行/每一批中重复执行 COUNT 子查询
+    const totalRow = await db.prepare('SELECT COUNT(*) AS c FROM users WHERE use = 1').first<{ c: number }>();
+    const total = Number(totalRow?.c || 0);
     for (let offset = 0; offset < uniqueUserIds.length; offset += 400) {
         const ids = uniqueUserIds.slice(offset, offset + 400);
         const rows = await db.prepare(
-            `SELECT target.id, COUNT(higher.id) + 1 AS rank,
-                    (SELECT COUNT(*) FROM users WHERE use = 1) AS total
+            `SELECT target.id, COUNT(higher.id) + 1 AS rank
              FROM users AS target
              LEFT JOIN users AS higher
                ON higher.use = 1
               AND (higher.points > target.points OR (higher.points = target.points AND higher.id < target.id))
              WHERE target.use = 1 AND target.id IN (${ids.map(() => '?').join(',')})
              GROUP BY target.id`
-        ).bind(...ids).all<{ id: number; rank: number; total: number }>();
+        ).bind(...ids).all<{ id: number; rank: number }>();
         for (const row of rows.results || []) {
             const rank = Number(row.rank);
-            const total = Number(row.total);
             const level = getPointsRankBadgeLevel(rank, total);
             if (level) ranks.set(Number(row.id), { level, rank, total });
         }

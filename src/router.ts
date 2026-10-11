@@ -1,4 +1,5 @@
 import { handleApi } from './handlers/api';
+import { getCookie } from './utils/auth';
 import type { Env } from './env.d';
 import { renderAchievements } from './routes/achievements';
 import { renderAdminList } from './routes/admin-list';
@@ -160,8 +161,33 @@ const routes: RouteDefinition[] = [
     directRoute((path) => path === '/api' || path.startsWith('/api/'), (env, request, path) => handleApi(request, env, path)),
 ];
 
+/**
+ * 为页面响应补充缓存头，用于提升重复访问的加载速度。
+ * - 匿名（无 uid Cookie）GET 页面：允许浏览器与边缘缓存短时间，减少回源。
+ * - 已登录或非 GET：不缓存/强制校验，避免串用或泄露个性化内容。
+ * 仅作用于 text/html 页面，不触碰 /api 与 CDN 资源加载。
+ */
+function applyPageCacheHeaders(res: Response, request: Request, path: string): Response {
+    const contentType = res.headers.get('Content-Type') || '';
+    if (contentType.includes('text/html') && !path.startsWith('/api')) {
+        if (request.method === 'GET' && !getCookie(request, 'uid')) {
+            res.headers.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+        } else {
+            res.headers.set('Cache-Control', 'no-cache, must-revalidate');
+        }
+        if (!res.headers.has('X-Content-Type-Options')) {
+            res.headers.set('X-Content-Type-Options', 'nosniff');
+        }
+    }
+    return res;
+}
+
 export async function handleRequest(request: Request, env: Env, path: string): Promise<Response> {
     const route = routes.find((candidate) => candidate.matches(path));
-    if (route) return route.handle(env, request, path);
-    return renderStatusPage(env, request, 404, '页面不存在', '找不到你访问的页面。');
+    if (route) return applyPageCacheHeaders(await route.handle(env, request, path), request, path);
+    return applyPageCacheHeaders(
+        await renderStatusPage(env, request, 404, '页面不存在', '找不到你访问的页面。'),
+        request,
+        path
+    );
 }
