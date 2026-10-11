@@ -13,4 +13,6 @@ export interface TypedD1Database extends Omit<D1Database, 'prepare' | 'batch'> {
 
 export interface Env {
     DB: TypedD1Database;
+    /** 首次初始化时用于创建初始管理员的密码（不设置则管理员以随机不可知密码创建） */
+    ADMIN_PASSWORD?: string;
 }

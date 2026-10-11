@@ -1,4 +1,5 @@
 import type { Env } from '../env.d';
+import { sha256, randomHex } from '../utils/crypto';
 import { migrateLegacySchema } from './migrations';
 
 export async function initDB(env: Env) {
@@ -633,6 +634,11 @@ export async function initDB(env: Env) {
       user_agent TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS login_attempts (
+      key TEXT PRIMARY KEY,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      window_start INTEGER NOT NULL DEFAULT 0
     )`
     ];
 
@@ -640,14 +646,25 @@ export async function initDB(env: Env) {
         await db.prepare(sql).run();
     }
 
-    // 创建初始管理员
+    // 创建初始管理员：初始密码由环境变量 ADMIN_PASSWORD 提供，绝不内置默认口令。
+    // 若未配置，则创建一个使用随机不可知密码的管理员，无法被登录，避免内置默认口令被利用。
     const admin = await db.prepare('SELECT * FROM users WHERE id = 1').first();
     if (!admin) {
-        const hashedPassword = 'f1d0b7f4df42bf1b97865e03fac74872d109c6c3ee5d2789d2cbe03e5cd55bd5';
-        await db.prepare(
-            `INSERT INTO users (id, username, password, admin, color, tag, points, server_coin, server_hardware_score, server_assets, server_cpu, server_motherboard, server_ram, server_storage)
-       VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100, 25, 28216, ?, 'E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD')`
-        ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
+        const adminPassword = String(env.ADMIN_PASSWORD || '').trim();
+        if (adminPassword.length >= 6) {
+            const hashedPassword = await sha256(adminPassword);
+            await db.prepare(
+                `INSERT INTO users (id, username, password, admin, color, tag, points, server_coin, server_hardware_score, server_assets, server_cpu, server_motherboard, server_ram, server_storage)
+           VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100, 25, 28216, ?, 'E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD')`
+            ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
+        } else {
+            console.warn('[init] 未设置 ADMIN_PASSWORD 环境变量：初始管理员以随机不可知密码创建（无法登录）。请配置 ADMIN_PASSWORD 后重置密码，或按说明在数据库手动设置。');
+            const hashedPassword = await sha256(randomHex(32));
+            await db.prepare(
+                `INSERT INTO users (id, username, password, admin, color, tag, points, server_coin, server_hardware_score, server_assets, server_cpu, server_motherboard, server_ram, server_storage)
+           VALUES (1, 'lin114514', ?, 1, 'purple', '管理员', 100, 25, 28216, ?, 'E5-2686 v4', 'X99 主板', '16GB DDR4', '1TB HDD')`
+            ).bind(hashedPassword, JSON.stringify(['E5-2686 v4','X99 主板','16GB DDR4','1TB HDD'])).run();
+        }
     }
 
     // 初始化默认轮播图
@@ -669,7 +686,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '29';
+const CURRENT_SCHEMA_VERSION = '30';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {

@@ -1,9 +1,14 @@
 import type { Env } from '../env.d';
-import { hmacSha256, randomHex } from './crypto';
+import { hmacSha256, randomHex, constantTimeEqual } from './crypto';
 
 const SESSION_COOKIE = 'uid';
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 let cachedSessionSecret: string | null = null;
+let lastOnlinePeakAt = 0;
+
+// 登录暴力破解防护：按 IP 在滑动窗口内统计失败次数
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_SECONDS = 300; // 5 分钟
 
 /**
  * 从请求中获取指定名称的 Cookie 值
@@ -25,7 +30,9 @@ async function getSessionSecret(env: Env): Promise<string> {
             cachedSessionSecret = String(row.setting_value);
             return cachedSessionSecret;
         }
-    } catch { }
+    } catch (error) {
+        console.warn('[auth] 读取 session_secret 失败，将重新生成会话密钥。', String(error));
+    }
     const secret = randomHex(32);
     try {
         await env.DB.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('session_secret', ?)").bind(secret).run();
@@ -70,7 +77,7 @@ async function verifySession(env: Env, value: string | null): Promise<{ uid: num
     if (!uid || !expires || expires < Math.floor(Date.now() / 1000)) return null;
     if (!Number.isSafeInteger(version) || version < 0) return null;
     const expected = await hmacSha256(await getSessionSecret(env), payload);
-    return expected === signature ? { uid, version } : null;
+    return constantTimeEqual(expected, signature) ? { uid, version } : null;
 }
 
 /**
@@ -103,7 +110,9 @@ export async function getSessionUser(env: Env, req: Request): Promise<any | null
  * 生成一个 16 位随机十六进制字符串（用于帖子 hex_id）
  */
 export function generateHex(): string {
-    return 'xxxxxxxxxxxxxxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16));
+    const bytes = new Uint8Array(8);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -129,41 +138,37 @@ export function getPermissionName(permission: string): string {
 }
 
 /**
- * 根据 IP 地址获取大致的地理位置（省份、城市）
- * 使用外部 API https://v2.xxapi.cn，超时 3 秒，失败则返回传入的备用值
+ * 中国省级行政区划代码（Cloudflare request.cf.region）→ 中文省份名映射。
+ * 未命中的代码原样返回，非中国地区返回原始地区码。
  */
-export async function getLocationInfo(
-    ip: string,
+const CN_REGION_NAMES: Record<string, string> = {
+    BJ: '北京', TJ: '天津', HE: '河北', SX: '山西', NM: '内蒙古',
+    LN: '辽宁', JL: '吉林', HL: '黑龙江', SH: '上海', JS: '江苏',
+    ZJ: '浙江', AH: '安徽', FJ: '福建', JX: '江西', SD: '山东',
+    HA: '河南', HB: '湖北', HN: '湖南', GD: '广东', GX: '广西',
+    HI: '海南', CQ: '重庆', SC: '四川', GZ: '贵州', YN: '云南',
+    XZ: '西藏', SN: '陕西', GS: '甘肃', QH: '青海', NX: '宁夏',
+    XJ: '新疆', TW: '台湾', MO: '澳门', HK: '香港',
+};
+
+/**
+ * 根据 Cloudflare 内置的 request.cf 信息获取大致地理位置（省份、城市）。
+ * 不再调用任何外部 IP 定位 API，避免把用户 IP 泄露给第三方并消除外部依赖。
+ */
+export function getLocationInfo(
     cfRegion?: string,
     cfCity?: string
-): Promise<{ region: string; city: string }> {
-    let region = cfRegion || '';
-    let city = cfCity || '';
-    try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 3000);
-        const ipRes = await fetch(`https://v2.xxapi.cn/api/ip?ip=${encodeURIComponent(ip)}`, { signal: ctrl.signal });
-        clearTimeout(timer);
-        if (ipRes.ok) {
-            const ipData = await ipRes.json() as { code?: number; data?: { address?: string } };
-            if (ipData.code === 200 && ipData.data && ipData.data.address) {
-                const addr = ipData.data.address.replace(/^中国/, '');
-                const m = addr.match(/^(.+?(?:省|市|自治区|特别行政区))(.*)$/);
-                if (m) {
-                    region = m[1];
-                    city = m[2] || '';
-                } else {
-                    region = addr;
-                }
-            }
-        }
-    } catch {
-        // 忽略错误，返回备用值
-    }
+): { region: string; city: string } {
+    const rawRegion = String(cfRegion || '').trim();
+    const region = (rawRegion && CN_REGION_NAMES[rawRegion.toUpperCase()]) || rawRegion;
+    const city = String(cfCity || '').trim();
     return { region, city };
 }
 
 async function recordOnlinePeak(env: Env, now: Date): Promise<void> {
+    const nowMs = now.getTime();
+    if (nowMs - lastOnlinePeakAt < 60_000) return;
+    lastOnlinePeakAt = nowMs;
     try {
         const activeSince = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
         const activeUsers = await env.DB.prepare(
@@ -183,4 +188,55 @@ async function recordOnlinePeak(env: Env, now: Date): Promise<void> {
     } catch {
         // 在线统计不应影响正常请求
     }
+}
+
+/**
+ * 查询当前 IP 是否被登录限流锁定。返回是否被锁与剩余等待秒数。
+ */
+export async function getLoginThrottleState(env: Env, ip: string): Promise<{ blocked: boolean; retryAfterSeconds: number }> {
+    if (!ip) return { blocked: false, retryAfterSeconds: 0 };
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        const row = await env.DB.prepare('SELECT attempts, window_start FROM login_attempts WHERE key = ?')
+            .bind(`login:${ip}`).first<{ attempts: number; window_start: number }>();
+        if (!row) return { blocked: false, retryAfterSeconds: 0 };
+        const windowStart = Number(row.window_start || 0);
+        const attempts = Number(row.attempts || 0);
+        if (now - windowStart >= LOGIN_WINDOW_SECONDS) return { blocked: false, retryAfterSeconds: 0 };
+        if (attempts >= LOGIN_MAX_ATTEMPTS) {
+            return { blocked: true, retryAfterSeconds: Math.max(0, windowStart + LOGIN_WINDOW_SECONDS - now) };
+        }
+        return { blocked: false, retryAfterSeconds: 0 };
+    } catch {
+        return { blocked: false, retryAfterSeconds: 0 };
+    }
+}
+
+/**
+ * 记录一次登录失败；窗口过期则重置计数。
+ */
+export async function recordLoginFailure(env: Env, ip: string): Promise<void> {
+    if (!ip) return;
+    const key = `login:${ip}`;
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        await env.DB.prepare(
+            `INSERT INTO login_attempts (key, attempts, window_start) VALUES (?, 1, ?)
+             ON CONFLICT(key) DO UPDATE SET
+               attempts = CASE WHEN ? - login_attempts.window_start >= ? THEN 1 ELSE login_attempts.attempts + 1 END,
+               window_start = CASE WHEN ? - login_attempts.window_start >= ? THEN ? ELSE login_attempts.window_start END`
+        ).bind(key, now, now, LOGIN_WINDOW_SECONDS, now, LOGIN_WINDOW_SECONDS, now).run();
+    } catch {
+        // 限流失败不应阻塞登录主流程
+    }
+}
+
+/**
+ * 登录成功后清除该 IP 的失败计数。
+ */
+export async function clearLoginFailures(env: Env, ip: string): Promise<void> {
+    if (!ip) return;
+    try {
+        await env.DB.prepare('DELETE FROM login_attempts WHERE key = ?').bind(`login:${ip}`).run();
+    } catch { }
 }
