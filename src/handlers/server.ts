@@ -1,5 +1,4 @@
 import { getSessionUser, jsonRes } from '../utils/auth';
-import { enforceRateLimit } from '../utils/rateLimit';
 import type { Env } from '../env.d';
 
 const DEFAULT_SERVER_RANK_LIMIT = 10;
@@ -55,8 +54,9 @@ const serverEvents = [
 ];
 
 function normalizeAmount(value: unknown): number {
-    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return 0;
-    return value;
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return 0;
+    return Math.floor(num);
 }
 
 function parseServerAssets(value: unknown): any[] {
@@ -319,6 +319,7 @@ export async function handleServer(request: Request, env: Env, path: string) {
 
     if (path === '/api/server/exchange' && method === 'POST') {
         if (!user) return jsonRes({ error: '请先登录后再兑换' }, 401);
+
         let body: any = {};
         try {
             body = await request.json();
@@ -332,25 +333,17 @@ export async function handleServer(request: Request, env: Env, path: string) {
         if (!direction || amount <= 0) {
             return jsonRes({ error: '请输入有效的兑换数量' }, 400);
         }
-        const limited = await enforceRateLimit(
-            env.ECONOMY_RATE_LIMITER,
-            `economy:user:${user.id}`,
-            '兑换操作过于频繁，请稍后再试。',
-        );
-        if (limited) return limited;
 
         if (direction === 'coin_to_point') {
             const pointsToExchange = amount;
             const cost = pointsToExchange * 12;
-            if (!Number.isSafeInteger(cost)) return jsonRes({ error: '兑换数量超出有效范围' }, 400);
             if (Number(user.server_coin || 0) < cost) {
                 return jsonRes({ error: 'Server 币余额不足' }, 400);
             }
 
             const result = await db.prepare(
-                'UPDATE users SET server_coin = server_coin - ?, points = points + ? WHERE id = ? AND server_coin >= ?'
-            ).bind(cost, pointsToExchange, user.id, cost).run();
-            if (Number(result.meta?.changes || 0) !== 1) return jsonRes({ error: 'Server 币余额已变化，请刷新后重试' }, 409);
+                'UPDATE users SET server_coin = server_coin - ?, points = points + ? WHERE id = ?'
+            ).bind(cost, pointsToExchange, user.id).run();
 
             return jsonRes({
                 success: true,
@@ -365,15 +358,13 @@ export async function handleServer(request: Request, env: Env, path: string) {
         if (direction === 'point_to_coin') {
             const pointsToSpend = amount;
             const received = pointsToSpend * 10;
-            if (!Number.isSafeInteger(received)) return jsonRes({ error: '兑换数量超出有效范围' }, 400);
             if (Number(user.points || 0) < pointsToSpend) {
                 return jsonRes({ error: '积分余额不足' }, 400);
             }
 
             const result = await db.prepare(
-                'UPDATE users SET points = points - ?, server_coin = server_coin + ? WHERE id = ? AND points >= ?'
-            ).bind(pointsToSpend, received, user.id, pointsToSpend).run();
-            if (Number(result.meta?.changes || 0) !== 1) return jsonRes({ error: '积分余额已变化，请刷新后重试' }, 409);
+                'UPDATE users SET points = points - ?, server_coin = server_coin + ? WHERE id = ?'
+            ).bind(pointsToSpend, received, user.id).run();
 
             return jsonRes({
                 success: true,

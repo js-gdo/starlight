@@ -1,3 +1,4 @@
+import { ensureDB } from './db/init';
 import { handleRequest } from './router';
 import { renderStatusPage } from './routes/status';
 import { jsonRes } from './utils/auth';
@@ -8,6 +9,7 @@ export default {
         const path = new URL(request.url).pathname;
 
         try {
+            await ensureDB(env);
             return await handleRequest(request, env, path);
         } catch (error: unknown) {
             console.error('Worker error:', error);

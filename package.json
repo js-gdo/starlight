@@ -1,6 +1,6 @@
 {
     "name": "starlight-workers",
-    "version": "1.0.154",
+    "version": "0.0.0",
     "private": true,
     "type": "module",
     "scripts": {
