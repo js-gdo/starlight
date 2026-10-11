@@ -1,7 +1,8 @@
 name: Release version after merged PR
 
 on:
-    pull_request:
+    # The job checks out trusted main only; it never executes the PR head.
+    pull_request_target:
         branches: [ main ]
         types: [ closed ]
 
