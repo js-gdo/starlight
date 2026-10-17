@@ -41,7 +41,7 @@ describe("database migrations", () => {
 			created_at TEXT DEFAULT (datetime('now'))
 		)`).run();
 		await env.DB.prepare('CREATE TABLE site_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL DEFAULT "")').run();
-		await env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('schema_version', '14')").run();
+		await env.DB.prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('schema_version', '30')").run();
 		await env.DB.prepare("INSERT INTO users (id, username, password, admin, admin_roles) VALUES (1, 'migration-test', 'unused', 1, '[\"unassigned\"]')").run();
 
 		const session = await createSession(env, 1, 0);
@@ -113,7 +113,7 @@ describe("database migrations", () => {
 			"SELECT setting_value FROM site_settings WHERE setting_key = 'schema_version'"
 		).first<{ setting_value: string }>();
 		expect(embeddedAppsTable?.name).toBe('embedded_apps');
-		expect(schemaVersion?.setting_value).toBe('30');
+		expect(schemaVersion?.setting_value).toBe('31');
 
 		await initDB(env);
 	});

@@ -1,5 +1,5 @@
 import type { Env } from '../env.d';
-import { migrateLegacySchema } from './migrations';
+import { ensureEmbeddedAppsTable, migrateLegacySchema } from './migrations';
 
 export async function initDB(env: Env) {
     const db = env.DB;
@@ -669,11 +669,12 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '30';
+const CURRENT_SCHEMA_VERSION = '31';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
     if (schemaReady) return;
+    await ensureEmbeddedAppsTable(env.DB);
     try {
         const marker = await env.DB.prepare(
             "SELECT setting_value FROM site_settings WHERE setting_key = 'schema_version'"

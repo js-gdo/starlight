@@ -105,7 +105,7 @@ async function addProposalColumns(db: Env['DB']): Promise<void> {
     }
 }
 
-async function createEmbeddedAppsTable(db: Env['DB']): Promise<void> {
+export async function ensureEmbeddedAppsTable(db: Env['DB']): Promise<void> {
     await db.prepare(`
         CREATE TABLE IF NOT EXISTS embedded_apps (
             id TEXT PRIMARY KEY,
@@ -187,6 +187,6 @@ export async function migrateLegacySchema(db: Env['DB']): Promise<void> {
     await addLegacyColumns(db);
     await backfillLegacyData(db);
     await addProposalColumns(db);
-    await createEmbeddedAppsTable(db);
+    await ensureEmbeddedAppsTable(db);
     await createIndexes(db);
 }
