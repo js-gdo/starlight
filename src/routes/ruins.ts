@@ -136,6 +136,7 @@ function gameMarkup(): string {
             var state=null;
             var root=document.getElementById('ruinsGame');
             var notice=document.getElementById('ruinsNotice');
+            var actionInProgress=false;
             function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});}
             function num(value){return Number(value||0).toLocaleString('zh-CN');}
             function setNotice(text,error){notice.textContent=text||'';notice.className='ruins-notice'+(error?' error':'');}
@@ -187,10 +188,11 @@ function gameMarkup(): string {
                 var roomName=run.room_type==='monster'?(isBoss?run.monster_name:'遭遇敌人：'+run.monster_name):({treasure:'发现一只遗迹宝箱',camp:'找到一处安静营地',shrine:'发现星辉神龛'}[run.room_type]||'未探索房间');
                 document.getElementById('ruinsRunCaption').textContent='第 '+num(run.floor)+' 层 · 第 '+num(run.room)+' / '+state.room_limit+' 个房间';
                 document.getElementById('ruinsRunBadge').textContent=isBoss?'首领战':'探索中';
+                var expectedIncoming=run.room_type==='monster'?Math.max(1,Number(run.monster_attack)-Math.floor(Number(state.player.defense)*0.55)):0;
                 host.innerHTML='<div class="ruins-room'+(isBoss?' boss':'')+'"><span class="ruins-label">'+(isBoss?'⚔ 首领房间':'第 '+num(run.room)+' 号房间')+'</span><h3>'+esc(roomName)+'</h3>'+(
-                    run.room_type==='monster'
-                    ?'<div class="ruins-health"><span>敌人生命</span><span>'+num(run.monster_hp)+' / '+num(run.monster_max_hp)+'</span></div><div class="health-track"><div class="health-fill" style="width:'+Math.max(0,Math.min(100,run.monster_hp/run.monster_max_hp*100))+'%"></div></div><div class="ruins-health"><span>你的生命</span><span>'+num(run.hp)+' / '+num(state.player.maxHp)+'</span></div><div class="health-track"><div class="health-fill" style="width:'+Math.max(0,Math.min(100,run.hp/state.player.maxHp*100))+'%"></div></div><div class="ruins-room-meta"><span>敌方攻击 '+num(run.monster_attack)+'</span><span>'+esc(state.player.skill_name)+' 冷却 '+Math.max(0,run.skill_ready_turn-run.turn)+' 回合</span><span>药剂 '+num(state.player.potions)+'</span></div>'
-                    :'<p>'+(run.room_type==='treasure'?'尘封的宝箱或许藏着金币与星晶，小心处理其中的古老机关。':run.room_type==='camp'?'短暂休息可以恢复伤势，也可以利用时间提升战斗经验。':'神龛中的星辉仍未消散，选择治愈或接受祝福。')+'</p><div class="ruins-room-meta"><span>你的生命 '+num(run.hp)+' / '+num(state.player.maxHp)+'</span><span>药剂 '+num(state.player.potions)+'</span></div>'
+                run.room_type==='monster'
+                ?'<div class="ruins-health"><span>敌人生命</span><span>'+num(run.monster_hp)+' / '+num(run.monster_max_hp)+'</span></div><div class="health-track"><div class="health-fill" style="width:'+Math.max(0,Math.min(100,run.monster_hp/run.monster_max_hp*100))+'%"></div></div><div class="ruins-health"><span>你的生命</span><span>'+num(run.hp)+' / '+num(state.player.maxHp)+'</span></div><div class="health-track"><div class="health-fill" style="width:'+Math.max(0,Math.min(100,run.hp/state.player.maxHp*100))+'%"></div></div><div class="ruins-room-meta"><span>敌方攻击 '+num(run.monster_attack)+'</span><span>预计受到伤害 '+num(expectedIncoming)+' 点（防御后）</span><span>'+esc(state.player.skill_name)+' 冷却 '+Math.max(0,run.skill_ready_turn-run.turn)+' 回合</span><span>药剂 '+num(state.player.potions)+'</span></div>'
+                :'<p>'+(run.room_type==='treasure'?'尘封的宝箱或许藏着金币与星晶，小心处理其中的古老机关。':run.room_type==='camp'?'短暂休息可以恢复伤势，也可以利用时间提升战斗经验。':'神龛中的星辉仍未消散，选择治愈或接受祝福。')+'</p><div class="ruins-room-meta"><span>你的生命 '+num(run.hp)+' / '+num(state.player.maxHp)+'</span><span>药剂 '+num(state.player.potions)+'</span></div>'
                 )+'</div>';
                 if(run.room_cleared){
                     controls.innerHTML='<button type="button" class="button-gold" data-action="advance">'+(run.room>=state.room_limit?'完成本层远征':'前往下一房间')+' <i class="fas fa-arrow-right"></i></button><button type="button" class="button-danger" data-action="retreat" data-turn="'+run.turn+'">立即撤退</button>';
@@ -228,7 +230,10 @@ function gameMarkup(): string {
                 state=data;draw();
             }
             async function post(path,payload,button){
+                if(actionInProgress)return;
+                actionInProgress=true;
                 if(button)button.disabled=true;
+                root.setAttribute('aria-busy','true');
                 setNotice('正在处理行动…',false);
                 try{
                     var response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload||{})});
@@ -239,6 +244,8 @@ function gameMarkup(): string {
                     setNotice(data.notice||'行动完成。',false);
                 }catch(error){setNotice(error.message||'操作失败，请稍后重试。',true);}
                 finally{
+                    actionInProgress=false;
+                    root.removeAttribute('aria-busy');
                     if(button&&button.isConnected){
                         button.disabled=button.id==='ruinsDaily'&&state
                             ?!state.player.can_claim_daily
@@ -247,6 +254,7 @@ function gameMarkup(): string {
                 }
             }
             root.addEventListener('click',function(event){
+                if(actionInProgress)return;
                 var button=event.target.closest('button[data-action],button[data-class]');
                 if(!button||!root.contains(button))return;
                 if(button.dataset.class){post('/api/ruins/class/select',{class:button.dataset.class},button);return;}
