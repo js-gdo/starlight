@@ -110,6 +110,18 @@ export async function renderUserSettings(env: Env, req: Request) {
     const content = `
         <div class="page-header"><h1><i class="fas fa-user-cog"></i> 用户设置</h1></div>
         <div class="card" style="max-width:720px;">
+            <h3 style="font-size:16px;margin-bottom:8px;"><i class="fas fa-cloud-upload-alt"></i> 文件上传</h3>
+            <p role="note" style="margin:0 0 12px;padding:10px 12px;border-left:4px solid #d99a18;border-radius:4px;background:#fff8e6;color:#72520d;font-size:13px;line-height:1.7;">
+                首次使用前，请先为自己的 file land 设置密码，防止他人盗取信息，并牢记密码。
+            </p>
+            <iframe
+                src="https://b2.lin114514.top/land/starlight-${Number(user.id)}"
+                title="File Land 文件上传"
+                referrerpolicy="no-referrer"
+                style="display:block;width:100%;height:70vh;min-height:520px;max-height:760px;border:1px solid #e5e1e9;border-radius:6px;background:#fff;"
+            ></iframe>
+        </div>
+        <div class="card" style="max-width:720px;">
             <h3 style="font-size:16px;margin-bottom:12px;">个人资料</h3>
             <form action="/api/user/bio" method="POST" style="display:flex;flex-direction:column;gap:10px;">
                 <label>真实姓名 / 昵称<input type="text" name="real_name" value="${htmlEscape(String(user.real_name || ''))}" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:4px;"></label>
