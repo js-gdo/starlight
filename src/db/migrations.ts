@@ -105,19 +105,6 @@ async function addProposalColumns(db: Env['DB']): Promise<void> {
     }
 }
 
-async function createEmbeddedAppsTable(db: Env['DB']): Promise<void> {
-    await db.prepare(`
-        CREATE TABLE IF NOT EXISTS embedded_apps (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            note TEXT NOT NULL DEFAULT '',
-            icon TEXT NOT NULL DEFAULT 'fa-window-maximize',
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-    `).run();
-}
-
 async function createIndexes(db: Env['DB']): Promise<void> {
     const statements = [
         'CREATE INDEX IF NOT EXISTS idx_articles_pinned_created ON articles (is_pinned, created_at)',
@@ -187,6 +174,5 @@ export async function migrateLegacySchema(db: Env['DB']): Promise<void> {
     await addLegacyColumns(db);
     await backfillLegacyData(db);
     await addProposalColumns(db);
-    await createEmbeddedAppsTable(db);
     await createIndexes(db);
 }
