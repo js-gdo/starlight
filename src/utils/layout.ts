@@ -99,7 +99,7 @@ export async function getLayout(
     ].find(([permission]) => hasAdminPermission(user, permission)) : undefined;
     const announcementScope = currentPath.startsWith('/backend') ? 'backend' : currentPath === '/' ? 'home' : 'all';
 
-    const [unreadCounts, announcements, siteStatusRow, sitePopupRow] = await Promise.all([
+    const [unreadCounts, announcements, siteStatusRow, sitePopupRow, embeddedApps] = await Promise.all([
       (user && env?.DB)
         ? Promise.all([getSystemUnreadCount(env.DB, user.id), getPmUnreadCount(env.DB, user.id)])
         : Promise.resolve([0, 0]),
@@ -115,6 +115,10 @@ export async function getLayout(
       user && env?.DB
         ? env.DB.prepare('SELECT setting_value FROM site_settings WHERE setting_key = ?').bind(SITE_POPUP_SETTING_KEY).first()
         : Promise.resolve(null),
+
+      env?.DB
+        ? env.DB.prepare('SELECT id, title, icon FROM embedded_apps ORDER BY created_at, id').all<{ id: string; title: string; icon: string }>()
+        : Promise.resolve({ results: [] }),
     ]);
 
     const systemUnread = unreadCounts[0];
@@ -141,7 +145,7 @@ export async function getLayout(
       }
     }
 
-        const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number }> = [
+        const navItems: Array<{ href: string; label: string; active: boolean; onclick?: string; badge?: number; icon?: string }> = [
         { href: '/', label: t('home'), active: title === t('home') },
         { href: '/os', label: '桌面', active: title === '桌面' },
         { href: '/server', label: '服务状态', active: title === '服务状态' },
@@ -167,6 +171,16 @@ export async function getLayout(
         { href: '/messages', label: t('notifications'), active: title === t('notifications'), badge: systemUnread > 0 ? systemUnread : undefined },
         { href: '/pm', label: t('privateMessage'), active: title === t('privateMessage'), badge: pmUnread > 0 ? pmUnread : undefined },
     ];
+    for (const app of embeddedApps.results || []) {
+        const id = String(app.id || '');
+        if (!/^[0-9a-f-]{36}$/i.test(id)) continue;
+        navItems.push({
+            href: `/apps/iframe/${id}`,
+            label: String(app.title || '应用').slice(0, 120),
+            active: currentPath === `/apps/iframe/${id}`,
+            icon: /^fa-[a-z0-9-]{1,60}$/.test(String(app.icon || '')) ? app.icon : 'fa-window-maximize',
+        });
+    }
     if (user) navItems.push({ href: '/invite', label: '邀请好友', active: title === '邀请好友' });
     if (adminEntry) {
       navItems.push({ href: adminEntry[1], label: t('adminPanel'), active: currentPath.startsWith('/backend') });
@@ -210,8 +224,8 @@ export async function getLayout(
             '/oj/propose': 'fa-file-circle-plus',
             '/invite': 'fa-user-plus',
         };
-        const icon = iconMap[item.href] || 'fa-link';
-        return `<a href="${item.href}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${icon}"></i></span><span class="nav-text">${item.label}</span>${badgeHtml}</a>`;
+        const icon = iconMap[item.href] || item.icon || 'fa-link';
+        return `<a href="${htmlEscape(item.href)}" class="${item.active ? 'active' : ''}"${onclickAttr}><span class="icon"><i class="fas ${htmlEscape(icon)}"></i></span><span class="nav-text">${htmlEscape(item.label)}</span>${badgeHtml}</a>`;
     };
     const sidebarLinks = [
         ...primaryNavItems.map(renderSidebarItem),
@@ -228,7 +242,7 @@ export async function getLayout(
         '/invite': 'fa-user-plus',
       };
       const badge = item.badge ? `<span class="top-nav-badge">${item.badge}</span>` : '';
-      return `<a href="${item.href}" class="${mobile ? 'starlight-drawer-link' : 'top-nav-link'}${item.active ? ' active' : ''}"${mobile ? ' onclick="closeStarlightMenu()"' : ''}><i class="fas ${icons[item.href] || 'fa-link'}"></i><span>${item.label}</span>${badge}</a>`;
+      return `<a href="${htmlEscape(item.href)}" class="${mobile ? 'starlight-drawer-link' : 'top-nav-link'}${item.active ? ' active' : ''}"${mobile ? ' onclick="closeStarlightMenu()"' : ''}><i class="fas ${htmlEscape(icons[item.href] || item.icon || 'fa-link')}"></i><span>${htmlEscape(item.label)}</span>${badge}</a>`;
     };
     const starlightTopbar = layoutMode === 'starlight' ? `
       <header class="starlight-topbar">

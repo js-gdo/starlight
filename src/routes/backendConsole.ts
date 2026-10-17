@@ -108,14 +108,16 @@ const styles = `
 @media(max-width:700px){.admin-top{align-items:flex-start;flex-direction:column}.admin-who{white-space:normal}.admin-panel{padding:12px}.admin-permission-groups{grid-template-columns:1fr}.admin-permission-form{min-width:340px}}
 `;
 
-function adminShell(user: any, section: AdminSection, body: string): string {
+function adminShell(user: any, section: AdminSection, body: string, currentPath = ''): string {
     const nav = (Object.keys(sectionNames) as AdminSection[])
         .filter(key => (key === 'dashboard' && hasAdminPermission(user, 'admin.dashboard.view')) || (key === 'content' && hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])) || (key === 'reviews' && canHandleReviews(user)) || hasAdminPermission(user, getAdminSectionPermission(key)) ||
             (key === 'security' && hasAdminPermission(user, 'admin.security.audit.view')) ||
-            (key === 'site' && ['admin.site.banners.manage', 'admin.site.announcements.manage'].some(node => hasAdminPermission(user, node))) ||
+            (key === 'site' && (Number(user?.id) === 1 || ['admin.site.banners.manage', 'admin.site.announcements.manage'].some(node => hasAdminPermission(user, node)))) ||
             (key === 'permissions' && hasAdminPermission(user, 'admin.permissions.manage')))
-        .map(key => `<a class="${section === key ? 'active' : ''}" href="${sectionPaths[key]}"><i class="fas ${sectionIcons[key]}"></i>${sectionNames[key]}</a>`)
-        .join('');
+        .map(key => `<a class="${section === key && !(key === 'site' && currentPath === '/backend/site/apps') ? 'active' : ''}" href="${sectionPaths[key]}"><i class="fas ${sectionIcons[key]}"></i>${sectionNames[key]}</a>`)
+        .join('') + (Number(user?.id) === 1
+            ? `<a class="${section === 'site' ? 'active' : ''}" href="/backend/site/apps"><i class="fas fa-window-maximize"></i>应用管理</a>`
+            : '');
     return `<div class="admin-console">
         <header class="admin-top"><div><div class="admin-kicker">STARLIGHT · OPERATIONS</div><h1>${sectionNames[section]}</h1><p>管理操作、待办事项与站点状态集中处理。</p></div><div class="admin-who"><i class="fas fa-user-shield"></i> ${renderUsernameLink(user.username, user.color, user.tag, user.id)} · UID ${user.id}</div></header>
         <nav class="admin-nav" aria-label="后台分区">${nav}</nav>
@@ -147,10 +149,11 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
 
     const path = new URL(req.url).pathname;
     const section = sectionForPath(path);
+    const isEmbeddedAppPage = path === '/backend/site/apps';
     const accessible = section === 'security'
         ? hasAny(user, ['admin.security.reports.view', 'admin.security.audit.view'])
         : section === 'site'
-            ? hasAny(user, ['admin.site.settings.edit', 'admin.site.banners.manage', 'admin.site.announcements.manage'])
+            ? (isEmbeddedAppPage ? Number(user.id) === 1 : Number(user.id) === 1 || hasAny(user, ['admin.site.settings.edit', 'admin.site.banners.manage', 'admin.site.announcements.manage']))
             : section === 'content'
                 ? hasAny(user, ['admin.content.articles.view', 'admin.content.tickets.view'])
                 : section === 'reviews'
@@ -158,7 +161,7 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
                 : hasAdminPermission(user, getAdminSectionPermission(section));
     if (!accessible) {
         return new Response(await getLayout(env, user, '无权访问', adminShell(user, section,
-            panel('权限不足', 'fa-lock', '<p class="admin-muted">当前账号没有访问此分区的权限节点，请联系 UID 1 管理员。</p>')), styles, req), {
+            panel('权限不足', 'fa-lock', '<p class="admin-muted">当前账号没有访问此分区的权限节点，请联系 UID 1 管理员。</p>'), path), styles, req), {
             status: 403,
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
         });
@@ -255,6 +258,20 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
         ]);
         body = panel('待办队列', 'fa-inbox', `<div class="admin-shortcuts">${hasAdminPermission(user, 'admin.content.tickets.manage') ? `<a class="admin-shortcut" href="/backend/content"><span class="admin-shortcut-icon"><i class="fas fa-ticket"></i></span><span><strong>待处理工单</strong><small>${Number(pendingTickets?.total || 0)} 个 · 前往内容管理</small></span></a>` : ''}<a class="admin-shortcut" href="/team/requests"><span class="admin-shortcut-icon"><i class="fas fa-people-group"></i></span><span><strong>团队申请</strong><small>${Number(pendingTeams?.total || 0)} 个待审核</small></span></a><a class="admin-shortcut" href="/oj/proposals"><span class="admin-shortcut-icon"><i class="fas fa-code"></i></span><span><strong>OJ 投题</strong><small>${Number(pendingOj?.total || 0)} 个待审核</small></span></a><a class="admin-shortcut" href="/contest"><span class="admin-shortcut-icon"><i class="fas fa-trophy"></i></span><span><strong>比赛转公开申请</strong><small>${Number(pendingPublicRequests?.total || 0)} 个待审核</small></span></a></div>`);
     } else if (section === 'site') {
+        if (path === '/backend/site/apps') {
+            const apps = await db.prepare('SELECT id, title, url, note, icon FROM embedded_apps ORDER BY created_at DESC, id').all<any>();
+            body = panel('创建嵌入 App', 'fa-window-maximize', `<p class="admin-muted">App 会显示在全站侧栏。请仅嵌入你信任的网站；目标地址仅支持 HTTP 或 HTTPS。</p>
+                <form action="/api/admin/site/apps/create" method="POST" class="embedded-app-form">
+                    <label>标题<input type="text" name="title" maxlength="120" required placeholder="例如：项目看板"></label>
+                    <label>嵌入地址<input type="url" name="url" maxlength="2048" required placeholder="https://example.com/app"></label>
+                    <label>文字注释<textarea name="note" maxlength="1000" rows="3" placeholder="显示在嵌入页面标题下方的说明（可选）"></textarea></label>
+                    <label>Font Awesome 图标类名<input type="text" name="icon" maxlength="64" pattern="fa-[a-z0-9-]+" value="fa-window-maximize" required placeholder="fa-chart-line"></label>
+                    <div class="admin-muted">只填写图标类名（如 <code>fa-chart-line</code>），使用 Font Awesome Solid 图标集。</div>
+                    <button class="admin-btn primary" type="submit"><i class="fas fa-plus"></i> 创建 App</button>
+                </form>
+                <style>.embedded-app-form{display:grid;gap:10px;max-width:640px}.embedded-app-form label{display:grid;gap:5px;font-size:12px;color:#536269}.embedded-app-form textarea{resize:vertical}</style>`) +
+                panel('已创建的 App', 'fa-grid-2', `<div class="admin-list">${(apps.results || []).map((app: any) => `<div class="admin-list-item"><span><strong><i class="fas ${htmlEscape(app.icon)}"></i> ${htmlEscape(app.title)}</strong><br><a href="/apps/iframe/${encodeURIComponent(String(app.id))}">/apps/iframe/${htmlEscape(String(app.id))}</a><br><span class="admin-muted">${htmlEscape(app.url)}${app.note ? ` · ${htmlEscape(app.note)}` : ''}</span></span><form action="/api/admin/site/apps/${encodeURIComponent(String(app.id))}/delete" method="POST"><button class="admin-btn danger" type="submit" onclick="return confirm('确定删除此 App 吗？')">删除</button></form></div>`).join('') || '<div class="admin-empty">还没有 App，请使用上方表单创建。</div>'}</div>`);
+        } else {
         if (hasAdminPermission(user, 'admin.site.settings.edit')) {
             const status = await db.prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'site_status'").first<any>();
             body += panel('站点状态', 'fa-satellite-dish', `<form class="admin-inline-form" action="/api/admin/site-status" method="POST"><select name="status"><option value="normal" ${status?.setting_value === 'normal' ? 'selected' : ''}>正常运行</option><option value="limited" ${status?.setting_value === 'limited' ? 'selected' : ''}>限流提示</option><option value="maintenance" ${status?.setting_value === 'maintenance' ? 'selected' : ''}>维护中</option></select><button class="admin-btn primary" type="submit">保存状态</button></form>`);
@@ -314,6 +331,7 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
         if (hasAdminPermission(user, 'admin.site.export')) {
             body += panel('数据导出', 'fa-download', '<div class="admin-row-actions">' + ['users','tickets','reports','audit'].map(type => `<a class="admin-btn" href="/api/admin/export/${type}?format=csv" download>${type.toUpperCase()} CSV <i class="fas fa-download"></i></a>`).join('') + '</div>');
         }
+        }
     } else if (section === 'permissions') {
         if (user.id !== 1) {
             body = panel('权限节点', 'fa-lock', '<div class="admin-notice">只有 UID 1 可以分配或撤销管理员权限节点。</div>');
@@ -331,5 +349,5 @@ export async function renderBackendConsole(env: Env, req: Request): Promise<stri
     }
 
     if (!body) body = panel('暂无可操作内容', 'fa-circle-info', '<p class="admin-muted">当前账号没有可见的管理节点。</p>');
-    return await getLayout(env, user, `管理后台 · ${sectionNames[section]}`, adminShell(user, section, body), styles, req);
+    return await getLayout(env, user, `管理后台 · ${sectionNames[section]}`, adminShell(user, section, body, path), styles, req);
 }
