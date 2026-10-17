@@ -5,7 +5,6 @@ import { renderAchievements } from './routes/achievements';
 import { renderAdminList } from './routes/admin-list';
 import { renderArticleDetail, renderArticleEdit, renderArticleList, renderArticleNew } from './routes/articles';
 import { renderBackendConsole } from './routes/backendConsole';
-import { renderEmbeddedApp } from './routes/embeddedApps';
 import { renderBenben } from './routes/benben';
 import { renderClipboard } from './routes/clipboard';
 import { renderContestCreate, renderContestDetail, renderContestLeaderboard, renderContestList } from './routes/contest';
@@ -136,7 +135,6 @@ const routes: RouteDefinition[] = [
     exactPage(['/ruins'], (env, request) => renderRuins(env, request)),
     exactPage(['/space-shop'], (env, request) => renderSpaceShop(env, request)),
     exactPage(['/space-station'], (env, request) => renderSpaceStation(env, request)),
-    directRoute((path) => /^\/apps\/iframe\/[0-9a-f-]{36}$/i.test(path), (env, request, path) => renderEmbeddedApp(env, request, path)),
     exactPage(['/search'], (env, request) => renderSearch(env, request)),
     directRoute((path) => path === '/invite', (env, request) => renderInvite(env, request)),
     exactPage(['/team'], (env, request) => renderTeamList(env, request)),

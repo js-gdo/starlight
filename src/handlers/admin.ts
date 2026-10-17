@@ -16,13 +16,6 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
 
     if (!user || !user.admin) return jsonRes({ error: t('apiPermissionDenied') }, 403);
 
-    const embeddedAppCreate = path === '/api/admin/site/apps/create';
-    const embeddedAppDelete = path.match(/^\/api\/admin\/site\/apps\/([0-9a-f-]{36})\/delete$/i);
-    if (embeddedAppCreate || embeddedAppDelete) {
-        if (method !== 'POST') return jsonRes({ error: 'Method Not Allowed' }, 405);
-        if (Number(user.id) !== 1) return jsonRes({ error: '只有 UID 1 可以管理嵌入 App' }, 403);
-    }
-
     const userEditMatch = path.match(/^\/api\/admin\/user\/\d+$/);
     const bulkArticleAction = path === '/api/admin/articles/bulk' && method === 'POST'
         ? String((await request.clone().formData()).get('action') || '')
@@ -30,10 +23,8 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
     const userEditMode = userEditMatch && method === 'POST'
         ? String((await request.clone().formData()).get('mode') || 'profile')
         : '';
-    const requiredPermission = embeddedAppCreate || embeddedAppDelete
-        ? 'admin.dashboard.view'
-        : path === '/api/admin/roles' || path === '/api/admin/permissions'
-            ? 'admin.permissions.manage'
+    const requiredPermission = path === '/api/admin/roles' || path === '/api/admin/permissions'
+        ? 'admin.permissions.manage'
         : userEditMatch
             ? userEditMode === 'permission' ? 'admin.users.permissions.edit' : 'admin.users.profile.edit'
             : /^\/api\/admin\/user\/\d+\/delete$/.test(path)
@@ -52,7 +43,7 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
                                         ? 'admin.content.tickets.delete'
                                         : path === '/api/admin/site-status' || path === '/api/admin/site-popup'
                                             ? 'admin.site.settings.edit'
-                                                    : path === '/api/admin/banner/add' || /^\/api\/admin\/banner\/\d+\/delete$/.test(path)
+                                            : path === '/api/admin/banner/add' || /^\/api\/admin\/banner\/\d+\/delete$/.test(path)
                                             ? 'admin.site.banners.manage'
                                                 : path === '/api/admin/announcement/add' || /^\/api\/admin\/announcement\/\d+\/delete$/.test(path)
                                                     ? 'admin.site.announcements.manage'
@@ -60,41 +51,6 @@ export async function handleAdmin(request: Request, env: Env, path: string) {
                                                         ? 'admin.site.export'
                                                         : 'admin.dashboard.view';
     if (!hasAdminPermission(user, requiredPermission)) return jsonRes({ error: t('apiPermissionDenied') }, 403);
-
-    if (embeddedAppCreate) {
-        const form = await request.formData();
-        const title = String(form.get('title') || '').trim();
-        const urlValue = String(form.get('url') || '').trim();
-        const note = String(form.get('note') || '').trim();
-        const icon = String(form.get('icon') || '').trim();
-        if (!title || title.length > 120) return jsonRes({ error: '标题不能为空且最多 120 个字符' }, 400);
-        if (!urlValue || urlValue.length > 2048) return jsonRes({ error: '嵌入地址不能为空且最多 2048 个字符' }, 400);
-        let targetUrl: URL;
-        try {
-            targetUrl = new URL(urlValue);
-        } catch {
-            return jsonRes({ error: '请输入有效的嵌入地址' }, 400);
-        }
-        if (!['http:', 'https:'].includes(targetUrl.protocol) || targetUrl.username || targetUrl.password) {
-            return jsonRes({ error: '嵌入地址仅支持不含账号信息的 HTTP 或 HTTPS 地址' }, 400);
-        }
-        if (note.length > 1000) return jsonRes({ error: '文字注释最多 1000 个字符' }, 400);
-        if (!/^fa-[a-z0-9-]{1,60}$/.test(icon)) return jsonRes({ error: '图标格式无效，请填写 fa-chart-line 形式的图标类名' }, 400);
-
-        const id = crypto.randomUUID();
-        await db.prepare('INSERT INTO embedded_apps (id, title, url, note, icon) VALUES (?, ?, ?, ?, ?)')
-            .bind(id, title, targetUrl.href, note, icon).run();
-        await writeAudit(env, user.id, '创建嵌入 App', 'embedded_app', 0, `${title} · ${targetUrl.href}`);
-        return new Response(null, { status: 302, headers: { Location: '/backend/site/apps' } });
-    }
-
-    if (embeddedAppDelete) {
-        const id = embeddedAppDelete[1].toLowerCase();
-        const result = await db.prepare('DELETE FROM embedded_apps WHERE id = ?').bind(id).run();
-        if (Number(result.meta?.changes || 0) !== 1) return jsonRes({ error: '找不到该 App' }, 404);
-        await writeAudit(env, user.id, '删除嵌入 App', 'embedded_app', 0, id);
-        return new Response(null, { status: 302, headers: { Location: '/backend/site/apps' } });
-    }
 
     if (path === '/api/admin/permissions' && method === 'POST') {
         if (user.id !== 1) return jsonRes({ error: '只有 UID 1 可以分配管理员权限节点' }, 403);
