@@ -583,6 +583,90 @@ describe("worker routing", () => {
 		expect(await userPage.text()).toContain('账号目录');
 	});
 
+	it("lets only UID 1 manage embedded apps and exposes apps in the sidebar", async () => {
+		await SELF.fetch("https://example.com/");
+		const rootSession = await createSession(env, 1);
+		const rootHeaders = { Cookie: `uid=${rootSession}` };
+		const appsAdmin = await worker.fetch(new IncomingRequest('http://example.com/backend/site/apps', {
+			headers: rootHeaders,
+		}), env, createExecutionContext());
+		expect(appsAdmin.status).toBe(200);
+		expect(await appsAdmin.text()).toContain('/api/admin/site/apps/create');
+
+		const form = new FormData();
+		form.set('title', '项目看板');
+		form.set('url', 'https://example.com/embed/dashboard');
+		form.set('note', '项目进度与任务概览');
+		form.set('icon', 'fa-chart-line');
+		const created = await worker.fetch(new IncomingRequest('http://example.com/api/admin/site/apps/create', {
+			method: 'POST',
+			headers: rootHeaders,
+			body: form,
+		}), env, createExecutionContext());
+		expect(created.status).toBe(302);
+		expect(created.headers.get('Location')).toBe('/backend/site/apps');
+
+		const app = await env.DB.prepare(
+			'SELECT id, title, url, note, icon FROM embedded_apps WHERE title = ?'
+		).bind('项目看板').first<{ id: string; title: string; url: string; note: string; icon: string }>();
+		expect(app).toMatchObject({
+			title: '项目看板',
+			url: 'https://example.com/embed/dashboard',
+			note: '项目进度与任务概览',
+			icon: 'fa-chart-line',
+		});
+
+		const home = await worker.fetch(new IncomingRequest('http://example.com/', {
+			headers: rootHeaders,
+		}), env, createExecutionContext());
+		const homeHtml = await home.text();
+		expect(homeHtml).toContain(`href="/apps/iframe/${app!.id}"`);
+		expect(homeHtml).toContain('fas fa-chart-line');
+
+		const embeddedPage = await worker.fetch(new IncomingRequest(`http://example.com/apps/iframe/${app!.id}`, {
+			headers: rootHeaders,
+		}), env, createExecutionContext());
+		const embeddedHtml = await embeddedPage.text();
+		expect(embeddedPage.status).toBe(200);
+		expect(embeddedHtml).toContain('项目进度与任务概览');
+		expect(embeddedHtml).toContain('src="https://example.com/embed/dashboard"');
+		expect(embeddedHtml).toContain('sandbox="allow-forms allow-scripts allow-popups"');
+
+		const nonRootInsert = await env.DB.prepare(
+			'INSERT INTO users (username, password, admin, admin_permissions) VALUES (?, ?, 1, ?)'
+		).bind(`app-admin-${Date.now()}`, 'unused', JSON.stringify(['admin.dashboard.view'])).run();
+		const nonRootSession = await createSession(env, Number(nonRootInsert.meta.last_row_id));
+		const forbiddenForm = new FormData();
+		forbiddenForm.set('title', '不可创建');
+		forbiddenForm.set('url', 'https://example.com');
+		forbiddenForm.set('icon', 'fa-link');
+		const forbidden = await worker.fetch(new IncomingRequest('http://example.com/api/admin/site/apps/create', {
+			method: 'POST',
+			headers: { Cookie: `uid=${nonRootSession}` },
+			body: forbiddenForm,
+		}), env, createExecutionContext());
+		expect(forbidden.status).toBe(403);
+
+		const invalidForm = new FormData();
+		invalidForm.set('title', '无效 URL');
+		invalidForm.set('url', 'javascript:alert(1)');
+		invalidForm.set('icon', 'fa-link');
+		const invalid = await worker.fetch(new IncomingRequest('http://example.com/api/admin/site/apps/create', {
+			method: 'POST',
+			headers: rootHeaders,
+			body: invalidForm,
+		}), env, createExecutionContext());
+		expect(invalid.status).toBe(400);
+
+		const deleted = await worker.fetch(new IncomingRequest(`http://example.com/api/admin/site/apps/${app!.id}/delete`, {
+			method: 'POST',
+			headers: rootHeaders,
+		}), env, createExecutionContext());
+		expect(deleted.status).toBe(302);
+		const missingApp = await worker.fetch(new IncomingRequest(`http://example.com/apps/iframe/${app!.id}`), env, createExecutionContext());
+		expect(missingApp.status).toBe(404);
+	});
+
 	it("limits console sections and admin mutations to assigned permission nodes", async () => {
 		const username = `limited-admin-${Date.now()}`;
 		const insert = await env.DB.prepare('INSERT INTO users (username, password, admin, admin_permissions) VALUES (?, ?, 1, ?)')

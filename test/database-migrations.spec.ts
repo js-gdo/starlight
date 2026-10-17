@@ -106,6 +106,15 @@ describe("database migrations", () => {
 		}), env, createExecutionContext());
 		expect(invalidBackground.status).toBe(400);
 
+		const embeddedAppsTable = await env.DB.prepare(
+			"SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'embedded_apps'"
+		).first<{ name: string }>();
+		const schemaVersion = await env.DB.prepare(
+			"SELECT setting_value FROM site_settings WHERE setting_key = 'schema_version'"
+		).first<{ setting_value: string }>();
+		expect(embeddedAppsTable?.name).toBe('embedded_apps');
+		expect(schemaVersion?.setting_value).toBe('30');
+
 		await initDB(env);
 	});
 });
