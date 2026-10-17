@@ -122,7 +122,7 @@ function renderGameContent(): string {
                 <div class="space-sector-grid" id="spaceSectors"><div class="space-game-loading">正在扫描星域…</div></div>
             </section>
             <section class="space-section">
-                <div class="space-section-heading"><div><h2><i class="fas fa-route"></i> 远征舰队</h2><p>远征完成后领取奖励，奖励只可领取一次。</p></div></div>
+                <div class="space-section-heading"><div><h2><i class="fas fa-route"></i> 远征舰队</h2><p>远征完成后领取奖励，奖励只可领取一次；也可一键收取所有已完成远征。</p></div><button id="spaceClaimAll" type="button" disabled>收取全部就绪奖励</button></div>
                 <div class="space-expedition-list" id="spaceExpeditions"></div>
             </section>
             <section class="space-section">
@@ -200,6 +200,10 @@ function renderGameContent(): string {
             function expeditions(items,slots){
                 document.getElementById('spaceExpeditionSlots').textContent='远征位 '+number(slots.active)+' / '+number(slots.max);
                 var list=items.filter(function(item){return item.status==='active';});
+                var readyCount=list.filter(function(item){return item.ready_to_claim;}).length;
+                var claimAll=document.getElementById('spaceClaimAll');
+                claimAll.disabled=readyCount===0;
+                claimAll.textContent=readyCount?'收取全部就绪奖励 ('+number(readyCount)+')':'收取全部就绪奖励';
                 var host=document.getElementById('spaceExpeditions');
                 host.innerHTML=list.length?list.map(function(item){
                     var reward=item.rewards;
@@ -239,6 +243,7 @@ function renderGameContent(): string {
                     if(data.state)draw(data.state);
                     else await load();
                     setFeedback('操作完成，基地数据已更新。',false);
+                    if(data.claimed)setFeedback('已收取 '+number(data.claimed)+' 次远征战利品。',false);
                     if(data.notice)setFeedback(data.notice,false);
                     loadLeaderboard();
                 }catch(error){setFeedback(error.message,true);}
@@ -255,6 +260,7 @@ function renderGameContent(): string {
                 }catch(error){host.innerHTML='<div class="space-empty">排行榜暂不可用：'+esc(error.message)+'</div>';}
             }
             document.getElementById('spaceDailyClaim').addEventListener('click',function(){post('/api/game/daily/claim',{},this);});
+            document.getElementById('spaceClaimAll').addEventListener('click',function(){post('/api/game/expedition/claim-all',{},this);});
             document.getElementById('spaceExchangeResource').addEventListener('change',updateExchangeRate);
             document.getElementById('spaceExchangePoints').addEventListener('input',updateExchangeRate);
             document.getElementById('spaceExchangeButton').addEventListener('click',function(){

@@ -448,6 +448,35 @@ async function claimExpedition(env: Env, userId: number, body: Record<string, un
     return jsonRes({ ok: true, state: await getGameState(env, userId) });
 }
 
+async function claimReadyExpeditions(env: Env, userId: number): Promise<Response> {
+    await prepareGame(env, userId);
+    const claimToken = crypto.randomUUID();
+    const claimedAt = new Date().toISOString();
+    const result = await env.DB.batch([
+        env.DB.prepare(`
+            UPDATE space_game_expeditions
+            SET status = 'claimed', claim_token = ?, claimed_at = ?
+            WHERE user_id = ? AND status = 'active' AND ends_at <= ?
+        `).bind(claimToken, claimedAt, userId, claimedAt),
+        env.DB.prepare(`
+            UPDATE space_game_players
+            SET credits = credits + (SELECT COALESCE(SUM(reward_credits), 0) FROM space_game_expeditions WHERE user_id = ? AND claim_token = ?),
+                alloy = alloy + (SELECT COALESCE(SUM(reward_alloy), 0) FROM space_game_expeditions WHERE user_id = ? AND claim_token = ?),
+                crystal = crystal + (SELECT COALESCE(SUM(reward_crystal), 0) FROM space_game_expeditions WHERE user_id = ? AND claim_token = ?),
+                research_points = research_points + (SELECT COALESCE(SUM(reward_research), 0) FROM space_game_expeditions WHERE user_id = ? AND claim_token = ?)
+            WHERE user_id = ? AND EXISTS (
+                SELECT 1 FROM space_game_expeditions WHERE user_id = ? AND claim_token = ?
+            )
+        `).bind(
+            userId, claimToken, userId, claimToken, userId, claimToken, userId, claimToken,
+            userId, userId, claimToken,
+        ),
+    ]);
+    const claimed = Number(result[0]?.meta?.changes || 0);
+    if (claimed === 0) return jsonRes({ error: '当前没有已完成的远征奖励。' }, 409);
+    return jsonRes({ ok: true, claimed, state: await getGameState(env, userId) });
+}
+
 async function claimDailyReward(env: Env, userId: number): Promise<Response> {
     await prepareGame(env, userId);
     const today = new Date().toISOString().slice(0, 10);
@@ -498,6 +527,7 @@ export async function handleGame(request: Request, env: Env, path: string): Prom
     }
     if (request.method !== 'POST') return jsonRes({ error: '请求方法不支持。' }, 405);
 
+    if (path === '/api/game/daily/claim') return claimDailyReward(env, user.id);
     if (path === '/api/game/daily/claim') return claimDailyReward(env, user.id);
     const body = await parseJsonBody(request);
     if (!body) return jsonRes({ error: '请求内容必须是有效的 JSON 对象。' }, 400);

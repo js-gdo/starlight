@@ -76,7 +76,9 @@ describe("points rank username badges", () => {
 					);
 					const page = await requestWorker("/ruins");
 					expect(page.status).toBe(200);
-					expect(await page.text()).toContain("遗迹远征");
+					const pageHtml = await page.text();
+					expect(pageHtml).toContain("遗迹远征");
+					expect(pageHtml).toContain("预计受到伤害");
 
 					const selectClass = await requestWorker("/api/ruins/class/select", {
 						method: "POST",
@@ -1076,6 +1078,7 @@ describe("worker routing", () => {
 		expect(stationHtml).toContain("/api/game/state");
 		expect(stationHtml).toContain("data-expedition-countdown");
 		expect(stationHtml).toContain("item.id===Number(countdown.getAttribute('data-expedition-countdown'))");
+		expect(stationHtml).toContain("spaceClaimAll");
 		expect(stationHtml).not.toContain("heading.textContent.indexOf(item.sector_name)");
 		const management = await SELF.fetch(new IncomingRequest("https://example.com/space-station", {
 			headers: { Cookie: `uid=${session}` },
@@ -1184,6 +1187,46 @@ describe("worker routing", () => {
 		expect(secondLaunchState.state.expeditions).toHaveLength(1);
 		expect(secondLaunchState.state.expeditions[0].id).not.toBe(expedition!.id);
 		expect(secondLaunchState.state.expeditions[0].status).toBe('active');
+
+		await env.DB.prepare(
+			"UPDATE space_game_buildings SET level = 7 WHERE user_id = ? AND building_key = 'shipyard'"
+		).bind(userId).run();
+		await env.DB.prepare(
+			"UPDATE space_game_research SET level = 1 WHERE user_id = ? AND technology_key = 'navigation'"
+		).bind(userId).run();
+		for (let index = 0; index < 2; index += 1) {
+			const launch = await requestGame('/api/game/expedition/launch', {
+				method: 'POST', headers, body: JSON.stringify({ sector: 'orbit' }),
+			});
+			expect(launch.status).toBe(200);
+		}
+		await env.DB.prepare(
+			"UPDATE space_game_expeditions SET ends_at = '2000-01-01T00:00:00.000Z' WHERE user_id = ? AND status = 'active'"
+		).bind(userId).run();
+		const readyBeforeClaim = await env.DB.prepare(`
+			SELECT COUNT(*) AS count, SUM(reward_credits) AS credits, SUM(reward_alloy) AS alloy,
+			       SUM(reward_crystal) AS crystal, SUM(reward_research) AS research
+			FROM space_game_expeditions WHERE user_id = ? AND status = 'active'
+		`).bind(userId).first<{ count: number; credits: number; alloy: number; crystal: number; research: number }>();
+		const playerBeforeBulkClaim = await env.DB.prepare(
+			'SELECT credits, alloy, crystal, research_points FROM space_game_players WHERE user_id = ?'
+		).bind(userId).first<{ credits: number; alloy: number; crystal: number; research_points: number }>();
+		const bulkClaim = await requestGame('/api/game/expedition/claim-all', {
+			method: 'POST', headers, body: '{}',
+		});
+		expect(bulkClaim.status).toBe(200);
+		expect((await bulkClaim.json() as { claimed: number }).claimed).toBe(3);
+		const playerAfterBulkClaim = await env.DB.prepare(
+			'SELECT credits, alloy, crystal, research_points FROM space_game_players WHERE user_id = ?'
+		).bind(userId).first<{ credits: number; alloy: number; crystal: number; research_points: number }>();
+		expect(playerAfterBulkClaim?.credits).toBe(Number(playerBeforeBulkClaim?.credits) + Number(readyBeforeClaim?.credits));
+		expect(playerAfterBulkClaim?.alloy).toBe(Number(playerBeforeBulkClaim?.alloy) + Number(readyBeforeClaim?.alloy));
+		expect(playerAfterBulkClaim?.crystal).toBe(Number(playerBeforeBulkClaim?.crystal) + Number(readyBeforeClaim?.crystal));
+		expect(playerAfterBulkClaim?.research_points).toBe(Number(playerBeforeBulkClaim?.research_points) + Number(readyBeforeClaim?.research));
+		const duplicateBulkClaim = await requestGame('/api/game/expedition/claim-all', {
+			method: 'POST', headers, body: '{}',
+		});
+		expect(duplicateBulkClaim.status).toBe(409);
 
 		const dailyResponse = await requestGame('/api/game/daily/claim', { method: 'POST', headers });
 		expect(dailyResponse.status).toBe(200);
