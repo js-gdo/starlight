@@ -161,6 +161,7 @@ export async function getLayout(
         { href: '/ruins', label: '遗迹远征', active: title === '遗迹远征' },
         { href: '/space-shop', label: '星际商店', active: title === '星际商店' },
         { href: '/space-station', label: '空间站管理', active: title === '空间站管理' },
+        { href: '/salvage', label: '空间站搜刮', active: title === '空间站搜刮行动' },
         { href: '/redeem', label: '积分兑换', active: title === '积分兑换' },
         { href: '/search', label: '站内搜索', active: title === '站内搜索' },
         { href: '/team', label: '团队', active: title === '创建团队' || title.includes('团队') },

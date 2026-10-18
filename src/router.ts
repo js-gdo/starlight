@@ -13,6 +13,7 @@ import { renderGame } from './routes/game';
 import { renderRuins } from './routes/ruins';
 import { renderSpaceShop } from './routes/space-shop';
 import { renderSpaceStation } from './routes/space-station';
+import { renderSalvage } from './routes/salvage';
 import { renderHealth } from './routes/health';
 import { renderHome } from './routes/home';
 import { renderInvite } from './routes/invite';
@@ -135,6 +136,7 @@ const routes: RouteDefinition[] = [
     exactPage(['/ruins'], (env, request) => renderRuins(env, request)),
     exactPage(['/space-shop'], (env, request) => renderSpaceShop(env, request)),
     exactPage(['/space-station'], (env, request) => renderSpaceStation(env, request)),
+    exactPage(['/salvage'], (env, request) => renderSalvage(env, request)),
     exactPage(['/search'], (env, request) => renderSearch(env, request)),
     directRoute((path) => path === '/invite', (env, request) => renderInvite(env, request)),
     exactPage(['/team'], (env, request) => renderTeamList(env, request)),

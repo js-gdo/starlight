@@ -617,6 +617,55 @@ export async function initDB(env: Env) {
       PRIMARY KEY(user_id, component_key),
       FOREIGN KEY(user_id) REFERENCES space_station_players(user_id) ON DELETE CASCADE
     )`,
+        `CREATE TABLE IF NOT EXISTS salvage_players (
+      user_id INTEGER PRIMARY KEY,
+          star_coins INTEGER NOT NULL DEFAULT 1400,
+      star_crystals INTEGER NOT NULL DEFAULT 8,
+      last_action_token TEXT NOT NULL DEFAULT '',
+          starter_granted INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS salvage_inventory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      item_key TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+      durability INTEGER NOT NULL DEFAULT 0,
+      max_durability INTEGER NOT NULL DEFAULT 0,
+      charges INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES salvage_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS salvage_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      zone TEXT NOT NULL CHECK (zone IN ('safe', 'chaos')),
+      x INTEGER NOT NULL DEFAULT 0,
+      y INTEGER NOT NULL DEFAULT 0,
+      health INTEGER NOT NULL,
+      max_health INTEGER NOT NULL,
+      turn INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'extracted', 'dead')),
+      map_json TEXT NOT NULL DEFAULT '[]',
+      cargo_json TEXT NOT NULL DEFAULT '[]',
+      kit_json TEXT NOT NULL DEFAULT '{}',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY(user_id) REFERENCES salvage_players(user_id) ON DELETE CASCADE
+    )`,
+        `CREATE TABLE IF NOT EXISTS salvage_crafting (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      started_at TEXT NOT NULL,
+      finishes_at TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'claimed')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY(user_id) REFERENCES salvage_players(user_id) ON DELETE CASCADE
+    )`,
         `CREATE TABLE IF NOT EXISTS game_points_exchanges (
       token TEXT PRIMARY KEY,
       user_id INTEGER NOT NULL,
@@ -686,7 +735,7 @@ export async function initDB(env: Env) {
     await db.prepare("INSERT OR IGNORE INTO site_settings (setting_key, setting_value) VALUES ('site_status', 'normal')").run();
 }
 
-const CURRENT_SCHEMA_VERSION = '30';
+const CURRENT_SCHEMA_VERSION = '31';
 let schemaReady = false;
 
 export async function ensureDB(env: Env) {
