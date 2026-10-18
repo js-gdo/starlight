@@ -53,8 +53,9 @@ type MapObject = {
     id: string;
     x: number;
     y: number;
-    kind: 'server' | 'safe' | 'medical' | 'supply' | 'enemy' | 'extract';
+    kind: 'wall' | 'server' | 'safe' | 'medical' | 'supply' | 'enemy' | 'extract';
     name: string;
+    enemyType?: 'patrol' | 'scout' | 'sentry' | 'support' | 'hunter' | 'brute' | 'wraith' | 'elite';
     searched?: boolean;
     defeated?: boolean;
     health?: number;
@@ -87,6 +88,22 @@ function addItem(item: ItemDefinition): void {
     { key: 'data_core', name: '加密数据核', kind: 'loot' as const, tier: 2, value: 125, weight: 1, description: '服务器容器常见的高价值数据核心。' },
     { key: 'antique_relic', name: '先驱者遗物', kind: 'loot' as const, tier: 4, value: 360, weight: 2, description: '空间站旧保险箱中的稀有收藏品。' },
     { key: 'void_artifact', name: '虚空典藏品', kind: 'loot' as const, tier: 6, value: 820, weight: 2, description: '混乱区保险箱才可能出现的珍稀收藏品。' },
+    { key: 'data_fragment', name: '星港航行日志', kind: 'loot' as const, tier: 1, value: 72, weight: 1, description: '记录空间站航线与船员活动的旧数据晶片。' },
+    { key: 'encrypted_key', name: '加密舱门密钥', kind: 'loot' as const, tier: 3, value: 218, weight: 1, description: '带有失效权限标记的稀有门禁密钥。' },
+    { key: 'quantum_clock', name: '量子计时器', kind: 'loot' as const, tier: 4, value: 415, weight: 2, description: '收藏家追捧的精密量子计时器。' },
+    { key: 'relic_compass', name: '先驱者星图罗盘', kind: 'loot' as const, tier: 5, value: 590, weight: 2, description: '刻有未知星域坐标的古老罗盘。' },
+    { key: 'starlight_crown', name: '星辉王冠', kind: 'loot' as const, tier: 6, value: 980, weight: 2, description: '传闻属于先驱者舰队指挥官的珍稀饰物。' },
+    { key: 'alien_ceramic', name: '异星釉彩陶片', kind: 'loot' as const, tier: 3, value: 245, weight: 2, description: '表面留有未知文明纹样的陶瓷碎片。' },
+    { key: 'ancient_coin', name: '旧纪元纪念币', kind: 'loot' as const, tier: 2, value: 145, weight: 1, description: '空间站建成纪念发行的限量金属币。' },
+    { key: 'signal_prism', name: '折叠信号棱镜', kind: 'loot' as const, tier: 5, value: 560, weight: 1, description: '能够折射多频段信号的实验室藏品。' },
+    { key: 'plasma_coil', name: '等离子线圈', kind: 'material' as const, tier: 2, value: 82, weight: 1, description: '武器与星晶制造所需的高导能线圈。' },
+    { key: 'nano_mesh', name: '纳米织网', kind: 'material' as const, tier: 2, value: 76, weight: 1, description: '用于轻型护甲和背包加固的微型纤维网。' },
+    { key: 'optic_lens', name: '自适应光学镜片', kind: 'material' as const, tier: 2, value: 88, weight: 1, description: '人机传感器与侦察装备的核心零件。' },
+    { key: 'polymer_resin', name: '高韧聚合树脂', kind: 'material' as const, tier: 1, value: 41, weight: 1, description: '可塑性强的通用装备制造材料。' },
+    { key: 'bio_sample', name: '低温生物样本', kind: 'material' as const, tier: 3, value: 132, weight: 1, description: '封存在低温管中的未知生物组织样本。' },
+    { key: 'reactor_shard', name: '反应堆陶瓷碎片', kind: 'material' as const, tier: 3, value: 148, weight: 2, description: '耐高温的反应堆隔热材料碎片。' },
+    { key: 'magnetic_core', name: '磁约束核心', kind: 'material' as const, tier: 4, value: 205, weight: 2, description: '高阶能量装备和重型护甲的稀有组件。' },
+    { key: 'coolant_canister', name: '冷却剂罐', kind: 'material' as const, tier: 1, value: 54, weight: 2, description: '维持空间站设备与武器稳定运行的冷却剂。' },
 ].forEach(item => addItem({ ...item, price: 0 }));
 
 addItem({
@@ -100,6 +117,7 @@ addItem({
 
 for (let tier = 1; tier <= 6; tier++) {
     const multiplier = Math.pow(1.72, tier - 1);
+    const armorNames = ['轻型软甲', '侦察鳞甲', '复合防护甲', '重装板甲', '偏导能量甲', '星铸堡垒甲'];
     addItem({
         key: `backpack_${tier}`, name: `${tier} 级探索背包`, kind: 'backpack', tier,
         value: Math.ceil(260 * multiplier), price: Math.ceil(320 * multiplier), weight: 0,
@@ -111,7 +129,7 @@ for (let tier = 1; tier <= 6; tier++) {
         description: `每次攻击消耗 1 点武器充能；伤害 ${10 + tier * 7}。`,
     });
     addItem({
-        key: `armor_${tier}`, name: `${tier} 级复合护甲`, kind: 'armor', tier,
+        key: `armor_${tier}`, name: `${tier} 级${armorNames[tier - 1]}`, kind: 'armor', tier,
         value: Math.ceil(300 * multiplier), price: Math.ceil(390 * multiplier), weight: 4,
         maxDurability: 45 + tier * 9, description: `耐久 ${45 + tier * 9}，提供 ${tier * 3} 点护甲减伤。`,
     });
@@ -131,12 +149,12 @@ const RECIPES: CraftRecipe[] = [
     { category: 'weapon', categoryName: '武器制造商', key: 'weapon_4', name: '4 级脉冲武器', minutes: 75, requirements: { circuit_board: 8, alloy_plate: 7, quantum_cell: 3 }, quantity: 1 },
     { category: 'weapon', categoryName: '武器制造商', key: 'weapon_5', name: '5 级脉冲武器', minutes: 125, requirements: { circuit_board: 10, alloy_plate: 9, quantum_cell: 4 }, quantity: 1 },
     { category: 'weapon', categoryName: '武器制造商', key: 'weapon_6', name: '6 级脉冲武器', minutes: 200, requirements: { circuit_board: 12, alloy_plate: 12, quantum_cell: 6 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_1', name: '1 级复合护甲', minutes: 10, requirements: { alloy_plate: 3, fiber_bundle: 2 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_2', name: '2 级复合护甲', minutes: 22, requirements: { alloy_plate: 4, fiber_bundle: 3, circuit_board: 1 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_3', name: '3 级复合护甲', minutes: 42, requirements: { alloy_plate: 6, fiber_bundle: 4, quantum_cell: 1 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_4', name: '4 级复合护甲', minutes: 75, requirements: { alloy_plate: 8, fiber_bundle: 6, quantum_cell: 2 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_5', name: '5 级复合护甲', minutes: 125, requirements: { alloy_plate: 10, fiber_bundle: 8, quantum_cell: 3 }, quantity: 1 },
-    { category: 'armor', categoryName: '护甲制造商', key: 'armor_6', name: '6 级复合护甲', minutes: 200, requirements: { alloy_plate: 12, fiber_bundle: 10, quantum_cell: 5 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_1', name: '1 级轻型软甲', minutes: 10, requirements: { alloy_plate: 3, fiber_bundle: 2 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_2', name: '2 级侦察鳞甲', minutes: 22, requirements: { alloy_plate: 4, fiber_bundle: 3, circuit_board: 1 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_3', name: '3 级复合防护甲', minutes: 42, requirements: { alloy_plate: 6, fiber_bundle: 4, quantum_cell: 1 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_4', name: '4 级重装板甲', minutes: 75, requirements: { alloy_plate: 8, fiber_bundle: 6, quantum_cell: 2 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_5', name: '5 级偏导能量甲', minutes: 125, requirements: { alloy_plate: 10, fiber_bundle: 8, quantum_cell: 3 }, quantity: 1 },
+    { category: 'armor', categoryName: '护甲制造商', key: 'armor_6', name: '6 级星铸堡垒甲', minutes: 200, requirements: { alloy_plate: 12, fiber_bundle: 10, quantum_cell: 5 }, quantity: 1 },
     { category: 'medicine', categoryName: '药品制造商', key: 'medkit', name: '急救包 ×2', minutes: 6, requirements: { med_gel: 2, fiber_bundle: 1 }, quantity: 2 },
 ];
 
@@ -144,6 +162,29 @@ const ZONES = {
     safe: { name: '安全区', entryValue: 0, enemyHealth: [30, 42], enemyAttack: [7, 11], lootTier: [1, 3] },
     chaos: { name: '混乱区', entryValue: 2400, enemyHealth: [65, 92], enemyAttack: [15, 23], lootTier: [3, 6] },
 } as const;
+
+const STATION_LAYOUT = [
+    '  ....  ',
+    ' ...... ',
+    '........',
+    '...##...',
+    '........',
+    ' ...... ',
+    '  ....  ',
+];
+const STATION_TILES = STATION_LAYOUT.flatMap((row, y) =>
+    Array.from(row).flatMap((tile, x) => tile === '.' ? [{ x, y }] : [])
+);
+const STATION_WALLS = STATION_LAYOUT.flatMap((row, y) =>
+    Array.from(row).flatMap((tile, x) => tile === '#' ? [{ x, y }] : [])
+);
+const STATION_CELLS = [
+    ...STATION_TILES.map(tile => ({ ...tile, wall: false })),
+    ...STATION_WALLS.map(tile => ({ ...tile, wall: true })),
+];
+const LEGACY_TILES = Array.from({ length: 6 }, (_, y) =>
+    Array.from({ length: 6 }, (_, x) => ({ x, y }))
+).flat();
 
 const INITIAL_INVENTORY = [
     { key: 'backpack_1', quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
@@ -201,17 +242,23 @@ async function getPlayer(env: Env, userId: number): Promise<PlayerRow> {
 
 function mapLoot(kind: MapObject['kind'], zone: RunRow['zone']): CargoItem[] {
     const multiplier = zone === 'chaos' ? 1.7 : 1;
-    const materials = ['circuit_board', 'fiber_bundle', 'alloy_plate', 'med_gel', 'quantum_cell'];
+    const materials = [
+        'circuit_board', 'fiber_bundle', 'alloy_plate', 'med_gel', 'quantum_cell',
+        'plasma_coil', 'nano_mesh', 'optic_lens', 'polymer_resin', 'bio_sample',
+        'reactor_shard', 'magnetic_core', 'coolant_canister',
+    ];
     const collectibles = zone === 'chaos'
-        ? ['antique_relic', 'void_artifact', 'data_core']
-        : ['data_core', 'antique_relic'];
+        ? ['antique_relic', 'void_artifact', 'data_core', 'encrypted_key', 'quantum_clock', 'relic_compass', 'starlight_crown', 'alien_ceramic', 'ancient_coin', 'signal_prism']
+        : ['data_core', 'antique_relic', 'data_fragment', 'encrypted_key', 'alien_ceramic', 'ancient_coin'];
     const pick = (keys: string[]) => keys[randomInt(0, keys.length - 1)];
     const stack = (key: string, quantity: number): CargoItem => ({
         key, quantity, durability: 0, maxDurability: 0, charges: 0,
     });
 
     if (kind === 'server') {
-        const electronic = zone === 'chaos' ? ['circuit_board', 'data_core', 'quantum_cell'] : ['circuit_board', 'data_core', 'circuit_board'];
+        const electronic = zone === 'chaos'
+            ? ['circuit_board', 'data_core', 'quantum_cell', 'plasma_coil', 'optic_lens', 'magnetic_core', 'signal_prism']
+            : ['circuit_board', 'data_core', 'data_fragment', 'plasma_coil', 'optic_lens'];
         return [stack(pick(electronic), randomInt(1, zone === 'chaos' ? 3 : 2))];
     }
     if (kind === 'safe') {
@@ -228,15 +275,26 @@ function mapLoot(kind: MapObject['kind'], zone: RunRow['zone']): CargoItem[] {
 }
 
 function createMap(zone: RunRow['zone']): MapObject[] {
-    const objects: MapObject[] = [{ id: 'extract', x: 5, y: 5, kind: 'extract', name: '撤离点' }];
-    const occupied = new Set(['0,0', '5,5']);
+    const exitCandidates = STATION_TILES.filter(({ x, y }) =>
+        x === 0 || x === 7 || y === 0 || y === 6
+    );
+    const exit = exitCandidates[randomInt(0, exitCandidates.length - 1)];
+    const objects: MapObject[] = [
+        ...STATION_WALLS.map(({ x, y }, index) => ({
+            id: `wall-${index + 1}`, x, y, kind: 'wall' as const, name: '舱段隔离墙',
+        })),
+        { id: 'extract', ...exit, kind: 'extract', name: '边缘撤离平台' },
+    ];
+    const occupied = new Set([
+        '3,2', `${exit.x},${exit.y}`,
+        ...STATION_WALLS.map(({ x, y }) => `${x},${y}`),
+    ]);
+    const candidates = STATION_TILES.filter(({ x, y }) => !occupied.has(`${x},${y}`));
     const place = (object: Omit<MapObject, 'x' | 'y'>) => {
-        let x = 0;
-        let y = 0;
-        do {
-            x = randomInt(0, 5);
-            y = randomInt(0, 5);
-        } while (occupied.has(`${x},${y}`));
+        const index = randomInt(0, candidates.length - 1);
+        const [position] = candidates.splice(index, 1);
+        if (!position) throw new Error('Not enough walkable station tiles to place map objects.');
+        const { x, y } = position;
         occupied.add(`${x},${y}`);
         objects.push({ ...object, x, y });
     };
@@ -255,14 +313,28 @@ function createMap(zone: RunRow['zone']): MapObject[] {
         });
     }
     const enemyCount = zone === 'chaos' ? 7 : 4;
+    const enemyTypes = zone === 'chaos'
+        ? [
+            { type: 'hunter' as const, name: '追猎型人机', health: 1, attack: 1.2 },
+            { type: 'brute' as const, name: '重装破阵机', health: 1.55, attack: 1.35 },
+            { type: 'wraith' as const, name: '幽影侦察机', health: 0.8, attack: 1.05 },
+            { type: 'elite' as const, name: '精英镇压机', health: 1.25, attack: 1.55 },
+        ]
+        : [
+            { type: 'patrol' as const, name: '巡逻机', health: 1, attack: 1 },
+            { type: 'scout' as const, name: '侦察蜂群机', health: 0.7, attack: 0.75 },
+            { type: 'sentry' as const, name: '舱门哨戒机', health: 1.2, attack: 1.25 },
+            { type: 'support' as const, name: '维修支援机', health: 0.9, attack: 0.85 },
+        ];
     for (let index = 0; index < enemyCount; index++) {
         const bounds = ZONES[zone];
-        const health = randomInt(bounds.enemyHealth[0], bounds.enemyHealth[1]);
+        const variant = enemyTypes[index % enemyTypes.length];
+        const health = Math.round(randomInt(bounds.enemyHealth[0], bounds.enemyHealth[1]) * variant.health);
         place({
             id: `enemy-${index + 1}`, kind: 'enemy',
-            name: zone === 'chaos' ? '混乱区武装守卫' : '空间站巡逻机',
+            name: variant.name, enemyType: variant.type,
             defeated: false, health, maxHealth: health,
-            attack: randomInt(bounds.enemyAttack[0], bounds.enemyAttack[1]),
+            attack: Math.round(randomInt(bounds.enemyAttack[0], bounds.enemyAttack[1]) * variant.attack),
             loot: enemyLoot(zone),
         });
     }
@@ -337,6 +409,9 @@ async function getState(env: Env, userId: number) {
             id: activeRun.id, zone: activeRun.zone, x: activeRun.x, y: activeRun.y,
             health: activeRun.health, max_health: activeRun.max_health, turn: activeRun.turn,
             started_at: activeRun.started_at,
+            map_width: objects.some(object => object.kind === 'wall') ? 8 : 6,
+            map_height: objects.some(object => object.kind === 'wall') ? 7 : 6,
+            map_tiles: objects.some(object => object.kind === 'wall') ? STATION_CELLS : LEGACY_TILES,
             capacity: kit.capacity, cargo_weight: totalWeight(cargo),
             cargo: cargo.map(entry => ({ ...entry, ...item(entry.key) })),
             backpack: { ...kit.backpack, ...item(kit.backpack.key), durability: kit.backpack.durability },
@@ -362,6 +437,7 @@ async function getState(env: Env, userId: number) {
             total_equipment_value: totalEquipmentValue,
         },
         items,
+        catalog: Object.values(ITEMS),
         recipes: RECIPES,
         jobs,
         run,
@@ -735,8 +811,8 @@ async function startRun(env: Env, player: PlayerRow, body: Record<string, unknow
     const maxHealth = 100 + armorTier * 20;
     const map = createMap(zone);
     const inserted = await env.DB.prepare(`
-        INSERT INTO salvage_runs (user_id, zone, health, max_health, map_json, cargo_json, kit_json)
-        SELECT ?, ?, ?, ?, ?, ?, ? FROM salvage_players
+        INSERT INTO salvage_runs (user_id, zone, x, y, health, max_health, map_json, cargo_json, kit_json)
+        SELECT ?, ?, 3, 2, ?, ?, ?, ?, ? FROM salvage_players
         WHERE user_id = ? AND last_action_token = ?
     `).bind(
         player.user_id, zone, maxHealth, maxHealth, JSON.stringify(map), JSON.stringify(runItems),
@@ -809,14 +885,19 @@ function loadout(run: RunRow): { backpack: CargoItem; weapon: CargoItem; armor: 
 }
 
 async function move(run: RunRow, body: Record<string, unknown>, env: Env): Promise<Response> {
+    const objects = safeJson<MapObject[]>(run.map_json, []);
+    const hasStationWalls = objects.some(object => object.kind === 'wall');
     const x = Number(body.x);
     const y = Number(body.y);
-    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || x > 5 || y < 0 || y > 5
+    const inMap = hasStationWalls
+        ? STATION_CELLS.some(tile => tile.x === x && tile.y === y)
+        : Number(body.x) >= 0 && Number(body.x) <= 5 && Number(body.y) >= 0 && Number(body.y) <= 5;
+    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || !inMap
         || Math.abs(x - run.x) + Math.abs(y - run.y) !== 1) {
-        return jsonRes({ error: '每次只能向上下左右相邻的一格移动。' }, 400);
+        return jsonRes({ error: '只能移动到相邻的开放舱室，墙体和舱站外不可通行。' }, 400);
     }
-    const objects = safeJson<MapObject[]>(run.map_json, []);
     const target = objects.find(object => object.x === x && object.y === y);
+    if (target?.kind === 'wall') return jsonRes({ error: '舱段隔离墙阻挡了去路。' }, 409);
     if (target?.kind === 'enemy' && !target.defeated) return jsonRes({ error: '该位置有敌人阻挡，请先击败它。' }, 409);
     if (!await updateRun(env, run, { x, y })) return jsonRes({ error: '对局状态已变化，请刷新后继续。' }, 409);
     return jsonRes({ ok: true, notice: `已移动至坐标 ${x + 1}, ${y + 1}。`, state: await getState(env, run.user_id) });

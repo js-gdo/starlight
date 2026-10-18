@@ -35,15 +35,22 @@ describe("space-station salvage game", () => {
 
 		const page = await request("/salvage");
 		expect(page.status).toBe(200);
-		expect(await page.text()).toContain("空间站搜刮行动");
+		const pageHtml = await page.text();
+		expect(pageHtml).toContain("空间站搜刮行动");
+		expect(pageHtml).toContain("map-wall");
+		expect(pageHtml).toContain("function itemSvg");
 
 		const initial = await request("/api/salvage/state");
 		expect(initial.status).toBe(200);
 		const initialState = await initial.json() as {
 			player: { star_coins: number; star_crystals: number };
 			items: Array<{ id: number; item_key: string }>;
+			catalog: Array<{ key: string; kind: string; name: string }>;
 		};
 		expect(initialState.player).toMatchObject({ star_coins: 1400, star_crystals: 8 });
+		expect(initialState.catalog.length).toBeGreaterThanOrEqual(40);
+		expect(initialState.catalog.some((item) => item.key === "starlight_crown" && item.kind === "loot")).toBe(true);
+		expect(initialState.catalog.some((item) => item.key === "armor_6" && item.name.includes("星铸"))).toBe(true);
 		const findId = (key: string) => {
 			const row = initialState.items.find((entry) => entry.item_key === key);
 			if (!row) throw new Error(`Missing starter item ${key}`);
@@ -70,12 +77,25 @@ describe("space-station salvage game", () => {
 				x: number;
 				y: number;
 				cargo: Array<{ key: string; quantity: number }>;
-				objects: Array<{ id: string; x: number; y: number; kind: string }>;
+				map_width: number;
+				map_height: number;
+				map_tiles: Array<{ x: number; y: number; wall?: boolean }>;
+				objects: Array<{ id: string; x: number; y: number; kind: string; enemyType?: string }>;
 			};
 		};
 		expect(activeState.run.zone).toBe("safe");
 		expect(activeState.run.cargo).toContainEqual(expect.objectContaining({ key: "medkit", quantity: 1 }));
 		expect(JSON.stringify(activeState.run.objects)).not.toContain('"loot"');
+		expect(activeState.run).toMatchObject({ map_width: 8, map_height: 7 });
+		expect(activeState.run.map_tiles).toContainEqual({ x: 3, y: 3, wall: true });
+		expect(activeState.run.objects.filter((object) => object.kind === "wall")).toHaveLength(2);
+		expect(new Set(activeState.run.objects.filter((object) => object.kind === "enemy").map((object) => object.enemyType)).size)
+			.toBeGreaterThan(1);
+		const exit = activeState.run.objects.find((object) => object.kind === "extract");
+		if (!exit) throw new Error("The raid map did not generate an extraction point.");
+		expect(exit.x === 0 || exit.x === 7 || exit.y === 0 || exit.y === 6).toBe(true);
+		expect((await request("/api/salvage/move", { x: 3, y: 3 })).status).toBe(409);
+		expect((await request("/api/salvage/move", { x: 0, y: 0 })).status).toBe(400);
 		expect((await request("/api/salvage/purchase", { item: "weapon_2" })).status).toBe(409);
 
 		const server = activeState.run.objects.find((object) => object.kind === "server");
@@ -88,12 +108,18 @@ describe("space-station salvage game", () => {
 		const searchedState = await search.json() as {
 			run: { cargo: Array<{ key: string; quantity: number }> };
 		};
-		expect(searchedState.run.cargo.some((entry) => ["circuit_board", "data_core", "quantum_cell"].includes(entry.key))).toBe(true);
+		expect(searchedState.run.cargo.some((entry) => [
+			"circuit_board", "data_core", "data_fragment", "quantum_cell", "plasma_coil", "optic_lens",
+		].includes(entry.key))).toBe(true);
 
+		const exitNeighbor = activeState.run.map_tiles.find((tile) =>
+			!tile.wall && Math.abs(tile.x - exit.x) + Math.abs(tile.y - exit.y) === 1
+		);
+		if (!exitNeighbor) throw new Error("The extraction point has no adjacent walkable tile.");
 		await env.DB.prepare(
-			"UPDATE salvage_runs SET x = 5, y = 4 WHERE user_id = ? AND status = 'active'"
-		).bind(userId).run();
-		expect((await request("/api/salvage/move", { x: 5, y: 5 })).status).toBe(200);
+			"UPDATE salvage_runs SET x = ?, y = ? WHERE user_id = ? AND status = 'active'"
+		).bind(exitNeighbor.x, exitNeighbor.y, userId).run();
+		expect((await request("/api/salvage/move", { x: exit.x, y: exit.y })).status).toBe(200);
 		const extracted = await request("/api/salvage/extract", {});
 		expect(extracted.status).toBe(200);
 		const hideout = await extracted.json() as {
