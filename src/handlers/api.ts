@@ -26,6 +26,7 @@ import { handleChallenges } from './challenges';
 import { handleRuins } from './ruins';
 import { handleSpaceShop } from './spaceShop';
 import { handleSpaceStation } from './spaceStation';
+import { handleSalvage } from './salvage';
 import type { Env } from '../env.d';
 
 async function renderUserSvg(env: Env, uid: number): Promise<Response> {
@@ -125,6 +126,7 @@ export async function handleApi(request: Request, env: Env, path: string) {
     if (path === '/api/ruins' || path.startsWith('/api/ruins/')) return handleRuins(request, env, path);
     if (path === '/api/space-shop' || path.startsWith('/api/space-shop/')) return handleSpaceShop(request, env, path);
     if (path === '/api/space-station' || path.startsWith('/api/space-station/')) return handleSpaceStation(request, env, path);
+    if (path === '/api/salvage' || path.startsWith('/api/salvage/')) return handleSalvage(request, env, path);
     if (path.startsWith('/api/game/')) return handleGame(request, env, path);
     if (path === '/api/teams' || path.startsWith('/api/teams/')) return handleTeams(request, env, path);
     if (path === '/api/contests' || path.startsWith('/api/contests/') || path === '/api/contest' || path.startsWith('/api/contest/')) return handleContests(request, env, path);
