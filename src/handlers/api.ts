@@ -27,6 +27,7 @@ import { handleRuins } from './ruins';
 import { handleSpaceShop } from './spaceShop';
 import { handleSpaceStation } from './spaceStation';
 import { handleSalvage } from './salvage';
+import { handleInstantNotifications } from './instantNotifications';
 import type { Env } from '../env.d';
 
 async function renderUserSvg(env: Env, uid: number): Promise<Response> {
@@ -114,6 +115,9 @@ export async function handleApi(request: Request, env: Env, path: string) {
 
     if (path === '/api/health') {
         return handleHealth(request, env);
+    }
+    if (path === '/api/noti' || path === '/api/noti/poll') {
+        return handleInstantNotifications(request, env, path);
     }
     if (path === '/api/egg/status' || path === '/api/egg/claim') {
         return handleEgg(request, env, path);
