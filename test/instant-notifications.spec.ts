@@ -73,10 +73,23 @@ describe("instant notifications and classic dashboard navigation", () => {
 		expect(page.status).toBe(200);
 		const html = await page.text();
 		expect(html).toContain("classic-sidebar-group");
-		expect(html).toContain("Developer tools");
+		expect(html).toContain("概览");
+		expect(html).toContain("信息学竞赛");
+		expect(html).toContain("权限变更记录");
+		expect(html).toContain("跨设备工具");
+		expect(html).toContain("社区成长");
+		expect(html).not.toContain("Developer tools");
+		expect(html).toContain("background: #f9fafb !important");
+		expect(html).toContain("color: #6b7280 !important");
 		expect(html).toContain("instantNotificationOverlay");
 		expect(html).toContain("window.setInterval(poll, 2000)");
 		expect(html).toContain("}, 3000);");
+
+		const englishPage = await request("/messages?lang=en", targetSession);
+		const englishHtml = await englishPage.text();
+		expect(englishHtml).toContain("Overview");
+		expect(englishHtml).toContain("Online Judge");
+		expect(englishHtml).not.toContain("navGroupOverview");
 	});
 
 	it("uses dashboard navigation for the classic sidebar layout, including the modern UI theme", async () => {

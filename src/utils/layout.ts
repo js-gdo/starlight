@@ -228,19 +228,21 @@ export async function getLayout(
         paths?: string[];
         sections?: Array<{ label: string; paths: string[] }>;
     }> = [
-        { label: 'Overview', icon: 'fa-house', paths: ['/', '/os', '/server', '/health', '/admin-list'] },
-        { label: 'Community', icon: 'fa-users', paths: ['/benben', '/articles/list', '/ticket/list', '/team', '/messages', '/pm', '/invite'] },
+        { label: t('navGroupOverview'), icon: 'fa-house', paths: ['/', '/os', '/server', '/health', '/admin-list'] },
+        { label: t('navGroupCommunity'), icon: 'fa-users', paths: ['/benben', '/articles/list', '/ticket/list', '/team', '/messages', '/pm', '/invite'] },
         {
-            label: 'Build',
+            label: t('navGroupBuild'),
             icon: 'fa-code',
             sections: [
-                { label: 'Developer tools', paths: ['/judgement', '/clipboard', '/oj'] },
-                { label: 'Competitions', paths: ['/contest', '/leaderboard', '/achievements', '/challenges'] },
+                { label: t('navSectionOnlineJudge'), paths: ['/oj', '/contest', '/oj/propose'] },
+                { label: t('navSectionPermissionHistory'), paths: ['/judgement'] },
+                { label: t('navSectionCrossDeviceTools'), paths: ['/clipboard'] },
+                { label: t('navSectionCommunityProgress'), paths: ['/leaderboard', '/achievements', '/challenges'] },
             ],
         },
-        { label: 'Apps', icon: 'fa-cubes', paths: ['/game', '/ruins', '/space-shop', '/space-station', '/salvage'] },
-        { label: 'Account', icon: 'fa-sliders', paths: ['/redeem', '/search'] },
-        { label: 'Administration', icon: 'fa-shield-halved', paths: ['/backend', '/oj/propose'] },
+        { label: t('navGroupApps'), icon: 'fa-cubes', paths: ['/game', '/ruins', '/space-shop', '/space-station', '/salvage'] },
+        { label: t('navGroupAccount'), icon: 'fa-sliders', paths: ['/redeem', '/search'] },
+        { label: t('navGroupAdministration'), icon: 'fa-shield-halved', paths: ['/backend'] },
     ];
     const matchesSidebarPath = (itemPath: string, paths: string[]) =>
         paths.some(path => itemPath === path || (path === '/backend' && itemPath.startsWith('/backend/')));
@@ -260,7 +262,7 @@ export async function getLayout(
             return `<details class="classic-sidebar-subgroup"${sectionActive ? ' open' : ''}><summary>${htmlEscape(section.label)}<i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div>${items.map(renderSidebarItem).join('')}</div></details>`;
         }).join('');
         const directItems = group.paths ? itemsFor(group.paths).map(renderSidebarItem).join('') : '';
-        return `<details class="classic-sidebar-group"${active || group.label === 'Apps' ? ' open' : ''}><summary><span class="classic-sidebar-group-icon"><i class="fas ${group.icon}" aria-hidden="true"></i></span><span>${htmlEscape(group.label)}</span>${badgeCount ? `<span class="classic-sidebar-badge">${badgeCount}</span>` : ''}<i class="fas fa-chevron-down classic-sidebar-chevron" aria-hidden="true"></i></summary><div class="classic-sidebar-group-items">${directItems}${sectionMarkup}</div></details>`;
+        return `<details class="classic-sidebar-group"${active || group.label === t('navGroupApps') ? ' open' : ''}><summary><span class="classic-sidebar-group-icon"><i class="fas ${group.icon}" aria-hidden="true"></i></span><span>${htmlEscape(group.label)}</span>${badgeCount ? `<span class="classic-sidebar-badge">${badgeCount}</span>` : ''}<i class="fas fa-chevron-down classic-sidebar-chevron" aria-hidden="true"></i></summary><div class="classic-sidebar-group-items">${directItems}${sectionMarkup}</div></details>`;
     };
     const classicSidebarLinks = classicSidebarGroups.map(renderClassicSidebarGroup).join('');
     const useDashboardSidebar = layoutMode === 'classic';
@@ -626,7 +628,7 @@ export async function getLayout(
       gap: 5px;
       border: 1px solid #e5e7eb;
       border-radius: 10px;
-      background: #f9fafb;
+      background: #f9fafb !important;
       color: #1f2937;
       box-shadow: 0 2px 8px rgba(31, 41, 55, .05);
     }
@@ -726,7 +728,18 @@ export async function getLayout(
     body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group > summary > span:not(.classic-sidebar-group-icon),
     body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-chevron,
     body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group-items { display: none; }
-    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group-icon { color: #fff; }
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group-icon { color: #6b7280 !important; }
+    body.layout-classic .classic-sidebar-group-icon,
+    body.layout-classic .classic-sidebar-chevron,
+    body.layout-classic .classic-sidebar-subgroup > summary i,
+    body.layout-classic .classic-sidebar-group-items > a .icon,
+    body.layout-classic .classic-sidebar-subgroup > div > a .icon {
+      color: #6b7280 !important;
+    }
+    body.layout-classic .classic-sidebar-group-items > a.active .icon,
+    body.layout-classic .classic-sidebar-subgroup > div > a.active .icon {
+      color: #f48120 !important;
+    }
     .sidebar-left .sidebar-more summary {
       display: flex;
       flex-direction: column;
