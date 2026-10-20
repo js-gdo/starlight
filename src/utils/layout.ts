@@ -196,14 +196,18 @@ export async function getLayout(
             '/judgement': 'fa-gavel',
             '/clipboard': 'fa-clipboard',
             '/oj': 'fa-code',
+            '/contest': 'fa-trophy',
             '/leaderboard': 'fa-ranking-star',
             '/achievements': 'fa-medal',
+            '/challenges': 'fa-bullseye',
             '/game': 'fa-rocket',
             '/ruins': 'fa-dungeon',
             '/space-shop': 'fa-shop',
             '/space-station': 'fa-satellite',
+            '/salvage': 'fa-crosshairs',
             '/redeem': 'fa-ticket',
             '/search': 'fa-search',
+            '/team': 'fa-users',
             '/team/new': 'fa-users',
             '/messages': 'fa-bell',
             '/pm': 'fa-envelope',
@@ -218,6 +222,49 @@ export async function getLayout(
         ...primaryNavItems.map(renderSidebarItem),
         `<details class="sidebar-more" data-nav-group="other"${moreNavIsActive ? ' open' : ''}><summary class="${moreNavIsActive ? 'active' : ''}"><span class="icon"><i class="fas fa-ellipsis"></i></span><span class="nav-text">其他</span>${moreNavBadgeCount ? `<span class="badge">${moreNavBadgeCount}</span>` : ''}</summary>${moreNavItems.map(renderSidebarItem).join('')}</details>`,
     ].join('');
+    const classicSidebarGroups: Array<{
+        label: string;
+        icon: string;
+        paths?: string[];
+        sections?: Array<{ label: string; paths: string[] }>;
+    }> = [
+        { label: 'Overview', icon: 'fa-house', paths: ['/', '/os', '/server', '/health', '/admin-list'] },
+        { label: 'Community', icon: 'fa-users', paths: ['/benben', '/articles/list', '/ticket/list', '/team', '/messages', '/pm', '/invite'] },
+        {
+            label: 'Build',
+            icon: 'fa-code',
+            sections: [
+                { label: 'Developer tools', paths: ['/judgement', '/clipboard', '/oj'] },
+                { label: 'Competitions', paths: ['/contest', '/leaderboard', '/achievements', '/challenges'] },
+            ],
+        },
+        { label: 'Apps', icon: 'fa-cubes', paths: ['/game', '/ruins', '/space-shop', '/space-station', '/salvage'] },
+        { label: 'Account', icon: 'fa-sliders', paths: ['/redeem', '/search'] },
+        { label: 'Administration', icon: 'fa-shield-halved', paths: ['/backend', '/oj/propose'] },
+    ];
+    const matchesSidebarPath = (itemPath: string, paths: string[]) =>
+        paths.some(path => itemPath === path || (path === '/backend' && itemPath.startsWith('/backend/')));
+    const renderClassicSidebarGroup = (group: typeof classicSidebarGroups[number]) => {
+        const groupItems = navItems.filter(item =>
+            matchesSidebarPath(item.href, group.paths || [])
+            || (group.sections || []).some(section => matchesSidebarPath(item.href, section.paths))
+        );
+        if (!groupItems.length) return '';
+        const active = groupItems.some(item => item.active);
+        const badgeCount = groupItems.reduce((total, item) => total + (item.badge || 0), 0);
+        const itemsFor = (paths: string[]) => navItems.filter(item => matchesSidebarPath(item.href, paths));
+        const sectionMarkup = (group.sections || []).map(section => {
+            const items = itemsFor(section.paths);
+            if (!items.length) return '';
+            const sectionActive = items.some(item => item.active);
+            return `<details class="classic-sidebar-subgroup"${sectionActive ? ' open' : ''}><summary>${htmlEscape(section.label)}<i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div>${items.map(renderSidebarItem).join('')}</div></details>`;
+        }).join('');
+        const directItems = group.paths ? itemsFor(group.paths).map(renderSidebarItem).join('') : '';
+        return `<details class="classic-sidebar-group"${active || group.label === 'Apps' ? ' open' : ''}><summary><span class="classic-sidebar-group-icon"><i class="fas ${group.icon}" aria-hidden="true"></i></span><span>${htmlEscape(group.label)}</span>${badgeCount ? `<span class="classic-sidebar-badge">${badgeCount}</span>` : ''}<i class="fas fa-chevron-down classic-sidebar-chevron" aria-hidden="true"></i></summary><div class="classic-sidebar-group-items">${directItems}${sectionMarkup}</div></details>`;
+    };
+    const classicSidebarLinks = classicSidebarGroups.map(renderClassicSidebarGroup).join('');
+    const useDashboardSidebar = layoutMode === 'classic';
+    const renderedSidebarLinks = useDashboardSidebar ? classicSidebarLinks : sidebarLinks;
 
     const renderTopNavItem = (item: typeof navItems[number], mobile = false) => {
       const icons: Record<string, string> = {
@@ -570,6 +617,116 @@ export async function getLayout(
       position: relative;
     }
     .sidebar-left .sidebar-more { width: 100%; }
+    body.layout-classic .app-layout:not(.sidebar-hover-mode) {
+      grid-template-columns: 236px minmax(0, 1fr) 200px;
+    }
+    body.layout-classic .sidebar-left {
+      align-items: stretch;
+      padding: 10px 10px 8px;
+      gap: 5px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #f9fafb;
+      color: #1f2937;
+      box-shadow: 0 2px 8px rgba(31, 41, 55, .05);
+    }
+    body.layout-classic .sidebar-left .brand {
+      padding: 8px 10px 13px;
+      color: #f48120;
+      border-color: #e5e7eb;
+      text-align: left;
+      font-size: 18px;
+    }
+    body.layout-classic .classic-sidebar-group { width: 100%; }
+    body.layout-classic .classic-sidebar-group > summary {
+      display: flex;
+      min-height: 35px;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 9px;
+      border-radius: 6px;
+      color: #4b5563;
+      cursor: pointer;
+      list-style: none;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    body.layout-classic .classic-sidebar-group > summary::-webkit-details-marker,
+    body.layout-classic .classic-sidebar-subgroup > summary::-webkit-details-marker { display: none; }
+    body.layout-classic .classic-sidebar-group > summary:hover,
+    body.layout-classic .classic-sidebar-group[open] > summary { background: #eef1f4; color: #111827; }
+    body.layout-classic .classic-sidebar-group-icon { width: 16px; color: #6b7280; text-align: center; }
+    body.layout-classic .classic-sidebar-chevron { margin-left: auto; color: #9ca3af; font-size: 9px; transition: transform .15s; }
+    body.layout-classic .classic-sidebar-group[open] > summary .classic-sidebar-chevron,
+    body.layout-classic .classic-sidebar-subgroup[open] > summary i { transform: rotate(180deg); }
+    body.layout-classic .classic-sidebar-badge {
+      min-width: 17px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      background: #dc2626;
+      color: #fff;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    body.layout-classic .classic-sidebar-group-items { padding: 3px 0 5px 8px; }
+    body.layout-classic .classic-sidebar-group-items > a,
+    body.layout-classic .classic-sidebar-subgroup > div > a {
+      min-height: 32px;
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      color: #4b5563;
+      font-size: 11px;
+      text-align: left;
+    }
+    body.layout-classic .classic-sidebar-group-items > a:hover,
+    body.layout-classic .classic-sidebar-subgroup > div > a:hover { color: #111827; background: #eef1f4; }
+    body.layout-classic .classic-sidebar-group-items > a.active,
+    body.layout-classic .classic-sidebar-subgroup > div > a.active {
+      color: #b45309;
+      background: #fff1e6;
+      font-weight: 650;
+    }
+    body.layout-classic .classic-sidebar-group-items > a .icon,
+    body.layout-classic .classic-sidebar-subgroup > div > a .icon {
+      width: 16px;
+      margin: 0;
+      color: #6b7280;
+      text-align: center;
+      font-size: 12px;
+    }
+    body.layout-classic .classic-sidebar-group-items > a.active .icon,
+    body.layout-classic .classic-sidebar-subgroup > div > a.active .icon { color: #f48120; }
+    body.layout-classic .classic-sidebar-group-items .badge { top: 7px; right: 8px; }
+    body.layout-classic .classic-sidebar-subgroup { margin-left: 12px; border-left: 1px solid #d1d5db; }
+    body.layout-classic .classic-sidebar-subgroup > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 9px;
+      color: #6b7280;
+      cursor: pointer;
+      list-style: none;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    body.layout-classic .classic-sidebar-subgroup > summary i { font-size: 9px; transition: transform .15s; }
+    body.layout-classic .classic-sidebar-subgroup > div { padding-left: 5px; }
+    body.layout-classic .sidebar-left .user-section {
+      padding: 10px 4px 2px;
+      border-color: #e5e7eb;
+    }
+    body.layout-classic .sidebar-left .user-name a { color: #374151; }
+    body.layout-classic .sidebar-left .user-section .logout-btn { color: #6b7280; }
+    body.layout-classic .sidebar-left.sidebar-hover-mode:hover { width: 236px; }
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group > summary { justify-content: center; padding: 8px 0; }
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group > summary > span:not(.classic-sidebar-group-icon),
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-chevron,
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group-items { display: none; }
+    body.layout-classic .sidebar-left.sidebar-hover-mode:not(:hover) .classic-sidebar-group-icon { color: #fff; }
     .sidebar-left .sidebar-more summary {
       display: flex;
       flex-direction: column;
@@ -994,6 +1151,52 @@ export async function getLayout(
     }
     body.spa-loading #spa-page-progress { width: 72%; opacity: 1; }
     body.spa-ready #spa-page-progress { width: 100%; opacity: 0; }
+    .instant-notification-overlay[hidden] { display:none; }
+    .instant-notification-overlay {
+      position:fixed;
+      inset:0;
+      z-index:12000;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      background:rgba(15,23,42,.58);
+      backdrop-filter:blur(3px);
+    }
+    .instant-notification-dialog {
+      width:min(460px,100%);
+      overflow:hidden;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#fff;
+      box-shadow:0 24px 70px rgba(15,23,42,.3);
+      color:#1f2937;
+      font-family:Arial,"Microsoft YaHei",sans-serif;
+    }
+    .instant-notification-heading {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:16px 20px;
+      border-bottom:1px solid #eef0f2;
+      font-size:14px;
+      font-weight:700;
+    }
+    .instant-notification-heading i { color:#f48120; }
+    .instant-notification-content { padding:19px 20px; }
+    .instant-notification-content h2 { margin:0 0 9px; color:#111827; font-size:18px; line-height:1.4; overflow-wrap:anywhere; }
+    .instant-notification-content p { margin:0; color:#4b5563; font-size:14px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .instant-notification-actions { display:flex; justify-content:flex-end; gap:8px; padding:0 20px 18px; }
+    .instant-notification-actions button {
+      padding:8px 14px;
+      border:1px solid #d1d5db;
+      border-radius:6px;
+      background:#fff;
+      color:#374151;
+      cursor:pointer;
+      font:inherit;
+      font-size:12px;
+    }
+    .instant-notification-actions button.primary { border-color:#f48120; background:#f48120; color:#fff; }
   </style>
   <style id="user-background-style">${backgroundCss}</style>
   <style id="spa-page-styles" data-spa-route-style="true">${extraStyles}</style>
@@ -1072,7 +1275,7 @@ export async function getLayout(
         ready.catch(function(error) { console.error('Unable to initialize browser mention notifications', error); });
         pollTimer = window.setInterval(function() {
           pollMentions().catch(function(error) { console.error('Unable to check browser mention notifications', error); });
-        }, 30000);
+        }, 3000);
       }
 
       window.toggleBrowserNotifications = async function() {
@@ -1113,6 +1316,87 @@ export async function getLayout(
         var enabled = localStorage.getItem(enabledKey) === '1' && window.Notification.permission === 'granted';
         setButtonState(enabled);
         if (enabled) startPolling(false);
+      });
+    })();
+
+    (function() {
+      var userId = Number(window.__currentUserId || 0);
+      if (!userId) return;
+      var cursorKey = 'starlight-instant-notification-cursor-' + userId;
+      var cursor = Number(localStorage.getItem(cursorKey) || 0);
+      if (!Number.isSafeInteger(cursor) || cursor < 0) cursor = 0;
+      var queue = [];
+      var requestActive = false;
+      var overlay;
+      var title;
+      var content;
+      var counter;
+      var acknowledge;
+
+      function showNext() {
+        if (!overlay || queue.length === 0) {
+          if (overlay) overlay.hidden = true;
+          return;
+        }
+        var message = queue[0];
+        title.textContent = message.title;
+        content.textContent = message.content;
+        counter.textContent = queue.length > 1 ? '还有 ' + (queue.length - 1) + ' 条即时通知' : '';
+        overlay.hidden = false;
+        acknowledge.focus();
+      }
+
+      function dismissCurrent() {
+        queue.shift();
+        showNext();
+      }
+
+      async function poll() {
+        if (requestActive || document.hidden) return;
+        requestActive = true;
+        try {
+          var response = await fetch('/api/noti/poll?after=' + encodeURIComponent(cursor), {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { Accept: 'application/json' }
+          });
+          if (!response.ok) throw new Error('Instant notification poll failed: ' + response.status);
+          var data = await response.json();
+          var notifications = Array.isArray(data.notifications) ? data.notifications : [];
+          notifications.forEach(function(message) {
+            var id = Number(message.id);
+            if (!Number.isSafeInteger(id) || id <= cursor) return;
+            queue.push({ id: id, title: String(message.title || ''), content: String(message.content || '') });
+            cursor = id;
+          });
+          if (notifications.length) localStorage.setItem(cursorKey, String(cursor));
+          showNext();
+        } catch (error) {
+          console.error('Unable to check instant notifications', error);
+        } finally {
+          requestActive = false;
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        overlay = document.getElementById('instantNotificationOverlay');
+        title = document.getElementById('instantNotificationTitle');
+        content = document.getElementById('instantNotificationContent');
+        counter = document.getElementById('instantNotificationCounter');
+        acknowledge = document.getElementById('instantNotificationAcknowledge');
+        if (!overlay || !title || !content || !counter || !acknowledge) return;
+        acknowledge.addEventListener('click', dismissCurrent);
+        overlay.addEventListener('click', function(event) {
+          if (event.target === overlay) dismissCurrent();
+        });
+        document.addEventListener('keydown', function(event) {
+          if (event.key === 'Escape' && !overlay.hidden) dismissCurrent();
+        });
+        poll();
+        window.setInterval(poll, 2000);
+        document.addEventListener('visibilitychange', function() {
+          if (!document.hidden) poll();
+        });
       });
     })();
 
@@ -1669,7 +1953,7 @@ export async function getLayout(
   <div class="app-layout${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}">
     <aside class="sidebar-left${user?.sidebar_mode === 'hover' ? ' sidebar-hover-mode' : ''}" id="sidebarLeft">
       <div class="brand">✦</div>
-      ${sidebarLinks}
+      ${renderedSidebarLinks}
       <div class="user-section">
         ${userSection}
       </div>
@@ -1704,6 +1988,21 @@ export async function getLayout(
     </aside>
   </div>
   <div id="spa-page-progress" aria-hidden="true"></div>
+  ${user ? `
+  <div class="instant-notification-overlay" id="instantNotificationOverlay" role="presentation" hidden>
+    <section class="instant-notification-dialog" role="dialog" aria-modal="true" aria-labelledby="instantNotificationTitle">
+      <header class="instant-notification-heading"><i class="fas fa-bell" aria-hidden="true"></i> 即时通知</header>
+      <div class="instant-notification-content">
+        <h2 id="instantNotificationTitle"></h2>
+        <p id="instantNotificationContent"></p>
+      </div>
+      <div class="instant-notification-actions">
+        <span id="instantNotificationCounter" style="align-self:center;margin-right:auto;color:#6b7280;font-size:12px;"></span>
+        <button class="primary" id="instantNotificationAcknowledge" type="button">知道了</button>
+      </div>
+    </section>
+  </div>
+  ` : ''}
   ${user ? `
   <div id="unknown-egg" role="dialog" aria-modal="true" aria-label="D1 私密档案" aria-hidden="true">
     <div class="unknown-egg-app">

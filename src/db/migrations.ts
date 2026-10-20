@@ -119,6 +119,7 @@ async function createIndexes(db: Env['DB']): Promise<void> {
         'CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket ON ticket_replies (ticket_id)',
         'CREATE INDEX IF NOT EXISTS idx_messages_to_read ON messages (to_user_id, is_read, type)',
         'CREATE INDEX IF NOT EXISTS idx_messages_pair ON messages (from_user_id, to_user_id, id)',
+        'CREATE INDEX IF NOT EXISTS idx_instant_notifications_user_id ON instant_notifications (user_id, id)',
         'CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows (follower_id)',
         'CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows (followee_id)',
         'CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports (reporter_id, status)',
