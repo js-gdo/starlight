@@ -82,8 +82,26 @@ const SALVAGE_STYLES = `
     .salvage-empty{padding:12px;border:1px dashed #42546b;border-radius:9px;color:#9aaac0;font-size:10px;text-align:center}
     .salvage-warning{margin:9px 0;padding:9px 11px;border-left:3px solid #d5a951;border-radius:4px;background:#382f25;color:#f0d9a4;font-size:10px;line-height:1.6}
     .salvage-run-item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #304158;color:#c6d3e2;font-size:9px}
+    .salvage-tactical{border-color:#3a4e62;background:linear-gradient(145deg,#101b28,#182536 58%,#111c2a)}
+    .salvage-stash-grid{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px}
+    .salvage-stash-categories{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+    .salvage-stash-categories span{padding:5px 8px;border:1px solid #354a60;border-radius:5px;background:#101c2a;color:#aabbd0;font-size:9px}
+    .salvage-slot-list{display:grid;gap:7px}
+    .salvage-slot{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:linear-gradient(135deg,#25364a,#172536)!important;border-color:#52677c!important}
+    .salvage-slot.selected{border-color:#e4c172!important;box-shadow:0 0 0 1px #e4c17266}
+    .salvage-slot small{display:block;color:#b7c5d4;font-size:8px;font-weight:400}
+    .salvage-selectable{cursor:pointer}
+    .salvage-item.is-selected{border-color:#e4c172;box-shadow:0 0 0 1px #e4c17266}
+    .salvage-inventory{max-height:620px;overflow:auto;padding-right:3px}
+    .salvage-row-value{color:#e8c87e;font-size:9px}
+    .salvage-tutorial{position:fixed;z-index:9999;inset:0;display:grid;place-items:center;padding:18px;background:#050b13d9}
+    .salvage-tutorial-card{width:min(540px,100%);padding:22px;border:1px solid #536b80;border-radius:16px;background:linear-gradient(145deg,#1a2d40,#101a29);box-shadow:0 24px 80px #000a;color:#edf4ff}
+    .salvage-tutorial-card h2{margin:0 0 8px}
+    .salvage-tutorial-card li{margin:8px 0;color:#bdcada;font-size:12px;line-height:1.6}
+    .salvage-player{filter:drop-shadow(0 2px 4px #050b13aa)}
+    .salvage-player-charge{fill:#8ef3db;stroke:#e0fff8;stroke-width:1}
     @media(max-width:850px){.salvage-grid{grid-template-columns:1fr}}
-    @media(max-width:540px){.salvage-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.salvage-loadout,.salvage-manufacturers{grid-template-columns:1fr}.salvage-kit-grid,.salvage-equipped{grid-template-columns:1fr}.salvage-hero{padding:22px 18px}}
+    @media(max-width:540px){.salvage-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.salvage-loadout,.salvage-manufacturers,.salvage-stash-grid{grid-template-columns:1fr}.salvage-kit-grid,.salvage-equipped{grid-template-columns:1fr}.salvage-hero{padding:22px 18px}}
 `;
 
 function salvageMarkup(): string {
@@ -103,6 +121,9 @@ function salvageMarkup(): string {
             var root=document.getElementById('salvageGame');
             var notice=document.getElementById('salvageNotice');
             var state=null;
+            var selectedGear={backpack:0,weapon:0,armor:0};
+            var selectedStashItem=0;
+            var requestPending=false;
             function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];});}
             function number(value){return new Intl.NumberFormat('zh-CN').format(Number(value)||0);}
             function inventoryKind(kind){return state.items.filter(function(item){return item.kind===kind;});}
@@ -116,7 +137,12 @@ function salvageMarkup(): string {
                 if(kind==='backpack'){
                     art='<path d="M17 20v-4a7 7 0 0 1 14 0v4" fill="none" stroke="'+accent+'" stroke-width="3"/><path d="M13 20h22l3 25H10z" fill="#30495e" stroke="'+accent+'" stroke-width="2"/><path d="M16 25h16v11H16z" fill="#182b3c" stroke="#bfd6e7" stroke-width="1.5"/><path d="M15 41h18" stroke="'+accent+'" stroke-width="2"/>';
                 }else if(kind==='weapon'){
-                    art='<path d="M9 23h22l7 4-7 4H9z" fill="#a5bfd0" stroke="'+accent+'" stroke-width="2"/><path d="M19 31h9l-2 10h-8z" fill="#50677c" stroke="#c8d8e4" stroke-width="1.5"/><path d="M31 21h7v4h-7zM11 20h9v2h-9z" fill="'+accent+'"/><circle cx="15" cy="28" r="2" fill="#203548"/>';
+                    var branch=item.weaponBranch||'pulse';
+                    art=branch==='rail'
+                        ?'<path d="M7 22h27l7 4-7 4H7z" fill="#a5bfd0" stroke="'+accent+'" stroke-width="2"/><path d="M20 30h9l-2 11h-8z" fill="#50677c" stroke="#c8d8e4" stroke-width="1.5"/><path d="M31 19h10v3H31zM10 18h25v2H10z" fill="'+accent+'"/><path d="M13 25h21" stroke="#e9fbff" stroke-width="1.4"/>'
+                        :branch==='scatter'
+                            ?'<path d="M8 23h23l9 4-9 4H8z" fill="#a5bfd0" stroke="'+accent+'" stroke-width="2"/><path d="M18 31h10l-2 11h-9z" fill="#50677c" stroke="#c8d8e4" stroke-width="1.5"/><path d="M30 20h11v3H30zM12 20h9v2h-9z" fill="'+accent+'"/><circle cx="15" cy="27" r="2" fill="#203548"/>'
+                            :'<path d="M9 23h22l7 4-7 4H9z" fill="#a5bfd0" stroke="'+accent+'" stroke-width="2"/><path d="M19 31h9l-2 10h-8z" fill="#50677c" stroke="#c8d8e4" stroke-width="1.5"/><path d="M31 21h7v4h-7zM11 20h9v2h-9z" fill="'+accent+'"/><circle cx="15" cy="28" r="2" fill="#203548"/>';
                 }else if(kind==='armor'){
                     var armorShapes={
                         1:'<path d="M18 19h14l6 7-5 15H15l-5-15z" fill="#3d6270" stroke="'+accent+'" stroke-width="2"/><path d="M18 22 25 28l7-6m-7 6v11" fill="none" stroke="#d8e8ec" stroke-width="2"/>',
@@ -221,23 +247,42 @@ function salvageMarkup(): string {
                 var detail=item.kind==='armor'?'耐久 '+number(item.durability)+' / '+number(item.max_durability):item.kind==='weapon'?'充能 '+number(item.charges):'负重上限 '+number(12+item.tier*6);
                 return '<div class="salvage-kit-card">'+itemSvg(item)+'<div><strong>'+esc(label||item.name)+'</strong><small>'+esc(detail)+' · '+item.tier+' 级</small></div></div>';
             }
-            function selectMarkup(kind,label){
-                var rows=inventoryKind(kind);
-                return '<label>'+label+'<select data-loadout="'+kind+'">'+rows.map(function(item){
-                    var detail=kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):kind==='weapon'?'充能 '+number(item.charges):'负重上限 '+number(12+item.tier*6);
-                    return '<option value="'+item.id+'">'+esc(item.name)+' · '+detail+' · 价值 '+number(item.value)+'</option>';
-                }).join('')+'</select></label>';
+            function playerSvg(run,x,y){
+                var packTier=Math.max(1,Number(run.backpack.tier)||1);
+                var armorTier=Math.max(1,Number(run.armor.tier)||1);
+                var weaponTier=Math.max(1,Number(run.weapon.tier)||1);
+                var armorColor=['#6ca9ae','#79a7ce','#9c8dc8','#d0a561','#d47c68','#a7cc69'][(armorTier-1)%6];
+                var packWidth=10+packTier*1.2;
+                var branch=run.weapon.weaponBranch||'pulse';
+                var weaponShape=branch==='rail'?'<path d="M34 28h17l4 2-4 2H34zM39 31h5l-1 5h-4z"/>'
+                    :branch==='scatter'?'<path d="M34 28h13l6 2-6 2H34zM38 31h5l-1 5h-4z"/>'
+                    :'<path d="M34 28h15l4 2-4 2H34zM39 31h5l-1 5h-4z"/>';
+                var charges=Math.max(0,Number(run.weapon.charges)||0);
+                return '<g class="salvage-player" transform="translate('+(x+2)+' '+(y+2)+')">'+
+                    '<path d="M'+(19-packWidth/2)+' 25h'+packWidth+'v14h-'+packWidth+'z" fill="#273c50" stroke="'+armorColor+'" stroke-width="2"/>'+
+                    '<path d="M20 22 22 16h8l2 6 4 4-3 15H19l-3-15z" fill="'+armorColor+'" stroke="#f0f5ff" stroke-width="1.5"/>'+
+                    '<path d="M22 25h8l2 7H20z" fill="#17283a" stroke="#d8e8ec" stroke-width="1"/>'+
+                    '<circle cx="26" cy="12" r="5.2" fill="#e7c893" stroke="#fff0c8" stroke-width="1.5"/>'+
+                    '<path d="M23 12h6m-3-3v6" stroke="#293b4e" stroke-width="1.2"/>'+
+                    '<g fill="#a9c4d4" stroke="'+armorColor+'" stroke-width="1.5">'+weaponShape+'</g>'+
+                    '<path d="M21 38h10m-8 2-2 5m8-5 2 5" stroke="#d5dfeb" stroke-width="2" stroke-linecap="round"/>'+
+                    '<circle class="salvage-player-charge" cx="39" cy="17" r="5"/><text x="39" y="19.5" text-anchor="middle" font-size="6" font-weight="900" fill="#143044">'+charges+'</text>'+
+                    '<text x="26" y="51" text-anchor="middle" font-size="6" fill="#fff">'+armorTier+'级甲 · '+weaponTier+'级武器</text></g>';
             }
             function itemActions(item){
                 var actions='';
-                if(item.kind==='loot'||item.kind==='material'){
-                    actions+='<button class="gold" data-action="sell" data-id="'+item.id+'" data-quantity="'+item.quantity+'">售出 ×'+item.quantity+'（+'+number(item.value*item.quantity)+'）</button>';
+                if(!state.run&&item.kind==='weapon'&&Number(item.charges)>0){
+                    var unloadable=Math.floor(Number(item.charges)/3);
+                    actions+='<button class="secondary" data-action="unload" data-id="'+item.id+'"'+(unloadable?'':' disabled')+'>卸载 '+unloadable+' 星晶（余 '+(Number(item.charges)%3)+' 次）</button>';
                 }
-                if(item.kind==='weapon'){
+                if(!state.run&&item.kind==='weapon'){
                     actions+='<button class="secondary" data-action="charge" data-id="'+item.id+'">星晶充能</button>';
                 }
-                if(item.kind==='armor'&&item.durability<item.max_durability){
+                if(!state.run&&item.kind==='armor'&&item.durability<item.max_durability){
                     actions+='<button class="secondary" data-action="repair" data-id="'+item.id+'">维修护甲</button>';
+                }
+                if(!state.run&&(item.kind!=='weapon'||Number(item.charges)===0)){
+                    actions+='<button class="gold" data-action="sell" data-id="'+item.id+'" data-quantity="'+item.quantity+'">售出 ×'+item.quantity+'（+'+number(Number(item.sale_value)*Number(item.quantity))+'）</button>';
                 }
                 return actions;
             }
@@ -247,7 +292,8 @@ function salvageMarkup(): string {
                         :item.kind==='weapon'?'充能 '+number(item.charges)
                         :item.kind==='backpack'?'负重上限 '+number(12+item.tier*6)
                         :'数量 '+number(item.quantity)+' · 单件估值 '+number(item.value)+' 星币';
-                    return '<div class="salvage-item"><div class="salvage-item-main">'+itemSvg(item)+'<div><strong>'+esc(item.name)+(item.tier?' · '+item.tier+' 级':'')+'</strong><small>'+esc(condition)+' · '+esc(item.description)+'</small></div></div><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
+                    if(item.kind==='armor'&&Number(item.sale_value)<Number(item.value))condition+=' · 磨损折价 '+number(item.sale_value)+' 星币';
+                    return '<div class="salvage-item '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'"><div class="salvage-item-main">'+itemSvg(item)+'<div><strong>'+esc(item.name)+(item.tier?' · '+item.tier+' 级':'')+'</strong><small>'+esc(condition)+' · '+esc(item.description)+'</small></div></div><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
                 }).join('')+'</div>':'<div class="salvage-empty">仓库暂时空了；购买装备或继续探索补充物资。</div>';
             }
             function renderRun(run){
@@ -265,7 +311,7 @@ function salvageMarkup(): string {
                     var disabled=here||wall||Math.abs(x-run.x)+Math.abs(y-run.y)!==1||blocked;
                     var px=x*72,py=y*72;
                     var label=object?object.name:wall?'隔离墙':'开放舱室';
-                    return '<g class="salvage-map-node" data-action="move" data-x="'+x+'" data-y="'+y+'" role="button" aria-label="'+esc('第 '+(x+1)+' 列第 '+(y+1)+' 行 · '+label)+'" aria-disabled="'+(disabled?'true':'false')+'" tabindex="'+(disabled?'-1':'0')+'"><rect class="map-floor '+((x+y)%2?'alt':'')+'" x="'+(px+2)+'" y="'+(py+2)+'" width="68" height="68" rx="8"/>'+mapFeatureSvg(object,px,py)+(here?'<circle class="map-current-ring" cx="'+(px+36)+'" cy="'+(py+35)+'" r="27"/><g transform="translate('+(px+16)+' '+(py+10)+')"><circle cx="20" cy="13" r="8" fill="#f1d085" stroke="#fff1be" stroke-width="2"/><path d="M7 41q1-17 13-17t13 17z" fill="#e6c576" stroke="#fff1be" stroke-width="2"/><path d="M14 12h12m-6-6v12" stroke="#37475b" stroke-width="2"/></g>':'')+'</g>';
+                    return '<g class="salvage-map-node" data-action="move" data-x="'+x+'" data-y="'+y+'" role="button" aria-label="'+esc('第 '+(x+1)+' 列第 '+(y+1)+' 行 · '+label)+'" aria-disabled="'+(disabled?'true':'false')+'" tabindex="'+(disabled?'-1':'0')+'"><rect class="map-floor '+((x+y)%2?'alt':'')+'" x="'+(px+2)+'" y="'+(py+2)+'" width="68" height="68" rx="8"/>'+mapFeatureSvg(object,px,py)+(here?playerSvg(run,px,py):'')+'</g>';
                 }).join('');
                 var map='<div class="salvage-map-frame"><svg class="salvage-map-svg" viewBox="0 0 '+(width*72)+' '+(height*72)+'" role="group" aria-label="空间站舱室地图">'+cells+'</svg></div>';
                 var controls='';
@@ -279,28 +325,42 @@ function salvageMarkup(): string {
                 }
                 controls+=nearby.map(function(enemy){return '<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'">攻击 '+esc(enemy.name)+'（'+number(enemy.health)+'/'+number(enemy.maxHealth)+' HP）</button>';}).join('');
                 var cargo=run.cargo.length?run.cargo.map(function(item){return '<div class="salvage-run-item"><span class="salvage-item-main">'+itemSvg(item)+'<span>'+esc(item.name)+' ×'+number(item.quantity)+'</span></span><span>'+number(item.weight*item.quantity)+' 负重</span></div>';}).join(''):'<div class="salvage-empty">尚未搜到物资</div>';
-                return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 对局进行中</h2><p>抵达舱站外沿的撤离平台带出装备、药品与搜刮物资。被击败或生命值归零会失去全部入局物品。</p></div><span class="salvage-pill">回合 '+number(run.turn)+'</span></div>'+
+                return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 对局进行中</h2><p>抵达舱站外沿的撤离平台带出装备、药品与搜刮物资。移动耗时 1 分钟，搜索容器耗时 2 分钟；每项操作都会提交至服务器。生命值归零会失去全部入局物品。</p></div><span class="salvage-pill">行动耗时 '+number(run.turn)+' 分钟</span></div>'+
                     '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong>'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包负重</span><strong>'+number(run.cargo_weight)+' / '+number(run.capacity)+'</strong></div><div class="salvage-stat"><span>武器充能</span><strong>'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong>'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
                     '<div class="salvage-bar"><i style="width:'+Math.max(0,Math.min(100,run.health/run.max_health*100))+'%"></i></div>'+
                     map+'<div class="salvage-legend"><span>舱段隔离墙</span><span>服务器机柜</span><span>保险箱 / 补给</span><span>多型巡逻人机</span><span>边缘撤离平台</span></div>'+
-                    (current?'<div class="salvage-object"><strong>当前位置：'+esc(current.name)+'</strong><small>'+(current.kind==='extract'?'到达撤离平台后可以结算本局战利品。':current.kind==='enemy'?'该区域有守卫；攻击附近目标以清理通路。':current.kind==='wall'?'隔离墙不可通行。':'搜索容器有机会获得不同类别的材料与收藏品。')+'</small></div>':'')+
+                    (current?'<div class="salvage-object"><strong>当前位置：'+esc(current.name)+'</strong><small>'+(current.kind==='extract'?'到达撤离平台后可以结算本局战利品。':current.kind==='enemy'?'该区域有守卫；攻击附近目标以清理通路。':current.kind==='wall'?'隔离墙不可通行。':current.searched?'该容器已经搜过。':'搜索耗时 2 分钟，会通过 API 保存战利品。')+'</small></div>':'')+
+                    '<div class="salvage-controls"><span class="salvage-pill">WASD / 方向键移动 · 也可点击地图舱室</span></div>'+
                     '<div class="salvage-controls">'+(controls||'<span class="salvage-pill">移动探索，靠近敌人后攻击</span>')+'<button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
                     '<div class="salvage-object"><strong>本局携带物资</strong>'+cargo+'</div>'+
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后耐久与剩余充能会保留；阵亡则全部遗失。</small></div></section>';
             }
             function renderHideout(){
                 var gear=inventoryKind('backpack').length&&inventoryKind('weapon').length&&inventoryKind('armor').length;
-                var options=gear?'<div class="salvage-loadout">'+selectMarkup('backpack','背包')+selectMarkup('weapon','武器')+selectMarkup('armor','护甲')+'</div>':'<div class="salvage-warning">仓库需要各有一件背包、武器和护甲才能出发。可在下方商店购买；首次档案附有一套 1 级装备。</div>';
                 var ownedGear=inventoryKind('backpack').concat(inventoryKind('weapon'),inventoryKind('armor'));
-                var gearCards=ownedGear.length?'<div class="salvage-kit-grid">'+ownedGear.map(function(item){return equipmentCard(item);}).join('')+'</div>':'';
+                ['backpack','weapon','armor'].forEach(function(kind){
+                    var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind])&&item.kind===kind;});
+                    if(!chosen)selectedGear[kind]=Number((inventoryKind(kind)[0]||{}).id)||0;
+                });
+                var slots='<div class="salvage-slot-list">'+['backpack','weapon','armor'].map(function(kind){
+                    var names={backpack:'背包槽位',weapon:'武器槽位',armor:'护甲槽位'};
+                    var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind]);});
+                    return '<button class="salvage-slot '+(selectedStashItem?'selected':'')+'" data-action="assign-gear" data-kind="'+kind+'">'+
+                        (chosen?itemSvg(chosen):'')+'<span><strong>'+names[kind]+'</strong><small>'+(chosen?esc(chosen.name)+' · '+(kind==='weapon'?'充能 '+number(chosen.charges):kind==='armor'?'耐久 '+number(chosen.durability)+'/'+number(chosen.max_durability):'负重 '+number(12+chosen.tier*6)):'尚未选择')+'</small></span></button>';
+                }).join('')+'</div>';
+                var gearCards=ownedGear.length?'<div class="salvage-list">'+ownedGear.map(function(item){
+                    var detail=item.kind==='weapon'?'充能 '+number(item.charges):item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):'负重上限 '+number(12+item.tier*6);
+                    return '<div class="salvage-item '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'"><button class="salvage-slot salvage-selectable" data-action="select-gear" data-id="'+item.id+'">'+itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(detail)+' · 价值 '+number(item.value)+' 星币</small></span></button><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
+                }).join('')+'</div>':'';
                 var medkits=inventoryKind('medicine').reduce(function(total,item){return total+Number(item.quantity);},0);
-                var zoneCards='<div class="salvage-grid"><div class="salvage-panel"><div class="salvage-heading"><div><h2>选择地图与出战装备</h2><p>每局生成不规则舱站、隔离墙、容器、人机与外沿撤离平台。</p></div></div>'+options+gearCards+
+                var zoneCards='<div class="salvage-grid"><div class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术配装 · 选择地图与出战装备</h2><p>先点击左侧仓库中的装备，再点击右侧对应槽位完成配装。</p></div></div>'+
+                    (gear?'<div class="salvage-stash-grid"><div><div class="salvage-stash-categories"><span>仓库装备 · '+number(ownedGear.length)+' 件</span><span>点击物品选择</span></div>'+gearCards+'</div>'+slots+'</div>':'<div class="salvage-warning">仓库需要各有一件背包、武器和护甲才能出发。可在下方商店购买；首次档案附有一套 1 级装备。</div>')+
                     (gear?'<label class="salvage-inline-field" style="max-width:180px;margin-top:8px">携带急救包（仓库 '+number(medkits)+'）<input type="number" min="0" max="5" value="'+Math.min(2,medkits)+'" data-medkits></label>':'')+
                     '<div class="salvage-controls">'+
                     (gear?'<button data-action="start" data-zone="safe">进入安全区</button><button class="danger" data-action="start" data-zone="chaos">进入混乱区（装备价值需 ≥ '+number(state.zones.chaos.entry_value)+'）</button>':'')+
-                    '</div><div class="salvage-warning">混乱区装备价值门槛按本次携带的背包、武器和护甲计算。护甲减伤、武器伤害和背包负重随等级提升。</div></div>'+
+                    '<button class="secondary" data-action="tutorial">查看行动教程</button></div><div class="salvage-warning">混乱区装备价值门槛按本次携带的背包、武器和护甲计算。移动耗时 1 分钟，搜索耗时 2 分钟；护甲减伤、武器伤害和背包负重随等级提升。</div></div>'+
                     '<div class="salvage-panel"><div class="salvage-heading"><div><h2>装备商店</h2><p>星币独立于其他游戏经济；每级装备均可购买。</p></div></div>'+
-                    '<div class="salvage-list">'+['backpack','weapon','armor'].map(function(kind){var names={backpack:'背包',weapon:'武器',armor:'护甲'};return '<div class="salvage-object"><strong>'+names[kind]+' · 1～6 级</strong><div class="salvage-controls">'+[1,2,3,4,5,6].map(function(tier){var key=kind+'_'+tier;var current=state.items.find(function(item){return item.item_key===key;});var def=state.catalog.find(function(item){return item.key===key;});var price=Math.ceil(({backpack:320,weapon:440,armor:390}[kind])*Math.pow(1.72,tier-1));var stat=kind==='backpack'?'负重 '+(12+tier*6):kind==='weapon'?'伤害 '+(10+tier*7):'减伤 '+(tier*3)+' · 耐久 '+(45+tier*9);return '<button class="secondary" data-action="purchase" data-item="'+key+'">'+itemSvg(def)+'<span>'+tier+'级 · '+esc(def.name)+'<br>'+stat+' · '+number(price)+' 星币'+(current?' ×'+number(current.quantity):'')+'</span></button>';}).join('')+'</div></div>';}).join('')+
+                    '<div class="salvage-list">'+['backpack','weapon','armor'].map(function(kind){var names={backpack:'背包',weapon:'武器',armor:'护甲'};return '<div class="salvage-object"><strong>'+names[kind]+' · 1～6 级</strong><div class="salvage-controls">'+[1,2,3,4,5,6].map(function(tier){return state.catalog.filter(function(def){return def.kind===kind&&def.tier===tier;}).map(function(def){var current=state.items.filter(function(item){return item.item_key===def.key;}).length;var stat=kind==='backpack'?'负重 '+(12+tier*6):kind==='weapon'?'伤害 '+number(def.damage||10+tier*7)+' · '+(def.weaponBranch==='rail'?'磁轨':def.weaponBranch==='scatter'?'散射':'脉冲'): '减伤 '+(tier*3)+' · 耐久 '+(45+tier*9);return '<button class="secondary" data-action="purchase" data-item="'+esc(def.key)+'">'+itemSvg(def)+'<span>'+tier+'级 · '+esc(def.name)+'<br>'+stat+' · '+number(def.price)+' 星币'+(current?' ×'+number(current):'')+'</span></button>';}).join('');}).join('')+'</div></div>';}).join('')+
                     '<div class="salvage-object"><strong>补给与充能材料</strong><div class="salvage-controls"><label class="salvage-inline-field">数量<input type="number" min="1" max="50" value="2" data-supply-quantity></label><button data-action="supplies" data-item="medkit">'+itemSvg(state.catalog.find(function(item){return item.key==='medkit';}))+'购买急救包（80 星币）</button><button class="secondary" data-action="supplies" data-item="star_crystal">'+itemSvg(state.catalog.find(function(item){return item.key==='star_crystal';}))+'购买星晶（45 星币）</button></div></div></div></div></div>';
                 return zoneCards;
             }
@@ -316,9 +376,17 @@ function salvageMarkup(): string {
             function draw(){
                 document.getElementById('salvageWallet').innerHTML='<span>✦ '+number(state.player.star_coins)+' 星币</span><span>✧ '+number(state.player.star_crystals)+' 星晶</span><span>仓库装备估值 '+number(state.player.total_equipment_value)+'</span>';
                 var main=state.run?renderRun(state.run):renderHideout();
-                var stash='<section class="salvage-panel"><div class="salvage-heading"><div><h2>个人仓库</h2><p>安全区物品留在仓库中；只有出发时选择的装备和急救包会带入对局。</p></div><span class="salvage-pill">'+number(state.items.length)+' 格物品</span></div>'+renderInventory()+'</section>';
+                var stash='<section class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术仓库</h2><p>按装备状态管理物资；带磨损耐久的物品会按剩余耐久折价出售。带充能武器要先卸载完整星晶。</p></div><span class="salvage-pill">'+number(state.items.length)+' 格物品</span></div><div class="salvage-stash-categories"><span>装备 / 武器</span><span>医疗补给</span><span>材料 / 收藏品</span><span>出售估值含耐久折价</span></div><div class="salvage-inventory">'+renderInventory()+'</div></section>';
                 var recent=state.history.length?'<div class="salvage-list">'+state.history.map(function(run){return '<div class="salvage-item"><strong>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · '+esc(run.status==='dead'?'阵亡':'已撤离')+'</strong><small>'+esc(new Date(run.ended_at||run.started_at).toLocaleString('zh-CN'))+'</small></div>';}).join('')+'</div>':'<div class="salvage-empty">尚无已结束的对局</div>';
                 document.getElementById('salvageContent').innerHTML=main+stash+(state.run?'':renderCrafting())+'<section class="salvage-panel"><div class="salvage-heading"><div><h2>行动记录</h2><p>最近八局结果</p></div></div>'+recent+'</section>';
+            }
+            function showTutorial(){
+                var overlay=document.createElement('div');
+                overlay.className='salvage-tutorial';
+                overlay.setAttribute('role','dialog');
+                overlay.setAttribute('aria-modal','true');
+                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；武器需要星晶充能。</li><li>对局中可点击相邻舱室或使用 WASD / 方向键移动。每次移动耗时 1 分钟并提交服务器。</li><li>站在服务器、保险箱或补给容器所在舱室时点击搜索；搜索耗时 2 分钟，物资自动进入背包。</li><li>攻击会消耗武器充能并可能磨损护甲。只有抵达撤离平台成功撤离，才能带回本局物品；阵亡会全部丢失。</li><li>仓库物品均可出售；护甲按耐久折价。出售带充能的武器前，先卸载完整星晶。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
+                root.appendChild(overlay);
             }
             async function load(){
                 var response=await fetch('/api/salvage/state',{headers:{Accept:'application/json'}});
@@ -328,6 +396,8 @@ function salvageMarkup(): string {
             }
             function feedback(message,error){notice.textContent=message||'';notice.classList.toggle('error',!!error);}
             async function post(path,payload){
+                if(requestPending)return;
+                requestPending=true;
                 feedback('正在提交空间站指令…',false);
                 try{
                     var response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload||{})});
@@ -335,6 +405,7 @@ function salvageMarkup(): string {
                     if(!response.ok)throw new Error(data.error||'操作失败。');
                     state=data.state;draw();feedback(data.notice||'空间站档案已更新。',false);
                 }catch(error){feedback(error.message||'请求失败，请稍后重试。',true);}
+                finally{requestPending=false;}
             }
             root.addEventListener('click',function(event){
                 var button=event.target.closest('[data-action]');
@@ -343,9 +414,18 @@ function salvageMarkup(): string {
                 var action=button.dataset.action;
                 if(action==='start'){
                     var payload={zone:button.dataset.zone,medkits:Number(root.querySelector('[data-medkits]')?.value||0)};
-                    ['backpack','weapon','armor'].forEach(function(kind){var select=root.querySelector('[data-loadout="'+kind+'"]');payload[kind+'_id']=select?Number(select.value):0;});
+                    ['backpack','weapon','armor'].forEach(function(kind){payload[kind+'_id']=Number(selectedGear[kind])||0;});
                     post('/api/salvage/start',payload);return;
                 }
+                if(action==='select-gear'){selectedStashItem=Number(button.dataset.id);draw();return;}
+                if(action==='assign-gear'){
+                    var selected=state.items.find(function(item){return Number(item.id)===Number(selectedStashItem);});
+                    if(!selected){feedback('请先点击仓库中的一件装备。',true);return;}
+                    if(selected.kind!==button.dataset.kind){feedback('装备类型与目标槽位不匹配，请选择对应类型的物品。',true);return;}
+                    selectedGear[selected.kind]=selected.id;selectedStashItem=0;draw();feedback('已将'+selected.name+'装入'+({backpack:'背包',weapon:'武器',armor:'护甲'}[selected.kind])+'槽位。',false);return;
+                }
+                if(action==='tutorial'){showTutorial();return;}
+                if(action==='close-tutorial'){button.closest('.salvage-tutorial').remove();localStorage.setItem('salvage-tutorial-seen','1');return;}
                 if(action==='move'){post('/api/salvage/move',{x:Number(button.dataset.x),y:Number(button.dataset.y)});return;}
                 if(action==='attack'){post('/api/salvage/attack',{object_id:button.dataset.id});return;}
                 if(action==='search'){post('/api/salvage/search',{});return;}
@@ -354,6 +434,7 @@ function salvageMarkup(): string {
                 if(action==='purchase'){post('/api/salvage/purchase',{item:button.dataset.item});return;}
                 if(action==='supplies'){post('/api/salvage/supplies',{item:button.dataset.item,quantity:Number(root.querySelector('[data-supply-quantity]').value)});return;}
                 if(action==='sell'){post('/api/salvage/sell',{item_id:Number(button.dataset.id),quantity:Number(button.dataset.quantity)});return;}
+                if(action==='unload'){post('/api/salvage/unload',{item_id:Number(button.dataset.id)});return;}
                 if(action==='repair'){post('/api/salvage/repair',{item_id:Number(button.dataset.id)});return;}
                 if(action==='charge'){
                     var amount=Number(prompt('当前有 '+number(state.player.star_crystals)+' 个星晶。每个星晶可提供 3 次攻击充能，请输入充能数量：',String(Math.min(3,state.player.star_crystals))));
@@ -368,7 +449,20 @@ function salvageMarkup(): string {
                     event.preventDefault();event.target.click();
                 }
             });
-            load().catch(function(error){feedback(error.message||'空间站档案暂不可用。',true);});
+            document.addEventListener('keydown',function(event){
+                if(!state||!state.run||requestPending||event.repeat||event.altKey||event.ctrlKey||event.metaKey)return;
+                var target=event.target;
+                if(target&&target.closest&&target.closest('input,select,textarea,[contenteditable="true"],button:not(.salvage-map-node)'))return;
+                var direction={w:[0,-1],W:[0,-1],ArrowUp:[0,-1],s:[0,1],S:[0,1],ArrowDown:[0,1],a:[-1,0],A:[-1,0],ArrowLeft:[-1,0],d:[1,0],D:[1,0],ArrowRight:[1,0]}[event.key];
+                if(!direction)return;
+                var x=state.run.x+direction[0],y=state.run.y+direction[1];
+                var node=root.querySelector('.salvage-map-node[data-x="'+x+'"][data-y="'+y+'"][aria-disabled="false"]');
+                if(!node)return;
+                event.preventDefault();post('/api/salvage/move',{x:x,y:y});
+            });
+            load().then(function(){
+                if(localStorage.getItem('salvage-tutorial-seen')!=='1')showTutorial();
+            }).catch(function(error){feedback(error.message||'空间站档案暂不可用。',true);});
             window.setInterval(function(){if(!state||!state.run)load().catch(function(error){feedback(error.message||'档案刷新失败。',true);});},15000);
         }());
         </script>`;

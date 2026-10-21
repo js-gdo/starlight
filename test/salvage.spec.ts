@@ -39,6 +39,10 @@ describe("space-station salvage game", () => {
 		expect(pageHtml).toContain("空间站搜刮行动");
 		expect(pageHtml).toContain("map-wall");
 		expect(pageHtml).toContain("function itemSvg");
+		expect(pageHtml).toContain("salvage-tutorial-seen");
+		expect(pageHtml).toContain("ArrowUp");
+		expect(pageHtml).toContain("assign-gear");
+		expect(pageHtml).toContain("playerSvg");
 
 		const initial = await request("/api/salvage/state");
 		expect(initial.status).toBe(200);
@@ -51,6 +55,8 @@ describe("space-station salvage game", () => {
 		expect(initialState.catalog.length).toBeGreaterThanOrEqual(40);
 		expect(initialState.catalog.some((item) => item.key === "starlight_crown" && item.kind === "loot")).toBe(true);
 		expect(initialState.catalog.some((item) => item.key === "armor_6" && item.name.includes("星铸"))).toBe(true);
+		expect(initialState.catalog.some((item) => item.key === "weapon_rail_1" && item.name.includes("磁轨"))).toBe(true);
+		expect(initialState.catalog.some((item) => item.key === "weapon_scatter_6" && item.name.includes("散射"))).toBe(true);
 		const findId = (key: string) => {
 			const row = initialState.items.find((entry) => entry.item_key === key);
 			if (!row) throw new Error(`Missing starter item ${key}`);
@@ -106,8 +112,9 @@ describe("space-station salvage game", () => {
 		const search = await request("/api/salvage/search", {});
 		expect(search.status).toBe(200);
 		const searchedState = await search.json() as {
-			run: { cargo: Array<{ key: string; quantity: number }> };
+			run: { turn: number; cargo: Array<{ key: string; quantity: number }> };
 		};
+		expect(searchedState.run.turn).toBe(2);
 		expect(searchedState.run.cargo.some((entry) => [
 			"circuit_board", "data_core", "data_fragment", "quantum_cell", "plasma_coil", "optic_lens",
 		].includes(entry.key))).toBe(true);
@@ -119,7 +126,9 @@ describe("space-station salvage game", () => {
 		await env.DB.prepare(
 			"UPDATE salvage_runs SET x = ?, y = ? WHERE user_id = ? AND status = 'active'"
 		).bind(exitNeighbor.x, exitNeighbor.y, userId).run();
-		expect((await request("/api/salvage/move", { x: exit.x, y: exit.y })).status).toBe(200);
+		const movedToExit = await request("/api/salvage/move", { x: exit.x, y: exit.y });
+		expect(movedToExit.status).toBe(200);
+		expect(((await movedToExit.json()) as { run: { turn: number } }).run.turn).toBe(3);
 		const extracted = await request("/api/salvage/extract", {});
 		expect(extracted.status).toBe(200);
 		const hideout = await extracted.json() as {
@@ -136,17 +145,55 @@ describe("space-station salvage game", () => {
 		expect((await request("/api/salvage/repair", { item_id: repairTarget.id })).status).toBe(200);
 		const repaired = await request("/api/salvage/state");
 		const repairedState = await repaired.json() as {
-			items: Array<{ id: number; item_key: string; durability: number; max_durability: number }>;
+			items: Array<{ id: number; item_key: string; durability: number; max_durability: number; sale_value: number }>;
 			jobs: Array<{ id: number; category: string }>;
 		};
 		expect(repairedState.items.find((entry) => entry.item_key === "armor_1")).toMatchObject({
 			durability: 49,
 			max_durability: 49,
+			sale_value: 272,
 		});
 
 		const saleTarget = repairedState.items.find((entry) => ["circuit_board", "data_core", "quantum_cell"].includes(entry.item_key));
 		if (!saleTarget) throw new Error("The server container did not return a sellable item.");
 		expect((await request("/api/salvage/sell", { item_id: saleTarget.id, quantity: saleTarget.quantity })).status).toBe(200);
+
+		const weapon = repairedState.items.find((entry) => entry.item_key === "weapon_1");
+		if (!weapon) throw new Error("The extracted weapon was not returned to the stash.");
+		expect((await request("/api/salvage/sell", { item_id: weapon.id, quantity: 1 })).status).toBe(409);
+		const unloaded = await request("/api/salvage/unload", { item_id: weapon.id });
+		expect(unloaded.status).toBe(200);
+		const unloadedState = await unloaded.json() as {
+			player: { star_crystals: number };
+			items: Array<{ id: number; charges: number }>;
+		};
+		expect(unloadedState.player.star_crystals).toBe(10);
+		expect(unloadedState.items.find((entry) => entry.id === weapon.id)?.charges).toBe(0);
+
+		const purchaseArmor = await request("/api/salvage/purchase", { item: "armor_1" });
+		expect(purchaseArmor.status).toBe(200);
+		const armorPurchaseState = await purchaseArmor.json() as {
+			items: Array<{ id: number; item_key: string; sale_value: number }>;
+		};
+		const wornArmor = armorPurchaseState.items.filter((entry) => entry.item_key === "armor_1").slice(-1)[0];
+		if (!wornArmor) throw new Error("The purchased armor was not added to the stash.");
+		await env.DB.prepare("UPDATE salvage_inventory SET durability = 27 WHERE id = ?").bind(wornArmor.id).run();
+		const wornStateResponse = await request("/api/salvage/state");
+		const wornState = await wornStateResponse.json() as {
+			items: Array<{ id: number; item_key: string; sale_value: number }>;
+		};
+		expect(wornState.items.find((entry) => entry.id === wornArmor.id)?.sale_value).toBe(150);
+		expect((await request("/api/salvage/sell", { item_id: wornArmor.id, quantity: 1 })).status).toBe(200);
+
+		const purchaseRail = await request("/api/salvage/purchase", { item: "weapon_rail_1" });
+		expect(purchaseRail.status).toBe(200);
+		const railState = await purchaseRail.json() as {
+			items: Array<{ id: number; item_key: string; charges: number }>;
+		};
+		const railWeapon = railState.items.find((entry) => entry.item_key === "weapon_rail_1");
+		if (!railWeapon) throw new Error("The rail weapon was not added to the stash.");
+		expect(railWeapon.charges).toBe(0);
+		expect((await request("/api/salvage/sell", { item_id: railWeapon.id, quantity: 1 })).status).toBe(200);
 
 		const crafted = await request("/api/salvage/craft", { item: "backpack_1" });
 		expect(crafted.status).toBe(200);
@@ -169,7 +216,7 @@ describe("space-station salvage game", () => {
 			armor_id: secondState.items.find((entry) => entry.item_key === "armor_1")!.id,
 		};
 		expect((await request("/api/salvage/charge", { item_id: secondLoadout.weapon_id, crystals: 1 })).status).toBe(200);
-		expect(secondState.player.star_crystals).toBe(8);
+		expect(secondState.player.star_crystals).toBe(10);
 		expect((await request("/api/salvage/start", { ...secondLoadout, zone: "safe", medkits: 1 })).status).toBe(200);
 		const secondRunResponse = await request("/api/salvage/state");
 		const secondRunState = await secondRunResponse.json() as {
