@@ -11,6 +11,8 @@ type ItemDefinition = {
     price: number;
     weight: number;
     maxDurability?: number;
+    weaponBranch?: 'pulse' | 'rail' | 'scatter';
+    damage?: number;
     description: string;
 };
 type InventoryRow = {
@@ -107,11 +109,11 @@ function addItem(item: ItemDefinition): void {
 ].forEach(item => addItem({ ...item, price: 0 }));
 
 addItem({
-    key: 'medkit', name: '急救包', kind: 'medicine', tier: 1, value: 0, price: 80, weight: 2,
+    key: 'medkit', name: '急救包', kind: 'medicine', tier: 1, value: 40, price: 80, weight: 2,
     description: '对局中使用可恢复 45 点生命值。',
 });
 addItem({
-    key: 'star_crystal', name: '星晶', kind: 'crystal', tier: 1, value: 0, price: 45, weight: 1,
+    key: 'star_crystal', name: '星晶', kind: 'crystal', tier: 1, value: 30, price: 45, weight: 1,
     description: '制造材料或购买武器充能；对局内的星晶必须成功撤离才能带出。',
 });
 
@@ -124,15 +126,39 @@ for (let tier = 1; tier <= 6; tier++) {
         description: `负重上限 ${12 + tier * 6}。`,
     });
     addItem({
-        key: `weapon_${tier}`, name: `${tier} 级脉冲武器`, kind: 'weapon', tier,
+        key: `weapon_${tier}`, name: `${tier} 级脉冲步枪`, kind: 'weapon', tier,
         value: Math.ceil(360 * multiplier), price: Math.ceil(440 * multiplier), weight: 3,
-        description: `每次攻击消耗 1 点武器充能；伤害 ${10 + tier * 7}。`,
+        weaponBranch: 'pulse', damage: 10 + tier * 7,
+        description: `脉冲步枪 · 均衡射速与伤害；每次攻击消耗 1 点充能，伤害 ${10 + tier * 7}。`,
     });
     addItem({
         key: `armor_${tier}`, name: `${tier} 级${armorNames[tier - 1]}`, kind: 'armor', tier,
         value: Math.ceil(300 * multiplier), price: Math.ceil(390 * multiplier), weight: 4,
         maxDurability: 45 + tier * 9, description: `耐久 ${45 + tier * 9}，提供 ${tier * 3} 点护甲减伤。`,
     });
+}
+
+const WEAPON_BRANCHES = [
+    { key: 'rail', name: '磁轨长枪', damage: 15, priceScale: 1.12, description: '高伤害，适合远距离精确打击。' },
+    { key: 'scatter', name: '散射霰炮', damage: 7, priceScale: 0.92, description: '近距离高频输出，单发伤害较低。' },
+] as const;
+
+for (let tier = 1; tier <= 6; tier++) {
+    for (const branch of WEAPON_BRANCHES) {
+        const multiplier = Math.pow(1.72, tier - 1);
+        addItem({
+            key: `weapon_${branch.key}_${tier}`,
+            name: `${tier} 级${branch.name}`,
+            kind: 'weapon',
+            tier,
+            value: Math.ceil(360 * multiplier * branch.priceScale),
+            price: Math.ceil(440 * multiplier * branch.priceScale),
+            weight: 3,
+            weaponBranch: branch.key,
+            damage: branch.damage + (tier - 1) * (branch.key === 'rail' ? 8 : 5),
+            description: `${branch.description} 每次攻击消耗 1 点充能，伤害 ${branch.damage + (tier - 1) * (branch.key === 'rail' ? 8 : 5)}。`,
+        });
+    }
 }
 
 const RECIPES: CraftRecipe[] = [
@@ -157,6 +183,26 @@ const RECIPES: CraftRecipe[] = [
     { category: 'armor', categoryName: '护甲制造商', key: 'armor_6', name: '6 级星铸堡垒甲', minutes: 200, requirements: { alloy_plate: 12, fiber_bundle: 10, quantum_cell: 5 }, quantity: 1 },
     { category: 'medicine', categoryName: '药品制造商', key: 'medkit', name: '急救包 ×2', minutes: 6, requirements: { med_gel: 2, fiber_bundle: 1 }, quantity: 2 },
 ];
+
+for (const branch of WEAPON_BRANCHES) {
+    for (let tier = 1; tier <= 6; tier++) {
+        const key = `weapon_${branch.key}_${tier}`;
+        const requirements: Record<string, number> = {
+            circuit_board: 3 + (tier - 1) * 2,
+            alloy_plate: 2 + (tier - 1) * 2,
+        };
+        if (tier > 1) requirements.quantum_cell = tier - 1;
+        RECIPES.push({
+            category: 'weapon',
+            categoryName: '武器制造商',
+            key,
+            name: `${tier} 级${branch.name}`,
+            minutes: Math.ceil(10 * Math.pow(1.8, tier - 1)),
+            requirements,
+            quantity: 1,
+        });
+    }
+}
 
 const ZONES = {
     safe: { name: '安全区', entryValue: 0, enemyHealth: [30, 42], enemyAttack: [7, 11], lootTier: [1, 3] },
@@ -394,7 +440,18 @@ async function getState(env: Env, userId: number) {
         env.DB.prepare("SELECT zone, status, started_at, ended_at FROM salvage_runs WHERE user_id = ? AND status != 'active' ORDER BY id DESC LIMIT 8")
             .bind(userId).all<any>(),
     ]);
-    const items = (inventory.results || []).map(row => ({ ...row, ...item(row.item_key) }));
+    const items = (inventory.results || []).map(row => {
+        const definition = item(row.item_key);
+        const saleMaximum = definition.maxDurability || row.max_durability;
+        const condition = saleMaximum > 0
+            ? Math.max(0, Math.min(1, row.durability / saleMaximum))
+            : 1;
+        return {
+            ...row,
+            ...definition,
+            sale_value: Math.floor(definition.value * condition),
+        };
+    });
     let run = null;
     if (activeRun) {
         const objects = safeJson<MapObject[]>(activeRun.map_json, []);
@@ -551,13 +608,20 @@ async function sellLoot(env: Env, player: PlayerRow, body: Record<string, unknow
     const quantity = Number(body.quantity);
     const row = await env.DB.prepare('SELECT * FROM salvage_inventory WHERE id = ? AND user_id = ?')
         .bind(id, player.user_id).first<InventoryRow>();
-    if (!row || item(row.item_key).kind !== 'loot' && item(row.item_key).kind !== 'material') {
-        return jsonRes({ error: '只有仓库中的收藏品和收集材料可以出售。' }, 400);
+    if (!row) {
+        return jsonRes({ error: '请选择仓库中的有效物品。' }, 400);
+    }
+    if (item(row.item_key).kind === 'weapon' && row.charges > 0) {
+        return jsonRes({ error: '请先卸载武器中的星晶充能，再出售武器。' }, 409);
     }
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > Number(row.quantity)) {
         return jsonRes({ error: '出售数量无效。' }, 400);
     }
-    const earned = item(row.item_key).value * quantity;
+    const saleMaximum = item(row.item_key).maxDurability || row.max_durability;
+    const condition = saleMaximum > 0
+        ? Math.max(0, Math.min(1, row.durability / saleMaximum))
+        : 1;
+    const earned = Math.floor(item(row.item_key).value * condition) * quantity;
     const token = crypto.randomUUID();
     const result = await env.DB.batch([
         env.DB.prepare(`
@@ -580,7 +644,37 @@ async function sellLoot(env: Env, player: PlayerRow, body: Record<string, unknow
     if (Number(result[0]?.meta?.changes || 0) !== 1 || Number(result[1]?.meta?.changes || 0) !== 1) {
         return jsonRes({ error: '物品或仓库状态已变化，请刷新后重试。' }, 409);
     }
-    return jsonRes({ ok: true, notice: `出售成功，获得 ${earned} 星币。`, state: await getState(env, player.user_id) });
+    return jsonRes({ ok: true, notice: `出售成功，获得 ${earned} 星币${condition < 1 ? '（已按耐久折价）' : ''}。`, state: await getState(env, player.user_id) });
+}
+
+async function unloadWeapon(env: Env, player: PlayerRow, body: Record<string, unknown>): Promise<Response> {
+    const id = Number(body.item_id);
+    const weapon = await env.DB.prepare(
+        'SELECT * FROM salvage_inventory WHERE id = ? AND user_id = ?'
+    ).bind(id, player.user_id).first<InventoryRow>();
+    if (!weapon || item(weapon.item_key).kind !== 'weapon') {
+        return jsonRes({ error: '请选择仓库中的有效武器。' }, 400);
+    }
+    const crystals = Math.floor(weapon.charges / 3);
+    if (crystals < 1) return jsonRes({ error: '至少需要 3 点充能才能卸载 1 个完整星晶；剩余充能仍保留在武器中。' }, 409);
+    const token = crypto.randomUUID();
+    const result = await env.DB.batch([
+        env.DB.prepare(`
+            UPDATE salvage_players SET star_crystals = star_crystals + ?, last_action_token = ?
+            WHERE user_id = ? AND last_action_token = ?
+              AND NOT EXISTS (SELECT 1 FROM salvage_runs WHERE user_id = ? AND status = 'active')
+              AND EXISTS (SELECT 1 FROM salvage_inventory WHERE id = ? AND user_id = ? AND charges >= ?)
+        `).bind(crystals, token, player.user_id, player.last_action_token, player.user_id, id, player.user_id, crystals * 3),
+        env.DB.prepare(`
+            UPDATE salvage_inventory SET charges = charges - ?
+            WHERE id = ? AND user_id = ? AND charges >= ?
+              AND EXISTS (SELECT 1 FROM salvage_players WHERE user_id = ? AND last_action_token = ?)
+        `).bind(crystals * 3, id, player.user_id, crystals * 3, player.user_id, token),
+    ]);
+    if (Number(result[0]?.meta?.changes || 0) !== 1 || Number(result[1]?.meta?.changes || 0) !== 1) {
+        return jsonRes({ error: '武器或仓库状态已变化，请刷新后重试。' }, 409);
+    }
+    return jsonRes({ ok: true, notice: `已卸载 ${crystals} 个完整星晶；不足 3 次的剩余充能保留在武器中。`, state: await getState(env, player.user_id) });
 }
 
 async function repairArmor(env: Env, player: PlayerRow, body: Record<string, unknown>): Promise<Response> {
@@ -852,11 +946,11 @@ async function startRun(env: Env, player: PlayerRow, body: Record<string, unknow
 async function updateRun(
     env: Env,
     run: RunRow,
-    changes: { x?: number; y?: number; health?: number; map?: MapObject[]; cargo?: CargoItem[]; kit?: unknown; status?: RunRow['status']; ended?: boolean },
+    changes: { x?: number; y?: number; health?: number; map?: MapObject[]; cargo?: CargoItem[]; kit?: unknown; status?: RunRow['status']; ended?: boolean; turnCost?: number },
 ): Promise<boolean> {
     const result = await env.DB.prepare(`
         UPDATE salvage_runs
-        SET x = ?, y = ?, health = ?, turn = turn + 1, status = ?,
+        SET x = ?, y = ?, health = ?, turn = turn + ?, status = ?,
             map_json = ?, cargo_json = ?, kit_json = ?,
             ended_at = CASE WHEN ? THEN ? ELSE ended_at END
         WHERE id = ? AND user_id = ? AND status = 'active' AND turn = ?
@@ -864,6 +958,7 @@ async function updateRun(
         changes.x ?? run.x,
         changes.y ?? run.y,
         changes.health ?? run.health,
+        changes.turnCost ?? 1,
         changes.status ?? run.status,
         JSON.stringify(changes.map ?? safeJson<MapObject[]>(run.map_json, [])),
         JSON.stringify(changes.cargo ?? safeJson<CargoItem[]>(run.cargo_json, [])),
@@ -931,7 +1026,7 @@ async function searchContainer(run: RunRow, env: Env): Promise<Response> {
     object.searched = true;
     object.loot = [];
     const nextCargo = mergeCargo(cargo, added);
-    if (!await updateRun(env, run, { map: objects, cargo: nextCargo })) {
+    if (!await updateRun(env, run, { map: objects, cargo: nextCargo, turnCost: 2 })) {
         return jsonRes({ error: '对局状态已变化，请刷新后继续。' }, 409);
     }
     const names = added.map(entry => `${item(entry.key).name} ×${entry.quantity}`).join('、');
@@ -957,7 +1052,7 @@ async function attack(run: RunRow, env: Env, body: Record<string, unknown>): Pro
     if (!enemy) return jsonRes({ error: '当前位置没有存活的敌人。' }, 409);
     const kit = loadout(run);
     if (kit.weapon.charges < 1) return jsonRes({ error: '武器充能不足；请撤离后购买星晶并为武器充能。' }, 409);
-    const damage = 10 + kit.weaponTier * 7;
+    const damage = item(kit.weapon.key).damage || 10 + kit.weaponTier * 7;
     kit.weapon.charges -= 1;
     enemy.health = Math.max(0, Number(enemy.health) - damage);
     const cargo = safeJson<CargoItem[]>(run.cargo_json, []);
@@ -1055,6 +1150,7 @@ export async function handleSalvage(request: Request, env: Env, path: string): P
     if (path === '/api/salvage/purchase') return purchase(env, player, body);
     if (path === '/api/salvage/supplies') return buySupplies(env, player, body);
     if (path === '/api/salvage/charge') return chargeWeapon(env, player, body);
+    if (path === '/api/salvage/unload') return unloadWeapon(env, player, body);
     if (path === '/api/salvage/sell') return sellLoot(env, player, body);
     if (path === '/api/salvage/repair') return repairArmor(env, player, body);
     if (path === '/api/salvage/craft') return startCraft(env, player, body);
