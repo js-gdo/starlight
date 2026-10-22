@@ -475,6 +475,7 @@ async function getState(env: Env, userId: number) {
             weapon: { ...kit.weapon, ...item(kit.weapon.key), durability: kit.weapon.durability },
             armor: { ...kit.armor, ...item(kit.armor.key), durability: kit.armor.durability },
             objects: objects.map(({ loot, ...object }) => object),
+            client_objects: objects,
             current_object: publicMapObject(objects.find(object => object.x === activeRun.x && object.y === activeRun.y) || null),
         };
     }
@@ -1131,7 +1132,153 @@ async function extract(run: RunRow, env: Env): Promise<Response> {
     if (Number(result[0]?.meta?.changes || 0) !== 1 || Number(result[1]?.meta?.changes || 0) !== 1) {
         return jsonRes({ error: '撤离状态已变化，请刷新后重试。' }, 409);
     }
+
     return jsonRes({ ok: true, notice: '已成功撤离；带回的装备和收集品已存入仓库，星晶已入账。', state: await getState(env, run.user_id) });
+}
+
+async function finishClientRun(run: RunRow, env: Env, body: Record<string, unknown>): Promise<Response> {
+        const result = body.result as Record<string, unknown> | undefined;
+        if (!result || Number(result.run_id) !== run.id) {
+            return jsonRes({ error: '对局记录无效或已过期，请刷新档案后重试。' }, 400);
+        }
+        const status = result.status;
+        if (status !== 'extracted' && status !== 'dead') {
+            return jsonRes({ error: '对局必须以成功撤离或阵亡结束。' }, 400);
+        }
+        const x = Number(result.x);
+        const y = Number(result.y);
+        const health = Number(result.health);
+        const turn = Number(result.turn);
+        if (![x, y, health, turn].every(Number.isSafeInteger) || turn < 0 || turn > 10000) {
+            return jsonRes({ error: '对局坐标或行动记录无效。' }, 400);
+        }
+
+        const originalObjects = safeJson<MapObject[]>(run.map_json, []);
+        const submittedObjects = result.objects;
+        if (!Array.isArray(submittedObjects) || submittedObjects.length !== originalObjects.length) {
+            return jsonRes({ error: '地图记录不完整，无法结算。' }, 400);
+        }
+        const resolvedObjects = originalObjects.map(original => {
+            const submitted = submittedObjects.find((entry: unknown) =>
+                Boolean(entry) && typeof entry === 'object' && (entry as Record<string, unknown>).id === original.id
+            ) as Record<string, unknown> | undefined;
+            if (!submitted || submitted.kind !== original.kind
+                || Number(submitted.x) !== original.x || Number(submitted.y) !== original.y) {
+                return null;
+            }
+            if (original.kind === 'enemy') {
+                const enemyHealth = Number(submitted.health);
+                if (!Number.isSafeInteger(enemyHealth) || enemyHealth < 0 || enemyHealth > Number(original.maxHealth || 0)
+                    || Boolean(submitted.defeated) !== (enemyHealth === 0)) return null;
+                return { ...original, health: enemyHealth, defeated: enemyHealth === 0 };
+            }
+            if (['server', 'safe', 'medical', 'supply'].includes(original.kind)) {
+                if (typeof submitted.searched !== 'boolean') return null;
+                return { ...original, searched: submitted.searched };
+            }
+            return original;
+        });
+        if (resolvedObjects.some(object => object === null)) {
+            return jsonRes({ error: '地图状态无效，无法结算。' }, 400);
+        }
+        const objects = resolvedObjects as MapObject[];
+        const tile = (originalObjects.some(object => object.kind === 'wall') ? STATION_TILES : LEGACY_TILES)
+            .some(candidate => candidate.x === x && candidate.y === y);
+        if (!tile || objects.some(object => object.kind === 'wall' && object.x === x && object.y === y)
+            || objects.some(object => object.kind === 'enemy' && !object.defeated && object.x === x && object.y === y)) {
+            return jsonRes({ error: '结算位置不在有效的开放舱室。' }, 400);
+        }
+        if (status === 'extracted') {
+            const exit = objects.find(object => object.kind === 'extract');
+            if (!exit || exit.x !== x || exit.y !== y || health < 1 || health > run.max_health) {
+                return jsonRes({ error: '只有在撤离点存活时才能结算成功撤离。' }, 409);
+            }
+        } else if (health !== 0) {
+            return jsonRes({ error: '阵亡记录必须包含 0 点生命值。' }, 400);
+        }
+
+        const initialKit = loadout(run);
+        const submittedKit = result.kit as Record<string, CargoItem> | undefined;
+        if (!submittedKit || ['backpack', 'weapon', 'armor'].some(kind => {
+            const initial = initialKit[kind as 'backpack' | 'weapon' | 'armor'];
+            const submitted = submittedKit[kind] as CargoItem | undefined;
+            return !submitted || submitted.key !== initial.key || submitted.quantity !== 1
+                || submitted.maxDurability !== initial.maxDurability
+                || !Number.isSafeInteger(submitted.durability) || submitted.durability < 0
+                || submitted.durability > initial.durability
+                || !Number.isSafeInteger(submitted.charges) || submitted.charges < 0
+                || submitted.charges > initial.charges;
+        })) {
+            return jsonRes({ error: '出战装备记录无效。' }, 400);
+        }
+        const cargo = result.cargo;
+        if (!Array.isArray(cargo) || cargo.length > 100) return jsonRes({ error: '背包记录无效。' }, 400);
+        const allowedLoot = safeJson<CargoItem[]>(run.cargo_json, []).map(entry => ({ ...entry }));
+        for (const object of objects) {
+            if ((object.kind === 'enemy' && object.defeated)
+                || (['server', 'safe', 'medical', 'supply'].includes(object.kind) && object.searched)) {
+                allowedLoot.push(...(object.loot || []));
+            }
+        }
+        for (const entry of cargo as CargoItem[]) {
+            if (!entry || typeof entry.key !== 'string' || !ITEMS[entry.key]
+                || !Number.isSafeInteger(entry.quantity) || entry.quantity < 1 || entry.quantity > 1000
+                || !Number.isSafeInteger(entry.durability) || entry.durability < 0
+                || !Number.isSafeInteger(entry.maxDurability) || entry.maxDurability < 0
+                || !Number.isSafeInteger(entry.charges) || entry.charges < 0) {
+                return jsonRes({ error: '背包中包含无效物品。' }, 400);
+            }
+            const matching = allowedLoot.filter(allowed => allowed.key === entry.key
+                && allowed.durability === entry.durability
+                && allowed.maxDurability === entry.maxDurability
+                && allowed.charges === entry.charges)
+                .reduce((sum, allowed) => sum + allowed.quantity, 0);
+            const submittedQuantity = (cargo as CargoItem[]).filter(candidate =>
+                candidate.key === entry.key && candidate.durability === entry.durability
+                && candidate.maxDurability === entry.maxDurability && candidate.charges === entry.charges
+            ).reduce((sum, candidate) => sum + candidate.quantity, 0);
+            if (submittedQuantity > matching) return jsonRes({ error: '背包物品数量超过本局可获得数量。' }, 400);
+        }
+        const finalCargo = cargo as CargoItem[];
+        if (totalWeight(finalCargo) > initialKit.capacity) {
+            return jsonRes({ error: '背包负重超过容量，无法结算。' }, 400);
+        }
+
+        const token = crypto.randomUUID();
+        const returned = status === 'extracted'
+            ? mergeCargo(finalCargo, [submittedKit!.backpack, submittedKit!.weapon, submittedKit!.armor])
+            : [];
+        const crystals = status === 'extracted'
+            ? finalCargo.filter(entry => entry.key === 'star_crystal').reduce((sum, entry) => sum + entry.quantity, 0)
+            : 0;
+        const statements: TypedD1PreparedStatement[] = [
+            env.DB.prepare(`
+                UPDATE salvage_players SET star_crystals = star_crystals + ?, last_action_token = ?
+                WHERE user_id = ? AND last_action_token = ?
+                  AND EXISTS (SELECT 1 FROM salvage_runs WHERE id = ? AND user_id = ? AND status = 'active')
+            `).bind(crystals, token, run.user_id, (await getPlayer(env, run.user_id)).last_action_token, run.id, run.user_id),
+            env.DB.prepare(`
+                UPDATE salvage_runs SET x = ?, y = ?, health = ?, turn = ?, status = ?,
+                    map_json = ?, cargo_json = '[]', kit_json = '{}', ended_at = ?
+                WHERE id = ? AND user_id = ? AND status = 'active' AND turn = ?
+                  AND EXISTS (SELECT 1 FROM salvage_players WHERE user_id = ? AND last_action_token = ?)
+            `).bind(
+                x, y, status === 'dead' ? 0 : health, turn, status,
+                JSON.stringify(objects), new Date().toISOString(), run.id, run.user_id, run.turn,
+                run.user_id, token,
+            ),
+            ...returned.filter(entry => entry.key !== 'star_crystal')
+                .map(entry => inventoryInsert(env, run.user_id, entry, token)),
+        ];
+        const saved = await env.DB.batch(statements);
+        if (Number(saved[0]?.meta?.changes || 0) !== 1 || Number(saved[1]?.meta?.changes || 0) !== 1) {
+            return jsonRes({ error: '对局或档案状态已变化，请刷新后重试。' }, 409);
+        }
+        return jsonRes({
+            ok: true,
+            notice: status === 'extracted' ? '成功撤离，本局记录已提交，带回物资已存入仓库。' : '本局阵亡记录已提交，入局物资全部遗失。',
+            state: await getState(env, run.user_id),
+        });
 }
 
 export async function handleSalvage(request: Request, env: Env, path: string): Promise<Response> {
@@ -1158,6 +1305,7 @@ export async function handleSalvage(request: Request, env: Env, path: string): P
     const run = await env.DB.prepare("SELECT * FROM salvage_runs WHERE user_id = ? AND status = 'active' LIMIT 1")
         .bind(userId).first<RunRow>();
     if (!run) return jsonRes({ error: '当前没有进行中的对局。' }, 409);
+    if (path === '/api/salvage/finish') return finishClientRun(run, env, body);
     if (path === '/api/salvage/move') return move(run, body, env);
     if (path === '/api/salvage/search') return searchContainer(run, env);
     if (path === '/api/salvage/attack') return attack(run, env, body);

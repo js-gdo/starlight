@@ -40,9 +40,12 @@ describe("space-station salvage game", () => {
 		expect(pageHtml).toContain("map-wall");
 		expect(pageHtml).toContain("function itemSvg");
 		expect(pageHtml).toContain("salvage-tutorial-seen");
-		expect(pageHtml).toContain("ArrowUp");
+		expect(pageHtml).toContain("arrowup");
 		expect(pageHtml).toContain("assign-gear");
 		expect(pageHtml).toContain("playerSvg");
+		expect(pageHtml).toContain("requestAnimationFrame(animationFrame)");
+		expect(pageHtml).toContain("salvage/finish");
+		expect(pageHtml).toContain("连续移动");
 
 		const initial = await request("/api/salvage/state");
 		expect(initial.status).toBe(200);
@@ -236,5 +239,83 @@ describe("space-station salvage game", () => {
 			"SELECT item_key FROM salvage_inventory WHERE user_id = ? AND item_key IN ('weapon_1', 'armor_1')"
 		).bind(userId).all<{ item_key: string }>();
 		expect(retainedGear.results).toEqual([]);
+
+		for (const key of ["backpack_1", "weapon_rail_1", "armor_1"]) {
+			expect((await request("/api/salvage/purchase", { item: key })).status).toBe(200);
+		}
+		const readyForClientRun = await request("/api/salvage/state");
+		const clientGearState = await readyForClientRun.json() as {
+			items: Array<{ id: number; item_key: string }>;
+		};
+		const clientLoadout = {
+			backpack_id: clientGearState.items.find((entry) => entry.item_key === "backpack_1")!.id,
+			weapon_id: clientGearState.items.find((entry) => entry.item_key === "weapon_rail_1")!.id,
+			armor_id: clientGearState.items.find((entry) => entry.item_key === "armor_1")!.id,
+		};
+		expect((await request("/api/salvage/charge", { item_id: clientLoadout.weapon_id, crystals: 1 })).status).toBe(200);
+		expect((await request("/api/salvage/start", { ...clientLoadout, zone: "safe" })).status).toBe(200);
+		const clientRunResponse = await request("/api/salvage/state");
+		const clientState = await clientRunResponse.json() as {
+			run: {
+				id: number;
+				x: number;
+				y: number;
+				health: number;
+				turn: number;
+				objects: Array<{ id: string; x: number; y: number; kind: string }>;
+				client_objects: Array<Record<string, unknown>>;
+				cargo: Array<Record<string, unknown>>;
+				backpack: { key: string; durability: number; maxDurability: number; charges: number };
+				weapon: { key: string; durability: number; maxDurability: number; charges: number };
+				armor: { key: string; durability: number; maxDurability: number; charges: number };
+			};
+		};
+		expect(clientState.run.client_objects.some((object) => "loot" in object)).toBe(true);
+		expect(JSON.stringify(clientState.run.objects)).not.toContain('"loot"');
+		const clientExit = clientState.run.objects.find((object) => object.kind === "extract");
+		if (!clientExit) throw new Error("The client-side raid is missing its extraction point.");
+		const finishResult = {
+			run_id: clientState.run.id,
+			status: "extracted",
+			x: clientExit.x,
+			y: clientExit.y,
+			health: clientState.run.health,
+			turn: 1,
+			objects: clientState.run.client_objects,
+			cargo: clientState.run.cargo.map((entry) => ({
+				key: entry.key,
+				quantity: entry.quantity,
+				durability: entry.durability,
+				maxDurability: entry.maxDurability,
+				charges: entry.charges,
+			})),
+			kit: {
+				backpack: {
+					key: clientState.run.backpack.key,
+					quantity: 1,
+					durability: clientState.run.backpack.durability,
+					maxDurability: clientState.run.backpack.maxDurability,
+					charges: clientState.run.backpack.charges,
+				},
+				weapon: {
+					key: clientState.run.weapon.key,
+					quantity: 1,
+					durability: clientState.run.weapon.durability,
+					maxDurability: clientState.run.weapon.maxDurability,
+					charges: clientState.run.weapon.charges,
+				},
+				armor: {
+					key: clientState.run.armor.key,
+					quantity: 1,
+					durability: clientState.run.armor.durability,
+					maxDurability: clientState.run.armor.maxDurability,
+					charges: clientState.run.armor.charges,
+				},
+			},
+		};
+		const clientFinish = await request("/api/salvage/finish", { result: finishResult });
+		expect(clientFinish.status).toBe(200);
+		expect(((await clientFinish.json()) as { run: null }).run).toBeNull();
+		expect((await request("/api/salvage/finish", { result: finishResult })).status).toBe(409);
 	});
 });
