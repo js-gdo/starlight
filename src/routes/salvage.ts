@@ -22,15 +22,18 @@ const SALVAGE_STYLES = `
     .salvage-stat strong{display:block;margin-top:5px;color:#fff;font-size:17px}
     .salvage-bar{height:8px;margin:6px 0 12px;overflow:hidden;border-radius:99px;background:#3c3340}
     .salvage-bar i{display:block;height:100%;background:linear-gradient(90deg,#59c9b9,#8ae2ae)}
-    .salvage-map{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;max-width:490px;margin:auto}
-    .salvage-map-frame{overflow-x:auto;padding:8px;border:1px solid #30465d;border-radius:13px;background:radial-gradient(ellipse at 50% 45%,#203d4b,#101c2a 75%)}
-    .salvage-map-svg{display:block;width:100%;min-width:410px;height:auto;max-width:780px;margin:auto}
-    .salvage-map-node{cursor:pointer;outline:none}
-    .salvage-map-node[aria-disabled="true"]{cursor:default}
-    .salvage-map-node:not([aria-disabled="true"]):hover .map-floor{fill:#355c68;stroke:#83e4da;stroke-width:2}
-    .salvage-map-node:focus .map-floor{stroke:#f4d284;stroke-width:3}
-    .map-floor{fill:#1b2d3c;stroke:#344a5c;stroke-width:1}
-    .map-floor.alt{fill:#203242}
+    .salvage-map-frame{position:relative;overflow:hidden;padding:8px;border:1px solid #30465d;border-radius:13px;background:#101c2a;touch-action:none}
+    .salvage-map-svg{display:block;width:100%;height:auto;max-height:70vh;min-height:390px;margin:auto}
+    .map-floor{fill:#243846;stroke:none}
+    .map-floor-panel{fill:#2a3e4d;fill-opacity:.55;stroke:#4a5a65;stroke-width:1}
+    .map-corridor{fill:#1c2c38;stroke:#405462;stroke-width:2}
+    .map-floor-mark{fill:none;stroke:#60727d;stroke-opacity:.18;stroke-width:1}
+    .map-boundary{fill:none;stroke:#78909e;stroke-opacity:.45;stroke-width:5}
+    .salvage-player{pointer-events:none;filter:drop-shadow(0 3px 6px #03070dcc)}
+    .salvage-player-charge{fill:#8ef3db;stroke:#e0fff8;stroke-width:1}
+    .salvage-entity{cursor:pointer}
+    .salvage-player-marker{transition:none}
+    .salvage-map-hint{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:7px;color:#acbdcc;font-size:10px}
     .map-wall{fill:#627487;stroke:#a5b2bd;stroke-width:1.4}
     .map-wall-side{fill:#344452}
     .map-wall-stripe{stroke:#d1a65d;stroke-width:2;opacity:.7}
@@ -98,8 +101,6 @@ const SALVAGE_STYLES = `
     .salvage-tutorial-card{width:min(540px,100%);padding:22px;border:1px solid #536b80;border-radius:16px;background:linear-gradient(145deg,#1a2d40,#101a29);box-shadow:0 24px 80px #000a;color:#edf4ff}
     .salvage-tutorial-card h2{margin:0 0 8px}
     .salvage-tutorial-card li{margin:8px 0;color:#bdcada;font-size:12px;line-height:1.6}
-    .salvage-player{filter:drop-shadow(0 2px 4px #050b13aa)}
-    .salvage-player-charge{fill:#8ef3db;stroke:#e0fff8;stroke-width:1}
     @media(max-width:850px){.salvage-grid{grid-template-columns:1fr}}
     @media(max-width:540px){.salvage-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.salvage-loadout,.salvage-manufacturers,.salvage-stash-grid{grid-template-columns:1fr}.salvage-kit-grid,.salvage-equipped{grid-template-columns:1fr}.salvage-hero{padding:22px 18px}}
 `;
@@ -124,6 +125,10 @@ function salvageMarkup(): string {
             var selectedGear={backpack:0,weapon:0,armor:0};
             var selectedStashItem=0;
             var requestPending=false;
+            var pressedKeys={};
+            var moveTarget=null;
+            var lastFrame=0;
+            var lastSnapshot=0;
             function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];});}
             function number(value){return new Intl.NumberFormat('zh-CN').format(Number(value)||0);}
             function inventoryKind(kind){return state.items.filter(function(item){return item.kind===kind;});}
@@ -258,7 +263,7 @@ function salvageMarkup(): string {
                     :branch==='scatter'?'<path d="M34 28h13l6 2-6 2H34zM38 31h5l-1 5h-4z"/>'
                     :'<path d="M34 28h15l4 2-4 2H34zM39 31h5l-1 5h-4z"/>';
                 var charges=Math.max(0,Number(run.weapon.charges)||0);
-                return '<g class="salvage-player" transform="translate('+(x+2)+' '+(y+2)+')">'+
+                return '<g id="salvagePlayer" class="salvage-player" transform="translate('+(x-26)+' '+(y-26)+')">'+
                     '<path d="M'+(19-packWidth/2)+' 25h'+packWidth+'v14h-'+packWidth+'z" fill="#273c50" stroke="'+armorColor+'" stroke-width="2"/>'+
                     '<path d="M20 22 22 16h8l2 6 4 4-3 15H19l-3-15z" fill="'+armorColor+'" stroke="#f0f5ff" stroke-width="1.5"/>'+
                     '<path d="M22 25h8l2 7H20z" fill="#17283a" stroke="#d8e8ec" stroke-width="1"/>'+
@@ -298,22 +303,35 @@ function salvageMarkup(): string {
             }
             function renderRun(run){
                 var containerKinds=['server','safe','medical','supply'];
-                var nearby=(run.objects||[]).filter(function(object){return object.kind==='enemy'&&!object.defeated&&Math.abs(object.x-run.x)+Math.abs(object.y-run.y)<=1;});
-                var current=run.current_object;
                 var width=Number(run.map_width)||6;
                 var height=Number(run.map_height)||6;
-                var cells=(run.map_tiles||[]).map(function(tile){
-                    var x=tile.x,y=tile.y;
-                    var object=run.objects.find(function(value){return value.x===x&&value.y===y;});
-                    var here=x===run.x&&y===run.y;
-                    var wall=Boolean(tile.wall||object&&object.kind==='wall');
-                    var blocked=object&&object.kind==='enemy'&&!object.defeated;
-                    var disabled=here||wall||Math.abs(x-run.x)+Math.abs(y-run.y)!==1||blocked;
-                    var px=x*72,py=y*72;
-                    var label=object?object.name:wall?'隔离墙':'开放舱室';
-                    return '<g class="salvage-map-node" data-action="move" data-x="'+x+'" data-y="'+y+'" role="button" aria-label="'+esc('第 '+(x+1)+' 列第 '+(y+1)+' 行 · '+label)+'" aria-disabled="'+(disabled?'true':'false')+'" tabindex="'+(disabled?'-1':'0')+'"><rect class="map-floor '+((x+y)%2?'alt':'')+'" x="'+(px+2)+'" y="'+(py+2)+'" width="68" height="68" rx="8"/>'+mapFeatureSvg(object,px,py)+(here?playerSvg(run,px,py):'')+'</g>';
+                var playerX=Number(run.world_x)||((run.x+.5)*72);
+                var playerY=Number(run.world_y)||((run.y+.5)*72);
+                var closeTo=function(object,radius){
+                    var dx=object.x*72+36-playerX,dy=object.y*72+36-playerY;
+                    return dx*dx+dy*dy<=radius*radius;
+                };
+                var nearby=(run.objects||[]).filter(function(object){return object.kind==='enemy'&&!object.defeated&&closeTo(object,112);});
+                var current=(run.objects||[]).filter(function(object){return containerKinds.indexOf(object.kind)>=0||object.kind==='extract';})
+                    .sort(function(a,b){var da=Math.pow(a.x*72+36-playerX,2)+Math.pow(a.y*72+36-playerY,2);var db=Math.pow(b.x*72+36-playerX,2)+Math.pow(b.y*72+36-playerY,2);return da-db;})
+                    .find(function(object){return closeTo(object,62);})||null;
+                run.nearby_enemies=nearby;
+                run.current_object=current;
+                var floorPath=(run.map_tiles||[]).filter(function(tile){return !tile.wall;}).map(function(tile){
+                    return 'M'+(tile.x*72)+' '+(tile.y*72)+'h72v72h-72z';
                 }).join('');
-                var map='<div class="salvage-map-frame"><svg class="salvage-map-svg" viewBox="0 0 '+(width*72)+' '+(height*72)+'" role="group" aria-label="空间站舱室地图">'+cells+'</svg></div>';
+                var objects=(run.objects||[]).map(function(object){
+                    return '<g class="salvage-entity" data-entity="'+esc(object.id)+'" transform="translate('+(object.x*72)+' '+(object.y*72)+')">'+mapFeatureSvg(object,0,0)+'</g>';
+                }).join('');
+                var panels='<rect class="map-corridor" x="44" y="224" width="488" height="56" rx="26"/>'+
+                    '<rect class="map-floor-panel" x="76" y="76" width="174" height="132" rx="30"/>'+
+                    '<rect class="map-floor-panel" x="326" y="292" width="170" height="134" rx="30"/>'+
+                    '<path class="map-floor-mark" d="M65 132h120m-120 16h90m253 190h93m-93 16h63M288 52v92m16 0V52"/>';
+                var map='<div class="salvage-map-frame"><svg id="salvageMap" class="salvage-map-svg" viewBox="0 0 '+(width*72)+' '+(height*72)+'" role="application" aria-label="空间站连续移动地图">'+
+                    '<defs><clipPath id="stationFloor"><path d="'+floorPath+'"/></clipPath></defs>'+
+                    '<rect width="'+(width*72)+'" height="'+(height*72)+'" fill="#111c28"/><path class="map-floor" d="'+floorPath+'"/>'+
+                    '<g clip-path="url(#stationFloor)">'+panels+'</g>'+objects+playerSvg(run,playerX,playerY)+
+                    '</svg><div class="salvage-map-hint"><span>WASD / 方向键持续移动 · 点击地面可行走</span><span>移动与搜刮在本地即时运行</span></div></div>';
                 var controls='';
                 if(current&&containerKinds.indexOf(current.kind)>=0&&!current.searched){
                     controls+='<button data-action="search">搜索'+esc(current.name)+'</button>';
@@ -334,6 +352,267 @@ function salvageMarkup(): string {
                     '<div class="salvage-controls">'+(controls||'<span class="salvage-pill">移动探索，靠近敌人后攻击</span>')+'<button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
                     '<div class="salvage-object"><strong>本局携带物资</strong>'+cargo+'</div>'+
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后耐久与剩余充能会保留；阵亡则全部遗失。</small></div></section>';
+            }
+            function renderRun(run){
+                var width=Number(run.map_width)||8;
+                var height=Number(run.map_height)||7;
+                var playerX=Number(run.world_x)||((run.x+.5)*72);
+                var playerY=Number(run.world_y)||((run.y+.5)*72);
+                function closeTo(object,radius){
+                    var dx=object.x*72+36-playerX,dy=object.y*72+36-playerY;
+                    return dx*dx+dy*dy<=radius*radius;
+                }
+                var containers=['server','safe','medical','supply'];
+                var nearby=(run.objects||[]).filter(function(object){
+                    return object.kind==='enemy'&&!object.defeated&&closeTo(object,112);
+                });
+                var current=(run.objects||[]).filter(function(object){
+                    return containers.indexOf(object.kind)>=0||object.kind==='extract';
+                }).sort(function(a,b){
+                    var da=Math.pow(a.x*72+36-playerX,2)+Math.pow(a.y*72+36-playerY,2);
+                    var db=Math.pow(b.x*72+36-playerX,2)+Math.pow(b.y*72+36-playerY,2);
+                    return da-db;
+                }).find(function(object){return closeTo(object,62);})||null;
+                run.nearby_enemies=nearby;
+                run.current_object=current;
+                var floorPath=(run.map_tiles||[]).filter(function(tile){return !tile.wall;}).map(function(tile){
+                    return 'M'+(tile.x*72)+' '+(tile.y*72)+'h72v72h-72z';
+                }).join('');
+                var objects=(run.objects||[]).map(function(object){
+                    return '<g class="salvage-entity" data-entity="'+esc(object.id)+'" transform="translate('+(object.x*72)+' '+(object.y*72)+')">'+mapFeatureSvg(object,0,0)+'</g>';
+                }).join('');
+                var panels='<rect class="map-corridor" x="44" y="224" width="488" height="56" rx="26"/>'+
+                    '<rect class="map-floor-panel" x="76" y="76" width="174" height="132" rx="30"/>'+
+                    '<rect class="map-floor-panel" x="326" y="292" width="170" height="134" rx="30"/>'+
+                    '<path class="map-floor-mark" d="M65 132h120m-120 16h90m253 190h93m-93 16h63M288 52v92m16 0V52"/>';
+                var map='<div class="salvage-map-frame"><svg id="salvageMap" class="salvage-map-svg" viewBox="0 0 '+(width*72)+' '+(height*72)+'" role="application" aria-label="空间站连续移动地图">'+
+                    '<defs><clipPath id="stationFloor"><path d="'+floorPath+'"/></clipPath></defs>'+
+                    '<rect width="'+(width*72)+'" height="'+(height*72)+'" fill="#111c28"/><path class="map-floor" d="'+floorPath+'"/>'+
+                    '<g clip-path="url(#stationFloor)">'+panels+'</g>'+objects+playerSvg(run,playerX,playerY)+
+                    '</svg><div class="salvage-map-hint"><span>WASD / 方向键持续移动 · 点击地面可行走</span><span>行动在客户端运行，结束时一次提交</span></div></div>';
+                var controls='';
+                if(current&&containers.indexOf(current.kind)>=0){
+                    controls+=current.searched?'<span class="salvage-pill">已搜索</span>':'<button data-action="search">搜索'+esc(current.name)+'</button>';
+                }
+                if(current&&current.kind==='extract')controls+='<button class="gold" data-action="extract">撤离并提交本局</button>';
+                controls+=nearby.map(function(enemy){
+                    return '<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'">攻击 '+esc(enemy.name)+'（'+number(enemy.health)+'/'+number(enemy.maxHealth)+' HP）</button>';
+                }).join('');
+                if(run.terminalStatus)controls='<button data-action="retry-finish">重试提交本局记录</button>';
+                var cargo=run.cargo.length?run.cargo.map(function(item){
+                    return '<div class="salvage-run-item"><span class="salvage-item-main">'+itemSvg(item)+'<span>'+esc(item.name)+' ×'+number(item.quantity)+'</span></span><span>'+number(item.weight*item.quantity)+' 负重</span></div>';
+                }).join(''):'<div class="salvage-empty">尚未搜到物资</div>';
+                return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 实时行动</h2><p>连续行走和局内操作在客户端即时运行，不再逐步请求 API；撤离或阵亡时一次提交完整结算。</p></div><span class="salvage-pill">行动 '+number(run.turn)+' · 本地</span></div>'+
+                    '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong id="runHealth">'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包负重</span><strong id="runWeight">'+number(run.cargo_weight)+' / '+number(run.capacity)+'</strong></div><div class="salvage-stat"><span>武器充能</span><strong id="runCharges">'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong id="runArmor">'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
+                    '<div class="salvage-bar"><i id="runHealthBar" style="width:'+Math.max(0,Math.min(100,run.health/run.max_health*100))+'%"></i></div>'+
+                    map+'<div class="salvage-legend"><span>隔离墙 / 障碍</span><span>服务器 / 保险箱 / 补给</span><span>巡逻人机</span><span>外沿撤离平台</span></div>'+
+                    '<div class="salvage-object"><strong id="runPrompt">'+(current?'附近：'+esc(current.name):'探索空间站')+'</strong><small>WASD 或方向键移动 · E 交互 · 点击地图可行走</small></div>'+
+                    '<div class="salvage-controls">'+(controls||'<span class="salvage-pill">靠近容器、人机或撤离点进行交互</span>')+'<button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
+                    '<div class="salvage-object"><strong>本局携带物资</strong>'+cargo+'</div>'+
+                    '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后带回；阵亡则全部遗失。</small></div></section>';
+            }
+            function initializeClientRun(){
+                if(!state.run)return;
+                var run=state.run;
+                var storageKey='salvage-client-run-'+run.id;
+                var saved=null;
+                try{saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch(error){localStorage.removeItem(storageKey);}
+                if(saved&&saved.id===run.id){
+                    state.run=saved;
+                }else{
+                    run.objects=run.client_objects||run.objects;
+                    run.world_x=(run.x+.5)*72;
+                    run.world_y=(run.y+.5)*72;
+                    run.turn=0;
+                    run.started_client_at=Date.now();
+                    run.kit={
+                        backpack:{key:run.backpack.key,quantity:1,durability:run.backpack.durability,maxDurability:run.backpack.maxDurability,charges:run.backpack.charges||0},
+                        weapon:{key:run.weapon.key,quantity:1,durability:run.weapon.durability||0,maxDurability:run.weapon.maxDurability||0,charges:run.weapon.charges||0},
+                        armor:{key:run.armor.key,quantity:1,durability:run.armor.durability,maxDurability:run.armor.maxDurability,charges:run.armor.charges||0}
+                    };
+                    run.cargo=(run.cargo||[]).map(function(entry){return enrichCargo(entry);});
+                    state.run=run;
+                    saveClientRun();
+                }
+            }
+            function saveClientRun(){
+                if(!state||!state.run)return;
+                try{localStorage.setItem('salvage-client-run-'+state.run.id,JSON.stringify(state.run));}
+                catch(error){feedback('本地行动存档失败；请勿刷新或关闭页面，直到本局结算。',true);}
+            }
+            function enrichCargo(entry){
+                var definition=state.catalog.find(function(value){return value.key===(entry.key||entry.item_key);})||{};
+                return Object.assign({},definition,entry,{key:entry.key||entry.item_key,item_key:entry.key||entry.item_key});
+            }
+            function cargoWeight(run){
+                return run.cargo.reduce(function(total,entry){return total+(Number(entry.weight)||0)*Number(entry.quantity||0);},0);
+            }
+            function walkable(run,x,y){
+                var tileX=Math.floor(x/72),tileY=Math.floor(y/72);
+                var tile=(run.map_tiles||[]).find(function(value){return value.x===tileX&&value.y===tileY;});
+                if(!tile||tile.wall||x<8||y<8||x>=run.map_width*72-8||y>=run.map_height*72-8)return false;
+                return !(run.objects||[]).some(function(object){
+                    if(object.kind==='wall'){
+                        return Math.abs((object.x+.5)*72-x)<24&&Math.abs((object.y+.5)*72-y)<24;
+                    }
+                    if(object.kind==='enemy'&&!object.defeated){
+                        var dx=(object.x+.5)*72-x,dy=(object.y+.5)*72-y;
+                        return dx*dx+dy*dy<18*18;
+                    }
+                    return false;
+                });
+            }
+            function movePlayer(dx,dy){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus)return;
+                var nextX=run.world_x+dx,nextY=run.world_y+dy;
+                if(walkable(run,nextX,run.world_y))run.world_x=nextX;
+                if(walkable(run,run.world_x,nextY))run.world_y=nextY;
+                run.x=Math.max(0,Math.min(run.map_width-1,Math.floor(run.world_x/72)));
+                run.y=Math.max(0,Math.min(run.map_height-1,Math.floor(run.world_y/72)));
+                var marker=document.getElementById('salvagePlayer');
+                if(marker)marker.setAttribute('transform','translate('+(run.world_x-26)+' '+(run.world_y-26)+')');
+            }
+            function animationFrame(now){
+                if(state&&state.run&&!state.run.terminalStatus){
+                    var dt=lastFrame?Math.min(.05,(now-lastFrame)/1000):0;
+                    lastFrame=now;
+                    var dx=(pressedKeys.d?1:0)-(pressedKeys.a?1:0);
+                    var dy=(pressedKeys.s?1:0)-(pressedKeys.w?1:0);
+                    if(moveTarget&&!dx&&!dy){
+                        dx=moveTarget.x-state.run.world_x;
+                        dy=moveTarget.y-state.run.world_y;
+                        var distance=Math.sqrt(dx*dx+dy*dy);
+                        if(distance<4){moveTarget=null;dx=0;dy=0;}
+                        else{dx/=distance;dy/=distance;}
+                    }
+                    if(dx||dy){
+                        var magnitude=Math.sqrt(dx*dx+dy*dy)||1;
+                        movePlayer(dx/magnitude*115*dt,dy/magnitude*115*dt);
+                        if(now-lastSnapshot>1200){lastSnapshot=now;saveClientRun();}
+                        updateRunHud();
+                    }
+                }else lastFrame=0;
+                window.requestAnimationFrame(animationFrame);
+            }
+            function updateRunHud(){
+                var run=state&&state.run;
+                if(!run)return;
+                var health=document.getElementById('runHealth');
+                var weight=document.getElementById('runWeight');
+                var charges=document.getElementById('runCharges');
+                var armor=document.getElementById('runArmor');
+                var bar=document.getElementById('runHealthBar');
+                if(health)health.textContent=number(run.health)+' / '+number(run.max_health);
+                run.cargo_weight=cargoWeight(run);
+                if(weight)weight.textContent=number(run.cargo_weight)+' / '+number(run.capacity);
+                if(charges)charges.textContent=number(run.weapon.charges);
+                if(armor)armor.textContent=number(run.armor.durability)+' / '+number(run.armor.maxDurability);
+                if(bar)bar.style.width=Math.max(0,Math.min(100,run.health/run.max_health*100))+'%';
+            }
+            function addCargo(run,entries){
+                for(var i=0;i<entries.length;i++){
+                    var entry=enrichCargo(entries[i]);
+                    var canStack=['weapon','armor','backpack'].indexOf(entry.kind)<0;
+                    var existing=canStack&&run.cargo.find(function(value){return value.key===entry.key;});
+                    if(existing)existing.quantity+=entry.quantity;
+                    else run.cargo.push(entry);
+                }
+                run.cargo_weight=cargoWeight(run);
+            }
+            function activeObject(kind,id){
+                var run=state.run;
+                var px=run.world_x,py=run.world_y;
+                return run.objects.find(function(object){
+                    if(kind==='enemy'&&(object.kind!=='enemy'||object.defeated))return false;
+                    if(kind==='container'&&['server','safe','medical','supply'].indexOf(object.kind)<0)return false;
+                    if(kind==='extract'&&object.kind!=='extract')return false;
+                    if(id&&object.id!==id)return false;
+                    if(kind==='container'&&object.searched)return false;
+                    var dx=(object.x+.5)*72-px,dy=(object.y+.5)*72-py;
+                    return dx*dx+dy*dy<=(kind==='enemy'?112:kind==='extract'?54:62)*(kind==='enemy'?112:kind==='extract'?54:62);
+                });
+            }
+            function finishClientRun(status,retry){
+                var run=state&&state.run;
+                if(!run||(run.terminalStatus&&!retry)||requestPending)return;
+                run.terminalStatus=status;
+                run.turn+=1;
+                saveClientRun();
+                post('/api/salvage/finish',{result:{
+                    run_id:run.id,status:status,x:run.x,y:run.y,health:status==='dead'?0:run.health,turn:run.turn,
+                    objects:run.objects,cargo:run.cargo.map(function(entry){
+                        return {key:entry.key,quantity:entry.quantity,durability:Number(entry.durability)||0,maxDurability:Number(entry.maxDurability)||0,charges:Number(entry.charges)||0};
+                    }),
+                    kit:run.kit
+                }});
+            }
+            function interact(){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus)return;
+                var container=activeObject('container');
+                if(container){performLocalAction('search',container.id);return;}
+                var exit=activeObject('extract');
+                if(exit){finishClientRun('extracted');return;}
+                var enemy=activeObject('enemy');
+                if(enemy)performLocalAction('attack',enemy.id);
+            }
+            function performLocalAction(action,id){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus)return;
+                if(action==='search'){
+                    var container=activeObject('container',id);
+                    if(!container){feedback('靠近未搜索的容器后再搜索。',true);return;}
+                    var capacity=run.capacity-cargoWeight(run);
+                    var collected=[];
+                    (container.loot||[]).forEach(function(entry){
+                        var definition=state.catalog.find(function(value){return value.key===entry.key;});
+                        if(!definition)return;
+                        var quantity=definition.weight===0?entry.quantity:Math.min(entry.quantity,Math.floor(capacity/definition.weight));
+                        if(quantity>0){collected.push(Object.assign({},entry,{quantity:quantity}));capacity-=quantity*definition.weight;}
+                    });
+                    container.searched=true;
+                    container.loot=[];
+                    if(collected.length)addCargo(run,collected);
+                    run.turn+=2;
+                    feedback(collected.length?'搜刮获得 '+collected.map(function(entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return (def?def.name:entry.key)+' ×'+entry.quantity;}).join('、'):'已搜索容器，背包空间不足，未能带走物资。',false);
+                }else if(action==='attack'){
+                    var enemy=activeObject('enemy',id);
+                    if(!enemy){feedback('靠近敌人后再攻击。',true);return;}
+                    if(run.weapon.charges<1){feedback('武器充能不足，需撤离后购买星晶充能。',true);return;}
+                    var definition=state.catalog.find(function(value){return value.key===run.weapon.key;})||{};
+                    var damage=Number(definition.damage)||10+(Number(run.weapon.tier)||1)*7;
+                    run.weapon.charges=Math.max(0,run.weapon.charges-1);
+                    enemy.health=Math.max(0,enemy.health-damage);
+                    if(enemy.health===0){
+                        enemy.defeated=true;
+                        var drops=enemy.loot||[];
+                        if(cargoWeight(run)+drops.reduce(function(total,entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return total+(def?def.weight:0)*entry.quantity;},0)<=run.capacity)addCargo(run,drops);
+                        enemy.loot=[];
+                        feedback('已击败'+enemy.name+'。'+(drops.length?'获得人机掉落物资。':''),false);
+                    }else{
+                        var reduction=run.armor.durability>0?(Number(run.armor.tier)||1)*3:0;
+                        var incoming=Math.max(1,Number(enemy.attack||1)-reduction);
+                        run.armor.durability=Math.max(0,run.armor.durability-1);
+                        run.kit.armor.durability=run.armor.durability;
+                        run.health=Math.max(0,run.health-incoming);
+                        feedback('造成 '+damage+' 点伤害，受到 '+incoming+' 点反击。',false);
+                        if(run.health===0){saveClientRun();finishClientRun('dead');return;}
+                    }
+                    run.kit.weapon.charges=run.weapon.charges;
+                    run.turn+=1;
+                }else if(action==='heal'){
+                    var medkit=run.cargo.find(function(entry){return entry.key==='medkit'&&entry.quantity>0;});
+                    if(!medkit||run.health>=run.max_health){feedback(!medkit?'没有携带急救包。':'生命值已满，无需使用急救包。',true);return;}
+                    medkit.quantity-=1;
+                    run.cargo=run.cargo.filter(function(entry){return entry.quantity>0;});
+                    var healed=Math.min(run.max_health-run.health,45);
+                    run.health+=healed;
+                    run.turn+=1;
+                    feedback('使用急救包，恢复 '+healed+' 点生命值。',false);
+                }
+                saveClientRun();
+                draw();
             }
             function renderHideout(){
                 var gear=inventoryKind('backpack').length&&inventoryKind('weapon').length&&inventoryKind('armor').length;
@@ -385,14 +664,16 @@ function salvageMarkup(): string {
                 overlay.className='salvage-tutorial';
                 overlay.setAttribute('role','dialog');
                 overlay.setAttribute('aria-modal','true');
-                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；武器需要星晶充能。</li><li>对局中可点击相邻舱室或使用 WASD / 方向键移动。每次移动耗时 1 分钟并提交服务器。</li><li>站在服务器、保险箱或补给容器所在舱室时点击搜索；搜索耗时 2 分钟，物资自动进入背包。</li><li>攻击会消耗武器充能并可能磨损护甲。只有抵达撤离平台成功撤离，才能带回本局物品；阵亡会全部丢失。</li><li>仓库物品均可出售；护甲按耐久折价。出售带充能的武器前，先卸载完整星晶。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
+                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；武器需要星晶充能。</li><li>对局中按住 WASD / 方向键可连续移动，也可点击地图行走；位置和行动在本地即时更新。</li><li>靠近服务器、保险箱或补给容器后按 E 搜索；靠近敌人后按 E 或点击攻击。</li><li>接近边缘撤离平台后按 E 撤离；阵亡或成功撤离时，客户端只提交一次完整本局记录。</li><li>仓库物品均可出售；护甲按耐久折价。出售带充能的武器前，先卸载完整星晶。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
                 root.appendChild(overlay);
             }
             async function load(){
                 var response=await fetch('/api/salvage/state',{headers:{Accept:'application/json'}});
                 var data=await response.json();
                 if(!response.ok)throw new Error(data.error||'空间站档案暂不可用。');
-                state=data;draw();
+                state=data;
+                if(state.run)initializeClientRun();
+                draw();
             }
             function feedback(message,error){notice.textContent=message||'';notice.classList.toggle('error',!!error);}
             async function post(path,payload){
@@ -403,8 +684,17 @@ function salvageMarkup(): string {
                     var response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(payload||{})});
                     var data=await response.json();
                     if(!response.ok)throw new Error(data.error||'操作失败。');
-                    state=data.state;draw();feedback(data.notice||'空间站档案已更新。',false);
-                }catch(error){feedback(error.message||'请求失败，请稍后重试。',true);}
+                    state=data.state;
+                    if(path==='/api/salvage/start'&&state.run)initializeClientRun();
+                    if(path==='/api/salvage/finish'){
+                        if(payload.result&&payload.result.run_id!==undefined)localStorage.removeItem('salvage-client-run-'+payload.result.run_id);
+                        pressedKeys={};moveTarget=null;
+                    }
+                    draw();feedback(data.notice||'空间站档案已更新。',false);
+                }catch(error){
+                    feedback(error.message||'请求失败，请稍后重试。',true);
+                    if(path==='/api/salvage/finish')draw();
+                }
                 finally{requestPending=false;}
             }
             root.addEventListener('click',function(event){
@@ -426,11 +716,11 @@ function salvageMarkup(): string {
                 }
                 if(action==='tutorial'){showTutorial();return;}
                 if(action==='close-tutorial'){button.closest('.salvage-tutorial').remove();localStorage.setItem('salvage-tutorial-seen','1');return;}
-                if(action==='move'){post('/api/salvage/move',{x:Number(button.dataset.x),y:Number(button.dataset.y)});return;}
-                if(action==='attack'){post('/api/salvage/attack',{object_id:button.dataset.id});return;}
-                if(action==='search'){post('/api/salvage/search',{});return;}
-                if(action==='extract'){post('/api/salvage/extract',{});return;}
-                if(action==='heal'){post('/api/salvage/heal',{});return;}
+                if(action==='attack'){performLocalAction('attack',button.dataset.id);return;}
+                if(action==='search'){performLocalAction('search');return;}
+                if(action==='extract'){if(activeObject('extract'))finishClientRun('extracted');else feedback('靠近撤离平台后再撤离。',true);return;}
+                if(action==='heal'){performLocalAction('heal');return;}
+                if(action==='retry-finish'&&state.run&&state.run.terminalStatus){finishClientRun(state.run.terminalStatus,true);return;}
                 if(action==='purchase'){post('/api/salvage/purchase',{item:button.dataset.item});return;}
                 if(action==='supplies'){post('/api/salvage/supplies',{item:button.dataset.item,quantity:Number(root.querySelector('[data-supply-quantity]').value)});return;}
                 if(action==='sell'){post('/api/salvage/sell',{item_id:Number(button.dataset.id),quantity:Number(button.dataset.quantity)});return;}
@@ -444,26 +734,41 @@ function salvageMarkup(): string {
                 if(action==='craft'){post('/api/salvage/craft',{item:button.dataset.item});return;}
                 if(action==='claim-craft'){post('/api/salvage/craft/claim',{job_id:Number(button.dataset.id)});}
             });
-            root.addEventListener('keydown',function(event){
-                if((event.key==='Enter'||event.key===' ')&&event.target.matches('.salvage-map-node[aria-disabled="false"]')){
-                    event.preventDefault();event.target.click();
-                }
+            root.addEventListener('pointerdown',function(event){
+                var svg=event.target.closest&&event.target.closest('#salvageMap');
+                if(!svg||!state||!state.run||event.target.closest('[data-action]'))return;
+                var point=svg.createSVGPoint();
+                point.x=event.clientX;point.y=event.clientY;
+                var local=point.matrixTransform(svg.getScreenCTM().inverse());
+                if(walkable(state.run,local.x,local.y))moveTarget={x:local.x,y:local.y};
+                svg.focus();
             });
             document.addEventListener('keydown',function(event){
-                if(!state||!state.run||requestPending||event.repeat||event.altKey||event.ctrlKey||event.metaKey)return;
+                if(!state||!state.run||state.run.terminalStatus||requestPending||event.repeat||event.altKey||event.ctrlKey||event.metaKey)return;
                 var target=event.target;
-                if(target&&target.closest&&target.closest('input,select,textarea,[contenteditable="true"],button:not(.salvage-map-node)'))return;
-                var direction={w:[0,-1],W:[0,-1],ArrowUp:[0,-1],s:[0,1],S:[0,1],ArrowDown:[0,1],a:[-1,0],A:[-1,0],ArrowLeft:[-1,0],d:[1,0],D:[1,0],ArrowRight:[1,0]}[event.key];
-                if(!direction)return;
-                var x=state.run.x+direction[0],y=state.run.y+direction[1];
-                var node=root.querySelector('.salvage-map-node[data-x="'+x+'"][data-y="'+y+'"][aria-disabled="false"]');
-                if(!node)return;
-                event.preventDefault();post('/api/salvage/move',{x:x,y:y});
+                if(target&&target.closest&&target.closest('input,select,textarea,[contenteditable="true"]'))return;
+                if(event.key==='e'||event.key==='E'){event.preventDefault();interact();return;}
+                var key=event.key.toLowerCase();
+                if(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright'].indexOf(key)<0)return;
+                event.preventDefault();moveTarget=null;
+                if(key==='w'||key==='arrowup')pressedKeys.w=true;
+                if(key==='a'||key==='arrowleft')pressedKeys.a=true;
+                if(key==='s'||key==='arrowdown')pressedKeys.s=true;
+                if(key==='d'||key==='arrowright')pressedKeys.d=true;
             });
+            document.addEventListener('keyup',function(event){
+                var key=event.key.toLowerCase();
+                if(key==='w'||key==='arrowup')delete pressedKeys.w;
+                if(key==='a'||key==='arrowleft')delete pressedKeys.a;
+                if(key==='s'||key==='arrowdown')delete pressedKeys.s;
+                if(key==='d'||key==='arrowright')delete pressedKeys.d;
+            });
+            window.addEventListener('blur',function(){pressedKeys={};});
             load().then(function(){
                 if(localStorage.getItem('salvage-tutorial-seen')!=='1')showTutorial();
             }).catch(function(error){feedback(error.message||'空间站档案暂不可用。',true);});
             window.setInterval(function(){if(!state||!state.run)load().catch(function(error){feedback(error.message||'档案刷新失败。',true);});},15000);
+            window.requestAnimationFrame(animationFrame);
         }());
         </script>`;
 }
