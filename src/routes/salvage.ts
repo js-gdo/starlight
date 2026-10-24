@@ -522,7 +522,7 @@ function salvageMarkup(): string {
                     '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong id="runHealth">'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包空间</span><strong id="runWeight">'+usedCells+' / '+areaCells+' 格</strong></div><div class="salvage-stat"><span>武器充能</span><strong id="runCharges">'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong id="runArmor">'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
                     '<div class="salvage-bar"><i id="runHealthBar" style="width:'+Math.max(0,Math.min(100,run.health/run.max_health*100))+'%"></i></div>'+
                     map+'<div class="salvage-legend"><span>生活区</span><span>管理区</span><span>研发区</span><span>机组区</span><span>核心区（高价值）</span><span>工程区</span></div>'+
-                    '<div class="salvage-object"><strong id="runPrompt">正在扫描周边目标…</strong><small>WASD / 方向键移动 · T 攻击 · F 搜索 · E 交互；交互、攻击与撤离均在曼哈顿距离 ≤ 1.5 时启用</small></div>'+
+                    '<div class="salvage-object"><strong id="runPrompt">'+esc(run.finishError?'提交失败：'+run.finishError:run.terminalStatus?'本局记录正在提交，失败时可点击重试。':'正在扫描周边目标…')+'</strong><small>WASD / 方向键移动 · T 攻击 · F 搜索 · E 交互；交互、攻击与撤离均在曼哈顿距离 ≤ 1.5 时启用</small></div>'+
                     '<div id="runInteractions" class="salvage-controls">'+(run.terminalStatus?'<button data-action="retry-finish">重试提交本局记录</button>':'')+'</div><div class="salvage-controls"><button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
                     '<div class="salvage-object"><strong>本局背包 · '+shape.width+'×'+shape.height+'（实际 '+areaCells+' 格）</strong>'+cargo+'</div>'+
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后带回；阵亡则全部遗失。</small></div></section>';
@@ -828,7 +828,10 @@ function salvageMarkup(): string {
                 var run=state&&state.run;
                 if(!run||(run.terminalStatus&&!retry)||requestPending)return;
                 run.terminalStatus=status;
-                run.turn+=1;
+                run.finishError='';
+                var prompt=document.getElementById('runPrompt');
+                if(prompt)prompt.textContent='正在提交本局记录…';
+                if(!retry)run.turn+=1;
                 saveClientRun();
                 post('/api/salvage/finish',{result:{
                     run_id:run.id,status:status,x:run.x,y:run.y,world_x:run.world_x,world_y:run.world_y,health:status==='dead'?0:run.health,turn:run.turn,
@@ -1067,7 +1070,11 @@ function salvageMarkup(): string {
                     draw();feedback(data.notice||'空间站档案已更新。',false);
                 }catch(error){
                     feedback(error.message||'请求失败，请稍后重试。',true);
-                    if(path==='/api/salvage/finish')draw();
+                    if(path==='/api/salvage/finish'&&state&&state.run){
+                        state.run.finishError=error.message||'提交失败，请重试。';
+                        saveClientRun();
+                        draw();
+                    }
                 }
                 finally{requestPending=false;}
             }
