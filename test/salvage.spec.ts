@@ -351,6 +351,23 @@ describe("space-station salvage game", () => {
 				},
 			},
 		};
+		const regressionLoot = [
+			{ key: "weapon_1", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
+			{ key: "weapon_rail_2", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
+			{ key: "fiber_bundle", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
+			{ key: "alloy_plate", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
+		];
+		const serverContainer = clientState.run.client_objects.find((object) => object.kind === "server");
+		if (!serverContainer) throw new Error("The client-side raid is missing its server container.");
+		const finishObjects = clientState.run.client_objects.map((object) =>
+			object.id === serverContainer.id
+				? { ...object, searched: true, loot: regressionLoot }
+				: object
+		);
+		await env.DB.prepare("UPDATE salvage_runs SET map_json = ? WHERE id = ?")
+			.bind(JSON.stringify(finishObjects), clientState.run.id).run();
+		finishResult.objects = finishObjects;
+		finishResult.cargo = regressionLoot;
 		const clientFinish = await request("/api/salvage/finish", { result: finishResult });
 		expect(clientFinish.status).toBe(200);
 		expect(((await clientFinish.json()) as { run: null }).run).toBeNull();

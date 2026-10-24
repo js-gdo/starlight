@@ -541,29 +541,33 @@ function backpackShape(tier: number): { width: number; height: number; hasCell: 
 function cargoFitsBackpack(cargo: CargoItem[], tier: number): boolean {
     const shape = backpackShape(tier);
     const occupied = new Set<string>();
-    for (const entry of cargo) {
+    const items = cargo.flatMap(entry => {
         const definition = item(entry.key);
         const stackable = !['weapon', 'armor', 'backpack'].includes(definition.kind);
         const count = stackable ? 1 : entry.quantity;
-        for (let unit = 0; unit < count; unit++) {
-            let placed = false;
-            for (let y = 0; y <= shape.height - (definition.height || 1) && !placed; y++) {
-                for (let x = 0; x <= shape.width - (definition.width || 1) && !placed; x++) {
-                    const cells: string[] = [];
-                    for (let dy = 0; dy < (definition.height || 1); dy++) {
-                        for (let dx = 0; dx < (definition.width || 1); dx++) cells.push(`${x + dx},${y + dy}`);
-                    }
-                    if (cells.every(cell => {
-                        const [cellX, cellY] = cell.split(',').map(Number);
-                        return shape.hasCell(cellX, cellY) && !occupied.has(cell);
-                    })) {
-                        cells.forEach(cell => occupied.add(cell));
-                        placed = true;
-                    }
+        return Array.from({ length: count }, () => ({
+            width: definition.width || 1,
+            height: definition.height || 1,
+        }));
+    }).sort((a, b) => b.width * b.height - a.width * a.height);
+    for (const item of items) {
+        let placed = false;
+        for (let y = 0; y <= shape.height - item.height && !placed; y++) {
+            for (let x = 0; x <= shape.width - item.width && !placed; x++) {
+                const cells: string[] = [];
+                for (let dy = 0; dy < item.height; dy++) {
+                    for (let dx = 0; dx < item.width; dx++) cells.push(`${x + dx},${y + dy}`);
+                }
+                if (cells.every(cell => {
+                    const [cellX, cellY] = cell.split(',').map(Number);
+                    return shape.hasCell(cellX, cellY) && !occupied.has(cell);
+                })) {
+                    cells.forEach(cell => occupied.add(cell));
+                    placed = true;
                 }
             }
-            if (!placed) return false;
         }
+        if (!placed) return false;
     }
     return true;
 }
