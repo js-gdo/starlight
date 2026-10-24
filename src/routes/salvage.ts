@@ -23,7 +23,7 @@ const SALVAGE_STYLES = `
     .salvage-bar{height:8px;margin:6px 0 12px;overflow:hidden;border-radius:99px;background:#3c3340}
     .salvage-bar i{display:block;height:100%;background:linear-gradient(90deg,#59c9b9,#8ae2ae)}
     .salvage-map-frame{position:relative;overflow:hidden;padding:8px;border:1px solid #30465d;border-radius:13px;background:#101c2a;touch-action:none}
-    .salvage-map-svg{display:block;width:100%;height:auto;max-height:70vh;min-height:390px;margin:auto}
+    .salvage-map-svg{display:block;width:100%;height:min(66vh,680px);min-height:430px;margin:auto}
     .map-floor{fill:#243846;stroke:none}
     .map-floor-panel{fill:#2a3e4d;fill-opacity:.55;stroke:#4a5a65;stroke-width:1}
     .map-corridor{fill:#1c2c38;stroke:#405462;stroke-width:2}
@@ -131,6 +131,36 @@ const SALVAGE_STYLES = `
     .salvage-tutorial-card{width:min(540px,100%);padding:22px;border:1px solid #536b80;border-radius:16px;background:linear-gradient(145deg,#1a2d40,#101a29);box-shadow:0 24px 80px #000a;color:#edf4ff}
     .salvage-tutorial-card h2{margin:0 0 8px}
     .salvage-tutorial-card li{margin:8px 0;color:#bdcada;font-size:12px;line-height:1.6}
+    .salvage-map-frame{position:relative}
+    .salvage-minimap{position:absolute;z-index:2;top:16px;right:16px;width:clamp(120px,18vw,210px);aspect-ratio:52/36;border:1px solid #9eb4c9;border-radius:8px;background:#08121ddd;box-shadow:0 5px 18px #0008;pointer-events:none}
+    .salvage-minimap svg{display:block;width:100%;height:100%}
+    .salvage-minimap-player{fill:#ffe18a;stroke:#fff7df;stroke-width:2}
+    .salvage-minimap-enemy{fill:#f05b68;stroke:#ffbdc2;stroke-width:1}
+    .salvage-minimap-exit{fill:#6ff0bd;stroke:#e0fff3;stroke-width:1}
+    .salvage-region-label{fill:#c3d5e1;fill-opacity:.58;font-size:18px;font-weight:800;letter-spacing:2px;text-anchor:middle}
+    .salvage-enemy-health-bg{fill:#171b26;stroke:#c1d0da;stroke-width:1}
+    .salvage-enemy-health-fill{fill:#ff5d68}
+    .salvage-enemy-health-text{fill:#fff;font-size:8px;font-weight:900;text-anchor:middle}
+    .salvage-player-health-bg{fill:#17212b;stroke:#fff;stroke-width:1}
+    .salvage-player-health-fill{fill:#5ee29a}
+    .salvage-player-health-text{fill:#fff;font-size:8px;font-weight:900;text-anchor:middle}
+    .salvage-damage-popup{fill:#ff766f;font-size:14px;font-weight:900;text-anchor:middle;paint-order:stroke;stroke:#17202b;stroke-width:3px}
+    .salvage-warehouse-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-rows:52px;grid-auto-flow:row dense;gap:3px;overflow-x:auto;padding:6px;border:1px solid #30445a;border-radius:10px;background:#0d1927}
+    .salvage-grid-item{display:flex;min-width:0;min-height:0;align-items:center;gap:5px;overflow:hidden;padding:4px;border:1px solid #40566b;border-radius:6px;background:linear-gradient(145deg,#24384b,#172739);color:#e4edf7}
+    .salvage-grid-item .salvage-item-art{flex:0 0 34px;width:34px;height:34px}
+    .salvage-grid-item strong{display:block;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+    .salvage-grid-item small{display:block;overflow:hidden;color:#a9bacb;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+    .salvage-grid-item.is-selected{border-color:#f0ca73;box-shadow:inset 0 0 0 1px #f0ca7366}
+    .salvage-backpack-grid{display:grid;gap:3px;grid-auto-rows:50px;padding:6px;border:1px solid #30445a;border-radius:10px;background:#0d1927}
+    .salvage-backpack-empty{border:1px dashed #40566b;border-radius:6px;background:#172738}
+    .salvage-backpack-cell{position:relative;display:flex;min-width:0;min-height:0;align-items:center;gap:6px;overflow:hidden;padding:4px;border:1px solid #40566b;border-radius:6px;background:linear-gradient(145deg,#24384b,#172739);color:#e4edf7}
+    .salvage-backpack-cell .salvage-item-art{flex:0 0 34px;width:34px;height:34px}
+    .salvage-backpack-cell strong{display:block;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+    .salvage-backpack-cell small{display:block;overflow:hidden;color:#a9bacb;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+    .salvage-item.rarity-tier-1,.salvage-item.rarity-tier-2,.salvage-item.rarity-tier-3,.salvage-item.rarity-tier-4,.salvage-item.rarity-tier-5,.salvage-item.rarity-tier-6,
+    .salvage-kit-card.rarity-tier-1,.salvage-kit-card.rarity-tier-2,.salvage-kit-card.rarity-tier-3,.salvage-kit-card.rarity-tier-4,.salvage-kit-card.rarity-tier-5,.salvage-kit-card.rarity-tier-6,
+    .salvage-run-item.rarity-tier-1,.salvage-run-item.rarity-tier-2,.salvage-run-item.rarity-tier-3,.salvage-run-item.rarity-tier-4,.salvage-run-item.rarity-tier-5,.salvage-run-item.rarity-tier-6{border-color:#304158;background:#1a2b3c;color:#c6d3e2}
+    .salvage button.rarity-tier-1,.salvage button.rarity-tier-2,.salvage button.rarity-tier-3,.salvage button.rarity-tier-4,.salvage button.rarity-tier-5,.salvage button.rarity-tier-6{border-color:#438c96!important;background:linear-gradient(135deg,#287d88,#285f83)!important;color:#fff!important}
     @media(max-width:850px){.salvage-grid{grid-template-columns:1fr}}
     @media(max-width:540px){.salvage-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.salvage-loadout,.salvage-manufacturers,.salvage-stash-grid{grid-template-columns:1fr}.salvage-kit-grid,.salvage-equipped{grid-template-columns:1fr}.salvage-hero{padding:22px 18px}}
 `;
@@ -162,6 +192,35 @@ function salvageMarkup(): string {
             function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(char){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];});}
             function number(value){return new Intl.NumberFormat('zh-CN').format(Number(value)||0);}
             function rarityClass(item){var tier=Math.max(1,Math.min(6,Number(item&&item.tier)||1));return 'rarity-tier-'+tier;}
+            function dimensions(item){return {width:Math.max(1,Number(item.width)||1),height:Math.max(1,Number(item.height)||1)};}
+            function backpackShape(tier){
+                var sizes={2:[4,6],3:[5,6],4:[6,6],5:[6,7],6:[6,8]};
+                if(Number(tier)===1)return {width:5,height:4,hasCell:function(x,y){return x<4||(x===4&&y<2);}};
+                var size=sizes[Number(tier)]||sizes[2];
+                return {width:size[0],height:size[1],hasCell:function(x,y){return x<this.width&&y<this.height;}};
+            }
+            function layoutItems(items,shape){
+                var occupied={};
+                var result=[];
+                var ordered=items.map(function(item,index){return {item:item,index:index,size:dimensions(item)};})
+                    .sort(function(a,b){return b.size.width*b.size.height-a.size.width*a.size.height;});
+                for(var i=0;i<ordered.length;i++){
+                    var entry=ordered[i],placed=false;
+                    for(var y=0;y<=shape.height-entry.size.height&&!placed;y++){
+                        for(var x=0;x<=shape.width-entry.size.width&&!placed;x++){
+                            var cells=[],fits=true;
+                            for(var dy=0;dy<entry.size.height;dy++)for(var dx=0;dx<entry.size.width;dx++){
+                                var cell=(x+dx)+','+(y+dy);
+                                if(!shape.hasCell(x+dx,y+dy)||occupied[cell])fits=false;
+                                cells.push(cell);
+                            }
+                            if(fits){cells.forEach(function(cell){occupied[cell]=true;});result.push({item:entry.item,index:entry.index,x:x,y:y,width:entry.size.width,height:entry.size.height});placed=true;}
+                        }
+                    }
+                    if(!placed)return null;
+                }
+                return result;
+            }
             function inventoryKind(kind){return state.items.filter(function(item){return item.kind===kind;});}
             function itemSvg(item){
                 var key=item.item_key||item.key||'';
@@ -256,7 +315,19 @@ function salvageMarkup(): string {
                     :type==='brute'||type==='elite'
                         ?'<path d="m8 18-5-7 10 2m29 5 5-7-10 2M10 34l-5 9h10m27-9 5 9H37" fill="#4f5360" stroke="'+glow+'" stroke-width="2"/>'
                         :'<path d="M14 40 9 47m25-7 5 7" stroke="'+glow+'" stroke-width="3"/>';
-                return '<svg x="11" y="9" width="50" height="50" viewBox="0 0 50 54" aria-hidden="true">'+extra+'<path d="M15 20 18 9h14l3 11 5 8-4 15H14l-4-15z" fill="#33495b" stroke="'+glow+'" stroke-width="2"/><path d="M18 23h14l3 8H15z" fill="#172b3b" stroke="#c1d6df" stroke-width="1.5"/><circle cx="21" cy="27" r="2.2" fill="'+glow+'"/><circle cx="30" cy="27" r="2.2" fill="'+glow+'"/><path d="M19 37h12m-6-28V4" stroke="'+glow+'" stroke-width="2"/><circle cx="25" cy="4" r="2.5" fill="'+glow+'"/></svg>';
+                return '<svg x="11" y="9" width="50" height="50" viewBox="0 0 50 54" aria-hidden="true">'+extra+
+                    '<path d="m17 37-4 9 7 2 5-8m8-3 4 9-7 2-4-8" fill="#202e3b" stroke="#8ea7b8" stroke-width="1.5"/>'+
+                    '<path d="m13 23 5-7 14-2 8 8 3 10-6 8H13l-5-8z" fill="#2b4051" stroke="'+glow+'" stroke-width="2"/>'+
+                    '<path d="m8 24 8-5 4 7-8 5zm34 0-8-5-4 7 8 5z" fill="#435d6d" stroke="#b8ceda" stroke-width="1.3"/>'+
+                    '<path d="m18 24 4-5h9l5 5-2 15H17z" fill="#182a38" stroke="#a9becb" stroke-width="1.5"/>'+
+                    '<path d="m19 25 5-3h7l4 3-2 5H20z" fill="#101e2b" stroke="'+glow+'" stroke-width="1.5"/>'+
+                    '<path d="m21 26 4-1-1 3h-4zm8 0 4-1-1 3h-4z" fill="'+glow+'"/>'+
+                    '<path d="m21 32 5-2 5 2 1 6H20z" fill="#263c4b" stroke="#afc4cf" stroke-width="1.2"/>'+
+                    '<path d="m26 31 3 3-3 3-3-3z" fill="'+glow+'" stroke="#e0fbff" stroke-width="1"/>'+
+                    '<path d="M23 16v-5l3-4 3 4v5m-9 7-5 2m20-2 5 2M20 40h11" fill="none" stroke="'+glow+'" stroke-width="1.5"/>'+
+                    '<path d="m12 34 4 2m22-2-4 2m-16 4-2 3m18-3 2 3" stroke="#d7e4eb" stroke-opacity=".78" stroke-width="1"/>'+
+                    '<circle cx="26" cy="7" r="2.3" fill="'+glow+'" stroke="#e7faff" stroke-width="1"/>'+
+                    '</svg>';
             }
             function mapFeatureSvg(object,x,y){
                 if(!object)return '';
@@ -264,17 +335,30 @@ function salvageMarkup(): string {
                     return '<g><path class="map-wall-side" d="M'+(x+7)+' '+(y+10)+'h49v47H'+(x+7)+'z"/><path class="map-wall" d="M'+(x+4)+' '+(y+5)+'h49v43H'+(x+4)+'z"/><path class="map-wall-stripe" d="M'+(x+9)+' '+(y+12)+'h38m-38 28h38"/><path d="M'+(x+15)+' '+(y+17)+'v28m24-28v28" stroke="#263847" stroke-width="2"/></g>';
                 }
                 if(object.kind==='enemy'){
-                    return '<g opacity="'+(object.defeated?'.38':'1')+'">'+robotSvg(object.enemyType)+'</g>';
+                    var healthRatio=Math.max(0,Math.min(1,Number(object.health||0)/Math.max(1,Number(object.maxHealth||1))));
+                    return '<g opacity="'+(object.defeated?'.38':'1')+'">'+
+                        '<rect class="salvage-enemy-health-bg" x="'+(x+12)+'" y="'+(y+2)+'" width="48" height="9" rx="4"/>'+
+                        '<rect id="enemyHealth-'+esc(object.id)+'" class="salvage-enemy-health-fill" x="'+(x+14)+'" y="'+(y+4)+'" width="'+(44*healthRatio)+'" height="5" rx="2"/>'+
+                        '<text id="enemyLabel-'+esc(object.id)+'" class="salvage-enemy-health-text" x="'+(x+36)+'" y="'+(y+9)+'">'+Math.ceil(Number(object.health||0))+'/'+Number(object.maxHealth||0)+'</text>'+
+                        robotSvg(object.enemyType)+'</g>';
                 }
                 if(object.kind==='extract'){
                     return '<g><ellipse cx="'+(x+36)+'" cy="'+(y+39)+'" rx="24" ry="10" fill="#1c5750" stroke="#7ce2ba" stroke-width="2"/><ellipse cx="'+(x+36)+'" cy="'+(y+39)+'" rx="16" ry="5" fill="#76d7b3" fill-opacity=".35"/><path d="M'+(x+36)+' '+(y+35)+'V'+(y+13)+'m-8 8 8-8 8 8" fill="none" stroke="#c7ffe4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>';
                 }
-                var boxColor=object.kind==='safe'?'#c9a66a':object.kind==='server'?'#5dc4d1':object.kind==='medical'?'#73d4b4':'#a8b6c7';
+                var boxColor=object.kind==='safe'||object.kind==='reactor'?'#c9a66a':object.kind==='server'||object.kind==='archive'?'#5dc4d1':object.kind==='medical'||object.kind==='lab'?'#73d4b4':object.kind==='armory'?'#bd8cff':object.kind==='locker'?'#c8a77f':'#a8b6c7';
                 if(object.kind==='medical'){
                     return '<g><rect x="'+(x+16)+'" y="'+(y+15)+'" width="40" height="38" rx="5" fill="#285552" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+32)+' '+(y+23)+'h8v7h7v8h-7v7h-8v-7h-7v-8h7z" fill="#d9fff1"/><path d="M'+(x+22)+' '+(y+50)+'h28" stroke="#b0eed5" stroke-width="2"/></g>';
                 }
                 if(object.kind==='server'){
                     return '<g><rect x="'+(x+17)+'" y="'+(y+10)+'" width="38" height="47" rx="4" fill="#304f63" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+22)+' '+(y+18)+'h28v9h-28zm0 14h28v9h-28zm0 14h19" fill="#172b3a" stroke="#a6e9e8" stroke-width="1.5"/><circle cx="'+(x+46)+'" cy="'+(y+22)+'" r="2" fill="#78e7c4"/><circle cx="'+(x+46)+'" cy="'+(y+36)+'" r="2" fill="#eecb78"/></g>';
+                }
+                if(object.kind==='archive'||object.kind==='lab'||object.kind==='locker'||object.kind==='armory'||object.kind==='reactor'){
+                    var emblem=object.kind==='archive'?'<path d="M25 21h22m-22 8h22m-22 8h15" stroke="#c7f4ee" stroke-width="2"/>'
+                        :object.kind==='lab'?'<path d="M31 18h10v8l7 8v12H22V34l7-8v-8zm-5 18h18" fill="#76d4c7" fill-opacity=".5" stroke="#d7fff8" stroke-width="2"/>'
+                        :object.kind==='locker'?'<path d="M24 18h22v29H24zM28 23h14v8H28zm11 15h3" fill="#4c6071" stroke="#e4d2b2" stroke-width="2"/>'
+                        :object.kind==='armory'?'<path d="M20 27h30m-24-5 24 10m-24 0 24-10M24 21v19m22-19v19" stroke="#e7d2ff" stroke-width="3"/>'
+                        :'<path d="M27 19v20a9 9 0 0 0 18 0V19m-18 8h18m-14 8h10" fill="none" stroke="#ffe4a5" stroke-width="3"/>';
+                    return '<g><path d="M'+(x+14)+' '+(y+18)+'h45v34h-45z" fill="#324656" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+18)+' '+(y+14)+'h37v6h-37z" fill="#50677a" stroke="'+boxColor+'" stroke-width="1.5"/>'+emblem+'</g>';
                 }
                 var safe=object.kind==='safe';
                 return '<g><path d="M'+(x+12)+' '+(y+24)+'l24-13 24 13-24 13z" fill="'+(safe?'#806c4d':'#586c7b')+'" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+12)+' '+(y+24)+'v21l24 13V37z" fill="'+(safe?'#5a503f':'#405361')+'" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+60)+' '+(y+24)+'v21L'+(x+36)+' '+(y+58)+'V37z" fill="'+(safe?'#746047':'#4b6170')+'" stroke="'+boxColor+'" stroke-width="2"/>'+(safe?'<circle cx="'+(x+36)+'" cy="'+(y+34)+'" r="5" fill="#f2d88b" stroke="#fff2bd" stroke-width="2"/>':'<path d="M'+(x+26)+' '+(y+27)+'h20m-10-5v11" stroke="#dce9ed" stroke-width="2"/>')+'</g>';
@@ -303,6 +387,8 @@ function salvageMarkup(): string {
                     '<g fill="#a9c4d4" stroke="'+armorColor+'" stroke-width="1.5">'+weaponShape+'</g>'+
                     '<path d="M21 38h10m-8 2-2 5m8-5 2 5" stroke="#d5dfeb" stroke-width="2" stroke-linecap="round"/>'+
                     '<circle class="salvage-player-charge" cx="39" cy="17" r="5"/><text x="39" y="19.5" text-anchor="middle" font-size="6" font-weight="900" fill="#143044">'+charges+'</text>'+
+                    '<g id="playerVitals"><rect class="salvage-player-health-bg" x="0" y="-13" width="52" height="10" rx="5"/><rect id="playerHealthFill" class="salvage-player-health-fill" x="2" y="-11" width="'+(48*Math.max(0,Math.min(1,run.health/run.max_health)))+'" height="6" rx="3"/><text id="playerHealthLabel" class="salvage-player-health-text" x="26" y="-5">'+Math.ceil(run.health)+' / '+Math.ceil(run.max_health)+'</text></g>'+
+                    '<text id="playerDamagePopup" class="salvage-damage-popup" x="26" y="-19" style="display:none"></text>'+
                     '<text x="26" y="51" text-anchor="middle" font-size="6" fill="#fff">'+armorTier+'级甲 · '+weaponTier+'级武器</text></g>';
             }
             function itemActions(item){
@@ -323,14 +409,20 @@ function salvageMarkup(): string {
                 return actions;
             }
             function renderInventory(){
-                return state.items.length?'<div class="salvage-list">'+state.items.map(function(item){
+                if(!state.items.length)return '<div class="salvage-empty">仓库暂时空了；购买装备或继续探索补充物资。</div>';
+                var grid=state.items.map(function(item){
+                    var size=dimensions(item);
                     var condition=item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability)
                         :item.kind==='weapon'?'充能 '+number(item.charges)
-                        :item.kind==='backpack'?'负重上限 '+number(12+item.tier*6)
+                        :item.kind==='backpack'?'容量 '+size.width+'×'+size.height
                         :'数量 '+number(item.quantity)+' · 单件估值 '+number(item.value)+' 星币';
                     if(item.kind==='armor'&&Number(item.sale_value)<Number(item.value))condition+=' · 磨损折价 '+number(item.sale_value)+' 星币';
-                    return '<div class="salvage-item '+rarityClass(item)+' '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'"><div class="salvage-item-main">'+itemSvg(item)+'<div><strong>'+esc(item.name)+(item.tier?' · '+item.tier+' 级':'')+'</strong><small>'+esc(condition)+' · '+esc(item.description)+'</small></div></div><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
-                }).join('')+'</div>':'<div class="salvage-empty">仓库暂时空了；购买装备或继续探索补充物资。</div>';
+                    var action=['backpack','weapon','armor'].indexOf(item.kind)>=0?'select-gear':'select-warehouse';
+                    return '<button class="salvage-grid-item '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'" data-action="'+action+'" data-id="'+item.id+'" title="'+esc(item.name+' · '+size.width+'×'+size.height+' · '+condition)+'" style="grid-column:span '+size.width+';grid-row:span '+size.height+'">'+itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(size.width+'×'+size.height+' · '+condition)+'</small></span></button>';
+                }).join('');
+                var selected=state.items.find(function(item){return Number(item.id)===Number(selectedStashItem);});
+                var details=selected?'<div class="salvage-object"><div class="salvage-item-main">'+itemSvg(selected)+'<span><strong>'+esc(selected.name)+'</strong><small>'+esc(selected.description)+' · '+dimensions(selected).width+'×'+dimensions(selected).height+'</small></span></div><div class="salvage-item-actions">'+itemActions(selected)+'</div></div>':'<div class="salvage-empty">点击物品查看详情；同类堆叠物品共用一个仓库格。</div>';
+                return '<div class="salvage-warehouse-grid">'+grid+'</div>'+details;
             }
             function renderRun(run){
                 var containerKinds=['server','safe','medical','supply'];
@@ -385,65 +477,118 @@ function salvageMarkup(): string {
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后耐久与剩余充能会保留；阵亡则全部遗失。</small></div></section>';
             }
             function renderRun(run){
-                var width=Number(run.map_width)||8;
-                var height=Number(run.map_height)||7;
+                var width=Number(run.map_width)||52;
+                var height=Number(run.map_height)||36;
                 var playerX=Number(run.world_x)||((run.x+.5)*72);
                 var playerY=Number(run.world_y)||((run.y+.5)*72);
-                function closeTo(object,radius){
-                    var dx=object.x*72+36-playerX,dy=object.y*72+36-playerY;
-                    return dx*dx+dy*dy<=radius*radius;
-                }
-                var containers=['server','safe','medical','supply'];
-                var nearby=(run.objects||[]).filter(function(object){
-                    return object.kind==='enemy'&&!object.defeated&&closeTo(object,112);
+                var containers=['server','safe','medical','supply','archive','armory','lab','locker','reactor'];
+                (run.objects||[]).forEach(function(object){
+                    if(object.kind==='enemy'&&!Number.isFinite(object.visual_x)){
+                        object.visual_x=(object.x+.5)*72;
+                        object.visual_y=(object.y+.5)*72;
+                    }
                 });
-                var manhattan=function(object){
-                    return Math.abs(object.x+.5-playerX/72)+Math.abs(object.y+.5-playerY/72);
-                };
-                var current=(run.objects||[]).filter(function(object){
-                    return containers.indexOf(object.kind)>=0||object.kind==='extract';
-                }).sort(function(a,b){
-                    return manhattan(a)-manhattan(b);
-                }).find(function(object){
-                    return containers.indexOf(object.kind)>=0?manhattan(object)<=1.5:closeTo(object,54);
-                })||null;
-                run.nearby_enemies=nearby;
-                run.current_object=current;
                 var floorPath=(run.map_tiles||[]).filter(function(tile){return !tile.wall;}).map(function(tile){
                     return 'M'+(tile.x*72)+' '+(tile.y*72)+'h72v72h-72z';
                 }).join('');
                 var objects=(run.objects||[]).map(function(object){
-                    return '<g class="salvage-entity" data-entity="'+esc(object.id)+'" transform="translate('+(object.x*72)+' '+(object.y*72)+')">'+mapFeatureSvg(object,0,0)+'</g>';
+                    var point=objectPosition(object);
+                    return '<g class="salvage-entity" data-entity="'+esc(object.id)+'" transform="translate('+(point.x-36)+' '+(point.y-36)+')">'+mapFeatureSvg(object,0,0)+'</g>';
                 }).join('');
-                var panels='<rect class="map-corridor" x="44" y="224" width="488" height="56" rx="26"/>'+
-                    '<rect class="map-floor-panel" x="76" y="76" width="174" height="132" rx="30"/>'+
-                    '<rect class="map-floor-panel" x="326" y="292" width="170" height="134" rx="30"/>'+
-                    '<path class="map-floor-mark" d="M65 132h120m-120 16h90m253 190h93m-93 16h63M288 52v92m16 0V52"/>';
-                var map='<div class="salvage-map-frame"><svg id="salvageMap" class="salvage-map-svg" viewBox="0 0 '+(width*72)+' '+(height*72)+'" role="application" aria-label="空间站连续移动地图">'+
+                var panels=(run.map_regions||[]).map(function(region){
+                    return '<text class="salvage-region-label" x="'+region.x+'" y="'+region.y+'">'+esc(region.name)+'</text>';
+                }).join('');
+                var cameraWidth=Math.min(width*72,1296),cameraHeight=Math.min(height*72,720);
+                var cameraX=Math.max(0,Math.min(width*72-cameraWidth,playerX-cameraWidth/2));
+                var cameraY=Math.max(0,Math.min(height*72-cameraHeight,playerY-cameraHeight/2));
+                run.camera_width=cameraWidth;run.camera_height=cameraHeight;
+                var map='<div class="salvage-map-frame"><svg id="salvageMap" class="salvage-map-svg" viewBox="'+cameraX+' '+cameraY+' '+cameraWidth+' '+cameraHeight+'" role="application" aria-label="空间站视野地图">'+
                     '<defs><clipPath id="stationFloor"><path d="'+floorPath+'"/></clipPath></defs>'+
                     '<rect width="'+(width*72)+'" height="'+(height*72)+'" fill="#111c28"/><path class="map-floor" d="'+floorPath+'"/>'+
                     '<g clip-path="url(#stationFloor)">'+panels+'</g>'+objects+playerSvg(run,playerX,playerY)+
-                    '</svg><div class="salvage-map-hint"><span>WASD / 方向键持续移动 · 点击地面可行走</span><span>行动在客户端运行，结束时一次提交</span></div></div>';
-                var controls='';
-                if(current&&containers.indexOf(current.kind)>=0){
-                    controls+=current.searched?'<span class="salvage-pill">已搜索</span>':'<button data-action="search">搜索'+esc(current.name)+'</button>';
-                }
-                if(current&&current.kind==='extract')controls+='<button class="gold" data-action="extract">撤离并提交本局</button>';
-                controls+=nearby.map(function(enemy){
-                    return '<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'">攻击 '+esc(enemy.name)+'（'+number(enemy.health)+'/'+number(enemy.maxHealth)+' HP）</button>';
-                }).join('');
-                if(run.terminalStatus)controls='<button data-action="retry-finish">重试提交本局记录</button>';
-                var cargo=run.cargo.length?run.cargo.map(function(item){
-                    return '<div class="salvage-run-item '+rarityClass(item)+'"><span class="salvage-item-main">'+itemSvg(item)+'<span>'+esc(item.name)+' ×'+number(item.quantity)+'</span></span><span>'+number(item.weight*item.quantity)+' 负重</span></div>';
-                }).join(''):'<div class="salvage-empty">尚未搜到物资</div>';
-                return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 实时行动</h2><p>连续行走和局内操作在客户端即时运行，不再逐步请求 API；撤离或阵亡时一次提交完整结算。</p></div><span class="salvage-pill">行动 '+number(run.turn)+' · 本地</span></div>'+
-                    '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong id="runHealth">'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包负重</span><strong id="runWeight">'+number(run.cargo_weight)+' / '+number(run.capacity)+'</strong></div><div class="salvage-stat"><span>武器充能</span><strong id="runCharges">'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong id="runArmor">'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
+                    '</svg><div class="salvage-minimap"><svg id="salvageMinimap" viewBox="0 0 '+(width*72)+' '+(height*72)+'" aria-label="空间站全图">'+
+                    '<path d="'+floorPath+'" fill="#536776" stroke="#a7bac7" stroke-width="22"/>'+
+                    (run.objects||[]).filter(function(object){return object.kind==='extract';}).map(function(object){var p=objectPosition(object);return '<circle class="salvage-minimap-exit" cx="'+p.x+'" cy="'+p.y+'" r="110"/>';}).join('')+
+                    (run.objects||[]).filter(function(object){return object.kind==='enemy'&&!object.defeated;}).map(function(object){var p=objectPosition(object);return '<circle id="minimapEnemy-'+esc(object.id)+'" class="salvage-minimap-enemy" cx="'+p.x+'" cy="'+p.y+'" r="75"/>';}).join('')+
+                    '<circle id="minimapPlayer" class="salvage-minimap-player" cx="'+playerX+'" cy="'+playerY+'" r="115"/></svg></div>'+
+                    '<div class="salvage-map-hint"><span>视野随玩家移动 · WASD / 方向键持续移动 · 点击地面行走</span><span>右上角为玩家小地图</span></div></div>';
+                var cargo=renderBackpack(run,containers);
+                var shape=backpackShape(run.backpack.tier);
+                var areaCells=0;
+                for(var cellY=0;cellY<shape.height;cellY++)for(var cellX=0;cellX<shape.width;cellX++)if(shape.hasCell(cellX,cellY))areaCells++;
+                var usedLayout=layoutItems(run.cargo||[],shape);
+                var usedCells=usedLayout?usedLayout.reduce(function(total,place){return total+place.width*place.height;},0):areaCells;
+                return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 实时行动</h2><p>区域间由隔离墙分隔；人机在地图中巡逻并会追击、攻击进入警戒范围的玩家。撤离或阵亡时一次提交本局记录。</p></div><span class="salvage-pill">行动 '+number(run.turn)+' · 本地</span></div>'+
+                    '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong id="runHealth">'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包空间</span><strong id="runWeight">'+usedCells+' / '+areaCells+' 格</strong></div><div class="salvage-stat"><span>武器充能</span><strong id="runCharges">'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong id="runArmor">'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
                     '<div class="salvage-bar"><i id="runHealthBar" style="width:'+Math.max(0,Math.min(100,run.health/run.max_health*100))+'%"></i></div>'+
-                    map+'<div class="salvage-legend"><span>隔离墙 / 障碍</span><span>服务器 / 保险箱 / 补给</span><span>巡逻人机</span><span>外沿撤离平台</span></div>'+
-                    '<div class="salvage-object"><strong id="runPrompt">'+(current?'附近：'+esc(current.name):'探索空间站')+'</strong><small>WASD / 方向键移动 · T 攻击（优先高血量人机）· F 搜索（曼哈顿距离 ≤ 1.5）· E 通用交互</small></div>'+
-                    '<div class="salvage-controls">'+(controls||'<span class="salvage-pill">靠近容器、人机或撤离点进行交互</span>')+'<button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
-                    '<div class="salvage-object"><strong>本局携带物资</strong>'+cargo+'</div>'+
+                    map+'<div class="salvage-legend"><span>生活区</span><span>管理区</span><span>研发区</span><span>机组区</span><span>核心区（高价值）</span><span>工程区</span></div>'+
+                    '<div class="salvage-object"><strong id="runPrompt">正在扫描周边目标…</strong><small>WASD / 方向键移动 · T 攻击 · F 搜索 · E 交互；交互、攻击与撤离均在曼哈顿距离 ≤ 1.5 时启用</small></div>'+
+                    '<div id="runInteractions" class="salvage-controls">'+(run.terminalStatus?'<button data-action="retry-finish">重试提交本局记录</button>':'')+'</div><div class="salvage-controls"><button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
+                    '<div class="salvage-object"><strong>本局背包 · '+shape.width+'×'+shape.height+'（实际 '+areaCells+' 格）</strong>'+cargo+'</div>'+
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后带回；阵亡则全部遗失。</small></div></section>';
+            }
+            function objectPosition(object){
+                return {
+                    x:Number.isFinite(object.visual_x)?object.visual_x:(object.x+.5)*72,
+                    y:Number.isFinite(object.visual_y)?object.visual_y:(object.y+.5)*72
+                };
+            }
+            function runItemActions(item,index){
+                var actions='';
+                if(['weapon','armor','backpack'].indexOf(item.kind)>=0){
+                    actions+='<button class="secondary" data-action="run-equip" data-index="'+index+'">使用 / 装备</button>';
+                }
+                if(item.key==='star_crystal'){
+                    actions+='<button class="secondary" data-action="run-charge" data-index="'+index+'">为当前武器充能</button>';
+                }
+                return actions;
+            }
+            function renderBackpack(run){
+                var shape=backpackShape(run.backpack.tier);
+                var items=(run.cargo||[]).map(function(item,index){return Object.assign({},item,{cargoIndex:index});});
+                var layout=layoutItems(items,shape);
+                var cells='';
+                for(var y=0;y<shape.height;y++)for(var x=0;x<shape.width;x++){
+                    if(shape.hasCell(x,y))cells+='<span class="salvage-backpack-empty" style="grid-column:'+(x+1)+';grid-row:'+(y+1)+'"></span>';
+                }
+                if(!layout)return '<div class="salvage-warning">当前物品无法在背包中排布，请使用或整理物品。</div>'+cells;
+                var content=layout.map(function(place){
+                    var item=place.item;
+                    var index=item.cargoIndex;
+                    return '<div class="salvage-backpack-cell" style="grid-column:'+(place.x+1)+' / span '+place.width+';grid-row:'+(place.y+1)+' / span '+place.height+'" title="'+esc(item.name+' · '+place.width+'×'+place.height)+'">'+
+                        itemSvg(item)+'<span><strong>'+esc(item.name)+' ×'+number(item.quantity)+'</strong><small>'+place.width+'×'+place.height+' · '+number(item.weight*item.quantity)+' 负重</small>'+runItemActions(item,index)+'</span></div>';
+                }).join('');
+                return '<div class="salvage-backpack-grid" style="grid-template-columns:repeat('+shape.width+',minmax(0,1fr))">'+cells+content+'</div>';
+            }
+            function refreshInteractionUi(run){
+                var controls=document.getElementById('runInteractions');
+                var prompt=document.getElementById('runPrompt');
+                if(!controls||!prompt)return;
+                var container=activeObject('container',null,true);
+                var exit=activeObject('extract');
+                var enemy=activeObject('enemy');
+                var pieces=[];
+                if(container)pieces.push(container.searched&&!(container.loot||[]).length?'<span class="salvage-pill">已搜索：'+esc(container.name)+'</span>':'<button data-action="search">搜索 '+esc(container.name)+'</button>');
+                if(exit)pieces.push('<button class="gold" data-action="extract">撤离 '+esc(exit.name)+'</button>');
+                if(enemy)pieces.push('<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'">攻击 '+esc(enemy.name)+' · '+number(enemy.health)+' / '+number(enemy.maxHealth)+' HP</button>');
+                if(run.terminalStatus)pieces=['<button data-action="retry-finish">重试提交本局记录</button>'];
+                if(!pieces.length)pieces.push('<span class="salvage-pill">距离可交互目标超过 1.5 单位</span>');
+                var signature=pieces.join('|');
+                if(run.interactionSignature!==signature){
+                    controls.innerHTML=pieces.join('');
+                    run.interactionSignature=signature;
+                }
+                var target=container||exit||enemy;
+                prompt.textContent=target?'附近：'+target.name+(target.kind==='enemy'?' · '+Math.ceil(target.health)+' HP':''):'探索 '+areaAt(run.world_x/72,run.world_y/72);
+            }
+            function areaAt(x,y){
+                var regions=[
+                    {name:'生活区',x1:2,x2:13,y1:3,y2:13},{name:'管理区',x1:18,x2:29,y1:3,y2:13},
+                    {name:'研发区',x1:34,x2:49,y1:3,y2:13},{name:'机组区',x1:2,x2:15,y1:21,y2:32},
+                    {name:'核心区',x1:20,x2:31,y1:18,y2:31},{name:'工程区',x1:36,x2:49,y1:21,y2:32}
+                ];
+                var region=regions.find(function(value){return x>=value.x1&&x<=value.x2&&y>=value.y1&&y<=value.y2;});
+                return region?region.name:'连接廊道';
             }
             function initializeClientRun(){
                 if(!state.run)return;
@@ -452,7 +597,7 @@ function salvageMarkup(): string {
                 var saved=null;
                 try{saved=JSON.parse(localStorage.getItem(storageKey)||'null');}catch(error){localStorage.removeItem(storageKey);}
                 if(saved&&saved.id===run.id){
-                    state.run=saved;
+                    state.run=Object.assign({},run,saved,{map_tiles:run.map_tiles,map_regions:run.map_regions});
                 }else{
                     run.objects=run.client_objects||run.objects;
                     run.world_x=(run.x+.5)*72;
@@ -471,7 +616,11 @@ function salvageMarkup(): string {
             }
             function saveClientRun(){
                 if(!state||!state.run)return;
-                try{localStorage.setItem('salvage-client-run-'+state.run.id,JSON.stringify(state.run));}
+                try{
+                    var snapshot=Object.assign({},state.run);
+                    delete snapshot.map_tiles;delete snapshot.map_regions;delete snapshot.client_objects;
+                    localStorage.setItem('salvage-client-run-'+state.run.id,JSON.stringify(snapshot));
+                }
                 catch(error){feedback('本地行动存档失败；请勿刷新或关闭页面，直到本局结算。',true);}
             }
             function enrichCargo(entry){
@@ -481,7 +630,7 @@ function salvageMarkup(): string {
             function cargoWeight(run){
                 return run.cargo.reduce(function(total,entry){return total+(Number(entry.weight)||0)*Number(entry.quantity||0);},0);
             }
-            function walkable(run,x,y){
+            function walkable(run,x,y,ignoreEnemy){
                 var tileX=Math.floor(x/72),tileY=Math.floor(y/72);
                 var tile=(run.map_tiles||[]).find(function(value){return value.x===tileX&&value.y===tileY;});
                 if(!tile||tile.wall||x<8||y<8||x>=run.map_width*72-8||y>=run.map_height*72-8)return false;
@@ -489,8 +638,9 @@ function salvageMarkup(): string {
                     if(object.kind==='wall'){
                         return Math.abs((object.x+.5)*72-x)<24&&Math.abs((object.y+.5)*72-y)<24;
                     }
-                    if(object.kind==='enemy'&&!object.defeated){
-                        var dx=(object.x+.5)*72-x,dy=(object.y+.5)*72-y;
+                    if(object.kind==='enemy'&&!object.defeated&&object.id!==ignoreEnemy){
+                        var point=objectPosition(object);
+                        var dx=point.x-x,dy=point.y-y;
                         return dx*dx+dy*dy<18*18;
                     }
                     return false;
@@ -511,6 +661,8 @@ function salvageMarkup(): string {
                 if(state&&state.run&&!state.run.terminalStatus){
                     var dt=lastFrame?Math.min(.05,(now-lastFrame)/1000):0;
                     lastFrame=now;
+                    advanceEnemies(state.run,dt,now);
+                    if(state.run.terminalStatus){window.requestAnimationFrame(animationFrame);return;}
                     var dx=(pressedKeys.d?1:0)-(pressedKeys.a?1:0);
                     var dy=(pressedKeys.s?1:0)-(pressedKeys.w?1:0);
                     if(moveTarget&&!dx&&!dy){
@@ -526,6 +678,8 @@ function salvageMarkup(): string {
                         if(now-lastSnapshot>1200){lastSnapshot=now;saveClientRun();}
                         updateRunHud();
                     }
+                    updateDynamicMap(state.run);
+                    refreshInteractionUi(state.run);
                 }else lastFrame=0;
                 window.requestAnimationFrame(animationFrame);
             }
@@ -539,10 +693,96 @@ function salvageMarkup(): string {
                 var bar=document.getElementById('runHealthBar');
                 if(health)health.textContent=number(run.health)+' / '+number(run.max_health);
                 run.cargo_weight=cargoWeight(run);
-                if(weight)weight.textContent=number(run.cargo_weight)+' / '+number(run.capacity);
+                var shape=backpackShape(run.backpack.tier);
+                var cells=0;
+                for(var y=0;y<shape.height;y++)for(var x=0;x<shape.width;x++)if(shape.hasCell(x,y))cells++;
+                var layout=layoutItems(run.cargo||[],shape);
+                var used=layout?layout.reduce(function(total,entry){return total+entry.width*entry.height;},0):cells;
+                if(weight)weight.textContent=used+' / '+cells+' 格';
                 if(charges)charges.textContent=number(run.weapon.charges);
                 if(armor)armor.textContent=number(run.armor.durability)+' / '+number(run.armor.maxDurability);
                 if(bar)bar.style.width=Math.max(0,Math.min(100,run.health/run.max_health*100))+'%';
+                var playerHealth=document.getElementById('playerHealthFill');
+                var playerHealthLabel=document.getElementById('playerHealthLabel');
+                if(playerHealth)playerHealth.setAttribute('width',String(48*Math.max(0,Math.min(1,run.health/run.max_health))));
+                if(playerHealthLabel)playerHealthLabel.textContent=Math.ceil(run.health)+' / '+Math.ceil(run.max_health);
+                var popup=document.getElementById('playerDamagePopup');
+                if(popup){
+                    popup.style.display=run.damage_popup&&Date.now()<run.damage_popup_until?'':'none';
+                    popup.textContent=run.damage_popup?'−'+number(run.damage_popup):'';
+                }
+                (run.objects||[]).filter(function(object){return object.kind==='enemy';}).forEach(function(enemy){
+                    var fill=document.getElementById('enemyHealth-'+enemy.id);
+                    var label=document.getElementById('enemyLabel-'+enemy.id);
+                    if(fill)fill.setAttribute('width',String(44*Math.max(0,Math.min(1,Number(enemy.health||0)/Math.max(1,Number(enemy.maxHealth||1))))));
+                    if(label)label.textContent=Math.ceil(Number(enemy.health||0))+'/'+Number(enemy.maxHealth||0);
+                });
+            }
+            function updateDynamicMap(run){
+                var player=document.getElementById('salvagePlayer');
+                if(player)player.setAttribute('transform','translate('+(run.world_x-26)+' '+(run.world_y-26)+')');
+                var map=document.getElementById('salvageMap');
+                if(map){
+                    var viewWidth=run.camera_width||1296,viewHeight=run.camera_height||720;
+                    var x=Math.max(0,Math.min(run.map_width*72-viewWidth,run.world_x-viewWidth/2));
+                    var y=Math.max(0,Math.min(run.map_height*72-viewHeight,run.world_y-viewHeight/2));
+                    map.setAttribute('viewBox',x+' '+y+' '+viewWidth+' '+viewHeight);
+                }
+                var miniPlayer=document.getElementById('minimapPlayer');
+                if(miniPlayer){miniPlayer.setAttribute('cx',run.world_x);miniPlayer.setAttribute('cy',run.world_y);}
+                (run.objects||[]).filter(function(object){return object.kind==='enemy';}).forEach(function(enemy){
+                    var p=objectPosition(enemy);
+                    var marker=document.querySelector('[data-entity="'+enemy.id+'"]');
+                    if(marker)marker.setAttribute('transform','translate('+(p.x-36)+' '+(p.y-36)+')');
+                    var mini=document.getElementById('minimapEnemy-'+enemy.id);
+                    if(mini){mini.setAttribute('cx',p.x);mini.setAttribute('cy',p.y);}
+                });
+                updateRunHud();
+            }
+            function advanceEnemies(run,dt,now){
+                var playerX=run.world_x,playerY=run.world_y;
+                for(var i=0;i<run.objects.length;i++){
+                    var enemy=run.objects[i];
+                    if(enemy.kind!=='enemy'||enemy.defeated)continue;
+                    if(!Number.isFinite(enemy.visual_x)){enemy.visual_x=(enemy.x+.5)*72;enemy.visual_y=(enemy.y+.5)*72;}
+                    var point=objectPosition(enemy);
+                    var manhattan=Math.abs(point.x/72-playerX/72)+Math.abs(point.y/72-playerY/72);
+                    if(manhattan<=1.5&&now>=Number(enemy.nextAttackAt||0)){
+                        var reduction=run.armor.durability>0?(Number(run.armor.tier)||1)*3:0;
+                        var incoming=Math.max(1,Number(enemy.attack||1)-reduction);
+                        run.armor.durability=Math.max(0,run.armor.durability-1);
+                        run.kit.armor.durability=run.armor.durability;
+                        run.health=Math.max(0,run.health-incoming);
+                        run.damage_popup=incoming;run.damage_popup_until=now+900;
+                        enemy.nextAttackAt=now+1500;
+                        run.turn+=1;
+                        if(!run.health){saveClientRun();finishClientRun('dead');return;}
+                    }
+                    var targetX=playerX,targetY=playerY;
+                    if(manhattan>8){
+                        var wanderDistance=Math.abs(Number(enemy.wander_x||0)-point.x)+Math.abs(Number(enemy.wander_y||0)-point.y);
+                        if(now>=Number(enemy.nextMoveAt||0)||!Number.isFinite(enemy.wander_x)||wanderDistance<10){
+                            var directions=[[72,0],[-72,0],[0,72],[0,-72]];
+                            var direction=directions[Math.floor(Math.random()*directions.length)];
+                            var candidateX=Math.floor(point.x/72)*72+36+direction[0];
+                            var candidateY=Math.floor(point.y/72)*72+36+direction[1];
+                            if(walkable(run,candidateX,candidateY,enemy.id)){
+                                enemy.wander_x=candidateX;enemy.wander_y=candidateY;
+                            }
+                            enemy.nextMoveAt=now+4500;
+                        }
+                        targetX=Number(enemy.wander_x)||point.x;
+                        targetY=Number(enemy.wander_y)||point.y;
+                    }else{
+                        enemy.wander_x=undefined;
+                    }
+                    var dx=targetX-point.x,dy=targetY-point.y;
+                    var length=Math.sqrt(dx*dx+dy*dy)||1;
+                    var speed=manhattan<8?30:20;
+                    var nextX=point.x+dx/length*speed*dt,nextY=point.y+dy/length*speed*dt;
+                    if(walkable(run,nextX,point.y,enemy.id))enemy.visual_x=nextX;
+                    if(walkable(run,enemy.visual_x,nextY,enemy.id))enemy.visual_y=nextY;
+                }
             }
             function addCargo(run,entries){
                 for(var i=0;i<entries.length;i++){
@@ -554,28 +794,32 @@ function salvageMarkup(): string {
                 }
                 run.cargo_weight=cargoWeight(run);
             }
-            function activeObject(kind,id){
+            function activeObject(kind,id,includeSearched){
                 var run=state.run;
                 var px=run.world_x,py=run.world_y;
                 var eligible=run.objects.filter(function(object){
                     if(kind==='enemy'&&(object.kind!=='enemy'||object.defeated))return false;
-                    if(kind==='container'&&['server','safe','medical','supply'].indexOf(object.kind)<0)return false;
+                    if(kind==='container'&&['server','safe','medical','supply','archive','armory','lab','locker','reactor'].indexOf(object.kind)<0
+                        &&!(object.kind==='enemy'&&object.defeated&&(object.loot||[]).length))return false;
                     if(kind==='extract'&&object.kind!=='extract')return false;
                     if(id&&object.id!==id)return false;
-                    if(kind==='container'&&object.searched)return false;
-                    if(kind==='container'){
-                        return Math.abs(object.x+.5-px/72)+Math.abs(object.y+.5-py/72)<=1.5;
-                    }
-                    var dx=(object.x+.5)*72-px,dy=(object.y+.5)*72-py;
-                    return dx*dx+dy*dy<=(kind==='enemy'?112:kind==='extract'?54:62)*(kind==='enemy'?112:kind==='extract'?54:62);
+                    if(kind==='container'&&object.searched&&!(object.loot||[]).length&&!includeSearched)return false;
+                    var point=objectPosition(object);
+                    return Math.abs(point.x/72-px/72)+Math.abs(point.y/72-py/72)<=1.5;
                 });
                 if(kind==='enemy'){
                     eligible.sort(function(a,b){
                         var healthDifference=Number(b.health||0)-Number(a.health||0);
                         if(healthDifference)return healthDifference;
-                        var aDistance=Math.pow((a.x+.5)*72-px,2)+Math.pow((a.y+.5)*72-py,2);
-                        var bDistance=Math.pow((b.x+.5)*72-px,2)+Math.pow((b.y+.5)*72-py,2);
+                        var aPoint=objectPosition(a),bPoint=objectPosition(b);
+                        var aDistance=Math.pow(aPoint.x-px,2)+Math.pow(aPoint.y-py,2);
+                        var bDistance=Math.pow(bPoint.x-px,2)+Math.pow(bPoint.y-py,2);
                         return aDistance-bDistance;
+                    });
+                }else{
+                    eligible.sort(function(a,b){
+                        var first=objectPosition(a),second=objectPosition(b);
+                        return Math.abs(first.x-px)+Math.abs(first.y-py)-Math.abs(second.x-px)-Math.abs(second.y-py);
                     });
                 }
                 return eligible[0]||null;
@@ -587,7 +831,7 @@ function salvageMarkup(): string {
                 run.turn+=1;
                 saveClientRun();
                 post('/api/salvage/finish',{result:{
-                    run_id:run.id,status:status,x:run.x,y:run.y,health:status==='dead'?0:run.health,turn:run.turn,
+                    run_id:run.id,status:status,x:run.x,y:run.y,world_x:run.world_x,world_y:run.world_y,health:status==='dead'?0:run.health,turn:run.turn,
                     objects:run.objects,cargo:run.cargo.map(function(entry){
                         return {key:entry.key,quantity:entry.quantity,durability:Number(entry.durability)||0,maxDurability:Number(entry.maxDurability)||0,charges:Number(entry.charges)||0};
                     }),
@@ -614,25 +858,72 @@ function salvageMarkup(): string {
                 if(container)performLocalAction('search',container.id);
                 else feedback('曼哈顿距离 1.5 单位内没有可搜索的容器。',true);
             }
+            function cargoCanFit(run,cargo,backpackTier){
+                var shape=backpackShape(backpackTier);
+                return layoutItems(cargo,shape)!==null&&cargoWeight({cargo:cargo})<=12+Number(backpackTier)*6;
+            }
+            function useRunEquipment(index){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus)return;
+                var incoming=run.cargo[index];
+                if(!incoming||['backpack','weapon','armor'].indexOf(incoming.kind)<0){feedback('该物品不能直接装备。',true);return;}
+                var kind=incoming.kind;
+                var nextCargo=run.cargo.filter(function(value,itemIndex){return itemIndex!==index;}).map(function(value){return Object.assign({},value);});
+                var old=run[kind];
+                nextCargo.push(enrichCargo({key:old.key,quantity:1,durability:Number(old.durability)||0,maxDurability:Number(old.maxDurability)||0,charges:Number(old.charges)||0}));
+                var nextTier=kind==='backpack'?Number(incoming.tier):Number(run.backpack.tier);
+                if(!cargoCanFit(run,nextCargo,nextTier)){feedback('换装后剩余物品无法按实际形状放入背包。',true);return;}
+                run.cargo=nextCargo;
+                run[kind]=enrichCargo(incoming);
+                run.kit[kind]={key:incoming.key,quantity:1,durability:Number(incoming.durability)||0,maxDurability:Number(incoming.maxDurability)||0,charges:Number(incoming.charges)||0};
+                if(kind==='backpack')run.capacity=12+nextTier*6;
+                if(kind==='weapon')run.weaponTier=Number(incoming.tier);
+                if(kind==='armor')run.armorTier=Number(incoming.tier);
+                run.cargo_weight=cargoWeight(run);
+                run.turn+=1;
+                saveClientRun();draw();
+                feedback('已在局内装备 '+incoming.name+'。旧装备已放入背包。',false);
+            }
+            function chargeRunWeapon(index){
+                var run=state&&state.run;
+                var crystal=run&&run.cargo[index];
+                if(!run||run.terminalStatus||!crystal||crystal.key!=='star_crystal'){feedback('请选择背包中的星晶。',true);return;}
+                crystal.quantity-=1;
+                run.cargo=run.cargo.filter(function(entry){return entry.quantity>0;});
+                run.weapon.charges=Number(run.weapon.charges||0)+3;
+                run.kit.weapon.charges=run.weapon.charges;
+                run.turn+=1;
+                saveClientRun();draw();
+                feedback('已消耗 1 个星晶，为当前武器增加 3 次充能。',false);
+            }
             function performLocalAction(action,id){
                 var run=state&&state.run;
                 if(!run||run.terminalStatus)return;
                 if(action==='search'){
                     var container=activeObject('container',id);
                     if(!container){feedback('靠近未搜索的容器后再搜索。',true);return;}
-                    var capacity=run.capacity-cargoWeight(run);
                     var collected=[];
+                    var remaining=[];
                     (container.loot||[]).forEach(function(entry){
                         var definition=state.catalog.find(function(value){return value.key===entry.key;});
-                        if(!definition)return;
-                        var quantity=definition.weight===0?entry.quantity:Math.min(entry.quantity,Math.floor(capacity/definition.weight));
-                        if(quantity>0){collected.push(Object.assign({},entry,{quantity:quantity}));capacity-=quantity*definition.weight;}
+                        if(!definition){remaining.push(entry);return;}
+                        var quantity=definition.weight===0?entry.quantity:Math.min(entry.quantity,Math.floor(Math.max(0,run.capacity-cargoWeight(run))/definition.weight));
+                        if(quantity<1){remaining.push(entry);return;}
+                        var incoming=Object.assign({},entry,{quantity:quantity});
+                        var trial=run.cargo.map(function(value){return Object.assign({},value);});
+                        var merged=trial.find(function(value){return value.key===incoming.key&&['weapon','armor','backpack'].indexOf(definition.kind)<0;});
+                        if(merged)merged.quantity+=incoming.quantity;else trial.push(enrichCargo(incoming));
+                        if(cargoCanFit(run,trial,run.backpack.tier)){
+                            collected.push(incoming);
+                            if(merged){var live=run.cargo.find(function(value){return value.key===incoming.key;});if(live)live.quantity+=incoming.quantity;else addCargo(run,[incoming]);}
+                            else addCargo(run,[incoming]);
+                            if(quantity<entry.quantity)remaining.push(Object.assign({},entry,{quantity:entry.quantity-quantity}));
+                        }else remaining.push(entry);
                     });
-                    container.searched=true;
-                    container.loot=[];
-                    if(collected.length)addCargo(run,collected);
+                    run.cargo_weight=cargoWeight(run);
+                    container.searched=true;container.loot=remaining;
                     run.turn+=2;
-                    feedback(collected.length?'搜刮获得 '+collected.map(function(entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return (def?def.name:entry.key)+' ×'+entry.quantity;}).join('、'):'已搜索容器，背包空间不足，未能带走物资。',false);
+                    feedback(collected.length?'搜刮获得 '+collected.map(function(entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return (def?def.name:entry.key)+' ×'+entry.quantity;}).join('、')+(remaining.length?'；不适配的物品留在容器中，可整理背包后再搜索。':''):'物品形状或负重不适配，仍留在容器中。',false);
                 }else if(action==='attack'){
                     var enemy=activeObject('enemy',id);
                     if(!enemy){feedback('靠近敌人后再攻击。',true);return;}
@@ -644,15 +935,22 @@ function salvageMarkup(): string {
                     if(enemy.health===0){
                         enemy.defeated=true;
                         var drops=enemy.loot||[];
-                        if(cargoWeight(run)+drops.reduce(function(total,entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return total+(def?def.weight:0)*entry.quantity;},0)<=run.capacity)addCargo(run,drops);
-                        enemy.loot=[];
-                        feedback('已击败'+enemy.name+'。'+(drops.length?'获得人机掉落物资。':''),false);
+                        var leftovers=[];
+                        drops.forEach(function(entry){
+                            var test=run.cargo.map(function(value){return Object.assign({},value);});
+                            addCargo({cargo:test},[entry]);
+                            if(cargoCanFit(run,test,run.backpack.tier))addCargo(run,[entry]);
+                            else leftovers.push(entry);
+                        });
+                        enemy.loot=leftovers;
+                        feedback('已击败'+enemy.name+'。'+(drops.length?'获得可装入背包的掉落物资。':'')+(leftovers.length?'其余物资留在残骸中，可靠近后再拾取。':''),false);
                     }else{
                         var reduction=run.armor.durability>0?(Number(run.armor.tier)||1)*3:0;
                         var incoming=Math.max(1,Number(enemy.attack||1)-reduction);
                         run.armor.durability=Math.max(0,run.armor.durability-1);
                         run.kit.armor.durability=run.armor.durability;
                         run.health=Math.max(0,run.health-incoming);
+                        run.damage_popup=incoming;run.damage_popup_until=Date.now()+900;
                         feedback('造成 '+damage+' 点伤害，受到 '+incoming+' 点反击。',false);
                         if(run.health===0){saveClientRun();finishClientRun('dead');return;}
                     }
@@ -678,20 +976,25 @@ function salvageMarkup(): string {
                     var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind])&&item.kind===kind;});
                     if(!chosen)selectedGear[kind]=Number((inventoryKind(kind)[0]||{}).id)||0;
                 });
+                var selectedValue=['backpack','weapon','armor'].reduce(function(total,kind){
+                    var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind]);});
+                    return total+(chosen?Number(chosen.value)*Number(chosen.quantity):0);
+                },0);
                 var slots='<div class="salvage-slot-list">'+['backpack','weapon','armor'].map(function(kind){
                     var names={backpack:'背包槽位',weapon:'武器槽位',armor:'护甲槽位'};
                     var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind]);});
+                    var backpackText=chosen&&kind==='backpack'?(chosen.tier===1?'4×4 + 1×2 · 18 格':dimensions(chosen).width+'×'+dimensions(chosen).height+' 格'):'';
                     return '<button class="salvage-slot '+(chosen?rarityClass(chosen):'')+' '+(selectedStashItem?'selected':'')+'" data-action="assign-gear" data-kind="'+kind+'">'+
-                        (chosen?itemSvg(chosen):'')+'<span><strong>'+names[kind]+'</strong><small>'+(chosen?esc(chosen.name)+' · '+(kind==='weapon'?'充能 '+number(chosen.charges):kind==='armor'?'耐久 '+number(chosen.durability)+'/'+number(chosen.max_durability):'负重 '+number(12+chosen.tier*6)):'尚未选择')+'</small></span></button>';
+                        (chosen?itemSvg(chosen):'')+'<span><strong>'+names[kind]+'</strong><small>'+(chosen?esc(chosen.name)+' · '+(kind==='weapon'?'充能 '+number(chosen.charges):kind==='armor'?'耐久 '+number(chosen.durability)+'/'+number(chosen.max_durability):backpackText)+' · 价值 '+number(chosen.value)+' 星币':'尚未选择')+'</small></span></button>';
                 }).join('')+'</div>';
                 var gearCards=ownedGear.length?'<div class="salvage-list">'+ownedGear.map(function(item){
-                    var detail=item.kind==='weapon'?'充能 '+number(item.charges):item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):'负重上限 '+number(12+item.tier*6);
+                    var detail=item.kind==='weapon'?'充能 '+number(item.charges):item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):(item.tier===1?'4×4 + 1×2 · 18 格':dimensions(item).width+'×'+dimensions(item).height+' 格');
                     return '<div class="salvage-item '+rarityClass(item)+' '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'"><button class="salvage-slot salvage-selectable '+rarityClass(item)+'" data-action="select-gear" data-id="'+item.id+'">'+itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(detail)+' · 价值 '+number(item.value)+' 星币</small></span></button><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
                 }).join('')+'</div>':'';
                 var medkits=inventoryKind('medicine').reduce(function(total,item){return total+Number(item.quantity);},0);
                 var zoneCards='<div class="salvage-grid"><div class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术配装 · 选择地图与出战装备</h2><p>先点击左侧仓库中的装备，再点击右侧对应槽位完成配装。</p></div></div>'+
                     (gear?'<div class="salvage-stash-grid"><div><div class="salvage-stash-categories"><span>仓库装备 · '+number(ownedGear.length)+' 件</span><span>点击物品选择</span></div>'+gearCards+'</div>'+slots+'</div>':'<div class="salvage-warning">仓库需要各有一件背包、武器和护甲才能出发。可在下方商店购买；首次档案附有一套 1 级装备。</div>')+
-                    (gear?'<label class="salvage-inline-field" style="max-width:180px;margin-top:8px">携带急救包（仓库 '+number(medkits)+'）<input type="number" min="0" max="5" value="'+Math.min(2,medkits)+'" data-medkits></label>':'')+
+                    (gear?'<div class="salvage-wallet"><span>本次配装估值 '+number(selectedValue)+' 星币</span></div><label class="salvage-inline-field" style="max-width:180px;margin-top:8px">携带急救包（仓库 '+number(medkits)+'）<input type="number" min="0" max="5" value="'+Math.min(2,medkits)+'" data-medkits></label>':'')+
                     '<div class="salvage-controls">'+
                     (gear?'<button data-action="start" data-zone="safe">进入安全区</button><button class="danger" data-action="start" data-zone="chaos">进入混乱区（装备价值需 ≥ '+number(state.zones.chaos.entry_value)+'）</button>':'')+
                     '<button class="secondary" data-action="tutorial">查看行动教程</button></div><div class="salvage-warning">混乱区装备价值门槛按本次携带的背包、武器和护甲计算。移动耗时 1 分钟，搜索耗时 2 分钟；护甲减伤、武器伤害和背包负重随等级提升。</div></div>'+
@@ -707,21 +1010,35 @@ function salvageMarkup(): string {
                 return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>制造商</h2><p>各类别生产线可并行制造；同一生产线需先领取完成品再排产。启动时会提交配方材料。</p></div></div>'+
                     '<div class="salvage-manufacturers">'+Object.keys(names).map(function(category){var job=state.jobs.find(function(value){return value.category===category;});return '<div class="salvage-manufacturer"><h3>'+names[category]+'</h3>'+
                         (job?'<div class="salvage-job"><strong>'+esc(job.recipe?job.recipe.name:job.item_key)+'</strong><small>'+(job.ready?'制造完成，可以领取。':'完成时间：'+esc(new Date(job.finishes_at).toLocaleString('zh-CN')))+'</small>'+(job.ready?'<button data-action="claim-craft" data-id="'+job.id+'">领取成品</button>':'')+'</div>':
-                            byCategory[category].map(function(recipe){var ingredients=Object.entries(recipe.requirements).map(function(entry){var found=state.items.find(function(item){return item.item_key===entry[0];});var definition=state.catalog.find(function(item){return item.key===entry[0];});return (found?found.name:definition?definition.name:entry[0])+' ×'+entry[1];}).join('、');var product=state.catalog.find(function(item){return item.key===recipe.key;});return '<div class="salvage-recipe"><span>'+itemSvg(product)+esc(recipe.name)+'<br>'+esc(ingredients)+' · '+number(recipe.minutes)+' 分钟</span><button data-action="craft" data-item="'+esc(recipe.key)+'">制造</button></div>';}).join(''))+'</div>';}).join('')+'</div></section>';
+                            byCategory[category].map(function(recipe){
+                                var missing=[];
+                                var ingredients=Object.entries(recipe.requirements).map(function(entry){
+                                    var found=state.items.filter(function(item){return item.item_key===entry[0];}).reduce(function(total,item){return total+Number(item.quantity);},0);
+                                    var definition=state.catalog.find(function(item){return item.key===entry[0];});
+                                    var shortage=Math.max(0,entry[1]-found);
+                                    if(shortage)missing.push({key:entry[0],quantity:shortage,cost:Math.ceil(Number(definition&&definition.price||0)*1.1)*shortage});
+                                    return (definition?definition.name:entry[0])+' '+found+'/'+shortage+'（拥有/还缺）';
+                                }).join('、');
+                                var buyCost=missing.reduce(function(total,value){return total+value.cost;},0);
+                                var product=state.catalog.find(function(item){return item.key===recipe.key;});
+                                return '<div class="salvage-recipe"><span>'+itemSvg(product)+esc(recipe.name)+'<br>'+esc(ingredients)+' · '+number(recipe.minutes)+' 分钟</span><div class="salvage-controls"><button data-action="craft" data-item="'+esc(recipe.key)+'">制造</button>'+
+                                    (missing.length?'<button class="secondary" data-action="buy-craft-materials" data-item="'+esc(recipe.key)+'"'+(buyCost>state.player.star_coins?' disabled':'')+'>按原价 1.1 倍补齐（'+number(buyCost)+' 星币）</button>':'<span class="salvage-pill">材料已齐</span>')+'</div></div>';
+                            }).join(''))+'</div>';}).join('')+'</div></section>';
             }
             function draw(){
                 document.getElementById('salvageWallet').innerHTML='<span>✦ '+number(state.player.star_coins)+' 星币</span><span>✧ '+number(state.player.star_crystals)+' 星晶</span><span>仓库装备估值 '+number(state.player.total_equipment_value)+'</span>';
                 var main=state.run?renderRun(state.run):renderHideout();
-                var stash='<section class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术仓库</h2><p>按装备状态管理物资；带磨损耐久的物品会按剩余耐久折价出售。带充能武器要先卸载完整星晶。</p></div><span class="salvage-pill">'+number(state.items.length)+' 格物品</span></div><div class="salvage-stash-categories"><span>装备 / 武器</span><span>医疗补给</span><span>材料 / 收藏品</span><span>出售估值含耐久折价</span></div><div class="salvage-inventory">'+renderInventory()+'</div></section>';
+                if(state.run){document.getElementById('salvageContent').innerHTML=main;return;}
+                var stash='<section class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术仓库</h2><p>仓库使用二维格子自动排布；物品颜色仅显示在图标中。磨损装备按剩余耐久折价出售。</p></div><span class="salvage-pill">'+number(state.items.length)+' 件物品 · 仓库空间自动扩展</span></div><div class="salvage-inventory">'+renderInventory()+'</div></section>';
                 var recent=state.history.length?'<div class="salvage-list">'+state.history.map(function(run){return '<div class="salvage-item"><strong>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · '+esc(run.status==='dead'?'阵亡':'已撤离')+'</strong><small>'+esc(new Date(run.ended_at||run.started_at).toLocaleString('zh-CN'))+'</small></div>';}).join('')+'</div>':'<div class="salvage-empty">尚无已结束的对局</div>';
-                document.getElementById('salvageContent').innerHTML=main+stash+(state.run?'':renderCrafting())+'<section class="salvage-panel"><div class="salvage-heading"><div><h2>行动记录</h2><p>最近八局结果</p></div></div>'+recent+'</section>';
+                document.getElementById('salvageContent').innerHTML=main+stash+renderCrafting()+'<section class="salvage-panel"><div class="salvage-heading"><div><h2>行动记录</h2><p>最近八局结果</p></div></div>'+recent+'</section>';
             }
             function showTutorial(){
                 var overlay=document.createElement('div');
                 overlay.className='salvage-tutorial';
                 overlay.setAttribute('role','dialog');
                 overlay.setAttribute('aria-modal','true');
-                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；武器需要星晶充能。</li><li>对局中按住 WASD / 方向键可连续移动，也可点击地图行走；位置和行动在本地即时更新。</li><li>按 T 攻击附近人机；同时有多个目标时会优先攻击当前血量最高的目标。</li><li>按 F 搜索曼哈顿距离 1.5 单位内的容器；按 E 可自动执行附近的搜索、攻击或撤离。</li><li>接近边缘撤离平台后按 E 撤离；阵亡或成功撤离时，客户端只提交一次完整本局记录。</li><li>物品背景颜色代表等级：1 白、2 绿、3 蓝、4 紫、5 金、6 红。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
+                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；本次配装估值会影响混乱区准入。</li><li>仓库和背包按物品实际尺寸自动排布；背包只接收有真实空位的物品，空格总数相同不代表形状一定放得下。</li><li>对局中按住 WASD / 方向键连续移动，也可点击地图；屏幕只显示附近区域，右上角小地图显示整站。</li><li>人机会巡逻、追击并攻击玩家；按 T 攻击曼哈顿距离 1.5 内血量最高的人机，敌人和玩家头顶都有血条。</li><li>按 F 搜索 1.5 单位内的容器；在背包点“使用 / 装备”可直接更换局内找到的武器、护甲和背包，星晶可为当前武器增加 3 次充能。</li><li>靠近边缘撤离平台后按 E 撤离；局内只在撤离或阵亡时提交一次记录，仓库和制造商在对局中隐藏。</li><li>稀有度颜色仅显示在物品图标：1 白、2 绿、3 蓝、4 紫、5 金、6 红。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
                 root.appendChild(overlay);
             }
             async function load(){
@@ -765,6 +1082,7 @@ function salvageMarkup(): string {
                     post('/api/salvage/start',payload);return;
                 }
                 if(action==='select-gear'){selectedStashItem=Number(button.dataset.id);draw();return;}
+                if(action==='select-warehouse'){selectedStashItem=Number(button.dataset.id);draw();return;}
                 if(action==='assign-gear'){
                     var selected=state.items.find(function(item){return Number(item.id)===Number(selectedStashItem);});
                     if(!selected){feedback('请先点击仓库中的一件装备。',true);return;}
@@ -775,6 +1093,8 @@ function salvageMarkup(): string {
                 if(action==='close-tutorial'){button.closest('.salvage-tutorial').remove();localStorage.setItem('salvage-tutorial-seen','1');return;}
                 if(action==='attack'){performLocalAction('attack',button.dataset.id);return;}
                 if(action==='search'){performLocalAction('search');return;}
+                if(action==='run-equip'){useRunEquipment(Number(button.dataset.index));return;}
+                if(action==='run-charge'){chargeRunWeapon(Number(button.dataset.index));return;}
                 if(action==='extract'){if(activeObject('extract'))finishClientRun('extracted');else feedback('靠近撤离平台后再撤离。',true);return;}
                 if(action==='heal'){performLocalAction('heal');return;}
                 if(action==='retry-finish'&&state.run&&state.run.terminalStatus){finishClientRun(state.run.terminalStatus,true);return;}
@@ -789,6 +1109,7 @@ function salvageMarkup(): string {
                     return;
                 }
                 if(action==='craft'){post('/api/salvage/craft',{item:button.dataset.item});return;}
+                if(action==='buy-craft-materials'){post('/api/salvage/craft/materials',{item:button.dataset.item});return;}
                 if(action==='claim-craft'){post('/api/salvage/craft/claim',{job_id:Number(button.dataset.id)});}
             });
             root.addEventListener('pointerdown',function(event){

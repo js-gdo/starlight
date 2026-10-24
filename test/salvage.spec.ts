@@ -50,6 +50,13 @@ describe("space-station salvage game", () => {
 		expect(pageHtml).toContain("key==='f'");
 		expect(pageHtml).toContain("healthDifference");
 		expect(pageHtml).toContain("<=1.5");
+		expect(pageHtml).toContain("refreshInteractionUi");
+		expect(pageHtml).toContain("advanceEnemies");
+		expect(pageHtml).toContain("salvage-minimap");
+		expect(pageHtml).toContain("salvage-backpack-grid");
+		expect(pageHtml).toContain("buy-craft-materials");
+		expect(pageHtml).toContain("run-equip");
+		expect(pageHtml).toContain("playerDamagePopup");
 		expect(pageHtml).toContain("rarity-tier-6");
 		expect(pageHtml).toContain("var colors=['#edf1f5','#63dc82','#54a5ff','#b77aff','#f4c64e','#f0646d']");
 
@@ -58,7 +65,7 @@ describe("space-station salvage game", () => {
 		const initialState = await initial.json() as {
 			player: { star_coins: number; star_crystals: number };
 			items: Array<{ id: number; item_key: string }>;
-			catalog: Array<{ key: string; kind: string; name: string }>;
+			catalog: Array<{ key: string; kind: string; name: string; width: number; height: number; price: number }>;
 		};
 		expect(initialState.player).toMatchObject({ star_coins: 1400, star_crystals: 8 });
 		expect(initialState.catalog.length).toBeGreaterThanOrEqual(40);
@@ -66,6 +73,19 @@ describe("space-station salvage game", () => {
 		expect(initialState.catalog.some((item) => item.key === "armor_6" && item.name.includes("星铸"))).toBe(true);
 		expect(initialState.catalog.some((item) => item.key === "weapon_rail_1" && item.name.includes("磁轨"))).toBe(true);
 		expect(initialState.catalog.some((item) => item.key === "weapon_scatter_6" && item.name.includes("散射"))).toBe(true);
+		expect(initialState.catalog.find((item) => item.key === "magnetic_core")).toMatchObject({ width: 3, height: 3 });
+		expect(initialState.catalog.find((item) => item.key === "starlight_crown")).toMatchObject({ width: 1, height: 1 });
+		expect(initialState.catalog.find((item) => item.key === "backpack_1")).toMatchObject({ width: 2, height: 2 });
+		expect(initialState.catalog.find((item) => item.key === "alloy_plate")?.price).toBeGreaterThan(0);
+
+		const materialsPurchased = await request("/api/salvage/craft/materials", { item: "star_crystal" });
+		expect(materialsPurchased.status).toBe(200);
+		const purchaseState = await materialsPurchased.json() as {
+			player: { star_coins: number };
+			items: Array<{ item_key: string; quantity: number }>;
+		};
+		expect(purchaseState.player.star_coins).toBeLessThan(1400);
+		expect(purchaseState.items.some((entry) => entry.item_key === "quantum_cell" && entry.quantity >= 2)).toBe(true);
 		const findId = (key: string) => {
 			const row = initialState.items.find((entry) => entry.item_key === key);
 			if (!row) throw new Error(`Missing starter item ${key}`);
@@ -95,21 +115,28 @@ describe("space-station salvage game", () => {
 				map_width: number;
 				map_height: number;
 				map_tiles: Array<{ x: number; y: number; wall?: boolean }>;
+				map_regions: Array<{ id: string; name: string }>;
 				objects: Array<{ id: string; x: number; y: number; kind: string; enemyType?: string }>;
 			};
 		};
 		expect(activeState.run.zone).toBe("safe");
 		expect(activeState.run.cargo).toContainEqual(expect.objectContaining({ key: "medkit", quantity: 1 }));
 		expect(JSON.stringify(activeState.run.objects)).not.toContain('"loot"');
-		expect(activeState.run).toMatchObject({ map_width: 8, map_height: 7 });
-		expect(activeState.run.map_tiles).toContainEqual({ x: 3, y: 3, wall: true });
-		expect(activeState.run.objects.filter((object) => object.kind === "wall")).toHaveLength(2);
+		expect(activeState.run).toMatchObject({ map_width: 52, map_height: 36, x: 7, y: 8 });
+		expect(activeState.run.map_tiles.some((tile) => tile.wall)).toBe(true);
+		expect(activeState.run.map_regions.map((region) => region.name)).toEqual(
+			expect.arrayContaining(["生活区", "管理区", "研发区", "机组区", "核心区", "工程区"]),
+		);
+		expect(activeState.run.objects.filter((object) => object.kind === "wall").length).toBeGreaterThan(2);
+		expect(activeState.run.objects.filter((object) =>
+			["server", "safe", "medical", "supply", "archive", "armory", "lab", "locker", "reactor"].includes(object.kind)
+		).length).toBeGreaterThanOrEqual(16);
 		expect(new Set(activeState.run.objects.filter((object) => object.kind === "enemy").map((object) => object.enemyType)).size)
 			.toBeGreaterThan(1);
 		const exit = activeState.run.objects.find((object) => object.kind === "extract");
 		if (!exit) throw new Error("The raid map did not generate an extraction point.");
-		expect(exit.x === 0 || exit.x === 7 || exit.y === 0 || exit.y === 6).toBe(true);
-		expect((await request("/api/salvage/move", { x: 3, y: 3 })).status).toBe(409);
+		expect(exit.x === 2 || exit.x === 49 || exit.y === 3 || exit.y === 32).toBe(true);
+		expect((await request("/api/salvage/move", { x: 3, y: 3 })).status).toBe(400);
 		expect((await request("/api/salvage/move", { x: 0, y: 0 })).status).toBe(400);
 		expect((await request("/api/salvage/purchase", { item: "weapon_2" })).status).toBe(409);
 
@@ -125,7 +152,7 @@ describe("space-station salvage game", () => {
 		};
 		expect(searchedState.run.turn).toBe(2);
 		expect(searchedState.run.cargo.some((entry) => [
-			"circuit_board", "data_core", "data_fragment", "quantum_cell", "plasma_coil", "optic_lens",
+			"circuit_board", "data_core", "data_fragment", "quantum_cell", "plasma_coil", "optic_lens", "magnetic_core", "signal_prism",
 		].includes(entry.key))).toBe(true);
 
 		const exitNeighbor = activeState.run.map_tiles.find((tile) =>
@@ -229,14 +256,17 @@ describe("space-station salvage game", () => {
 		expect((await request("/api/salvage/start", { ...secondLoadout, zone: "safe", medkits: 1 })).status).toBe(200);
 		const secondRunResponse = await request("/api/salvage/state");
 		const secondRunState = await secondRunResponse.json() as {
-			run: { objects: Array<{ id: string; x: number; y: number; kind: string }> };
+			run: { map_tiles: Array<{ x: number; y: number; wall?: boolean }>; objects: Array<{ id: string; x: number; y: number; kind: string }> };
 		};
 		const enemy = secondRunState.run.objects.find((object) => object.kind === "enemy");
 		if (!enemy) throw new Error("The raid map did not generate an enemy.");
-		const adjacentX = enemy.x > 0 ? enemy.x - 1 : enemy.x + 1;
+		const adjacent = secondRunState.run.map_tiles.find((tile) =>
+			!tile.wall && Math.abs(tile.x - enemy.x) + Math.abs(tile.y - enemy.y) === 1
+		);
+		if (!adjacent) throw new Error("The enemy has no adjacent walkable tile.");
 		await env.DB.prepare(
 			"UPDATE salvage_runs SET x = ?, y = ?, health = 1 WHERE user_id = ? AND status = 'active'"
-		).bind(adjacentX, enemy.y, userId).run();
+		).bind(adjacent.x, adjacent.y, userId).run();
 		const death = await request("/api/salvage/attack", { object_id: enemy.id });
 		expect(death.status).toBe(200);
 		const deathState = await death.json() as { run: null };
@@ -285,6 +315,8 @@ describe("space-station salvage game", () => {
 			status: "extracted",
 			x: clientExit.x,
 			y: clientExit.y,
+			world_x: (clientExit.x + 0.5) * 72,
+			world_y: (clientExit.y + 0.5) * 72,
 			health: clientState.run.health,
 			turn: 1,
 			objects: clientState.run.client_objects,

@@ -13,6 +13,8 @@ type ItemDefinition = {
     maxDurability?: number;
     weaponBranch?: 'pulse' | 'rail' | 'scatter';
     damage?: number;
+    width?: number;
+    height?: number;
     description: string;
 };
 type InventoryRow = {
@@ -55,8 +57,9 @@ type MapObject = {
     id: string;
     x: number;
     y: number;
-    kind: 'wall' | 'server' | 'safe' | 'medical' | 'supply' | 'enemy' | 'extract';
+    kind: 'wall' | 'server' | 'safe' | 'medical' | 'supply' | 'archive' | 'armory' | 'lab' | 'locker' | 'reactor' | 'enemy' | 'extract';
     name: string;
+    area?: 'living' | 'management' | 'research' | 'reactor' | 'core' | 'engineering';
     enemyType?: 'patrol' | 'scout' | 'sentry' | 'support' | 'hunter' | 'brute' | 'wraith' | 'elite';
     searched?: boolean;
     defeated?: boolean;
@@ -75,10 +78,39 @@ type CraftRecipe = {
     quantity: number;
 };
 
+function isContainerKind(kind: MapObject['kind']): boolean {
+    return ['server', 'safe', 'medical', 'supply', 'archive', 'armory', 'lab', 'locker', 'reactor'].includes(kind);
+}
+
 const ITEMS: Record<string, ItemDefinition> = {};
 
+const ITEM_SIZES: Record<string, [number, number]> = {
+    medkit: [2, 2], star_crystal: [1, 1],
+    circuit_board: [2, 2], fiber_bundle: [1, 2], alloy_plate: [2, 3], med_gel: [1, 2],
+    quantum_cell: [1, 2], data_core: [2, 2], antique_relic: [2, 2], void_artifact: [2, 3],
+    data_fragment: [1, 1], encrypted_key: [1, 1], quantum_clock: [2, 2], relic_compass: [1, 2],
+    starlight_crown: [1, 1], alien_ceramic: [2, 2], ancient_coin: [1, 1], signal_prism: [1, 2],
+    plasma_coil: [2, 2], nano_mesh: [2, 2], optic_lens: [1, 1], polymer_resin: [1, 2],
+    bio_sample: [1, 3], reactor_shard: [2, 2], magnetic_core: [3, 3], coolant_canister: [1, 4],
+};
+
+function itemFootprint(key: string, kind: ItemKind, tier: number): [number, number] {
+    const named = ITEM_SIZES[key];
+    if (named) return named;
+    if (kind === 'weapon') return [1, 4];
+    if (kind === 'armor') return tier >= 5 ? [3, 3] : tier >= 2 ? [2, 3] : [2, 2];
+    if (kind === 'backpack') return tier >= 5 ? [3, 3] : [2, 2];
+    return [1, 1];
+}
+
 function addItem(item: ItemDefinition): void {
-    ITEMS[item.key] = item;
+    const [width, height] = itemFootprint(item.key, item.kind, item.tier);
+    ITEMS[item.key] = {
+        ...item,
+        price: item.kind === 'material' && item.price === 0 ? item.value : item.price,
+        width,
+        height,
+    };
 }
 
 [
@@ -209,7 +241,47 @@ const ZONES = {
     chaos: { name: '混乱区', entryValue: 2400, enemyHealth: [65, 92], enemyAttack: [15, 23], lootTier: [3, 6] },
 } as const;
 
-const STATION_LAYOUT = [
+const STATION_WIDTH = 52;
+const STATION_HEIGHT = 36;
+const STATION_REGIONS = [
+    { id: 'living', name: '生活区', x1: 2, x2: 13, y1: 3, y2: 13 },
+    { id: 'management', name: '管理区', x1: 18, x2: 29, y1: 3, y2: 13 },
+    { id: 'research', name: '研发区', x1: 34, x2: 49, y1: 3, y2: 13 },
+    { id: 'reactor', name: '机组区', x1: 2, x2: 15, y1: 21, y2: 32 },
+    { id: 'core', name: '核心区', x1: 20, x2: 31, y1: 18, y2: 31 },
+    { id: 'engineering', name: '工程区', x1: 36, x2: 49, y1: 21, y2: 32 },
+] as const;
+const STATION_FLOOR = new Set<string>();
+for (const region of STATION_REGIONS) {
+    for (let y = region.y1; y <= region.y2; y++) {
+        for (let x = region.x1; x <= region.x2; x++) STATION_FLOOR.add(`${x},${y}`);
+    }
+}
+for (const [x1, x2, y1, y2] of [
+    [12, 19, 7, 9], [28, 35, 7, 9], [14, 21, 25, 27], [30, 37, 25, 27], [24, 27, 10, 22],
+]) {
+    for (let y = y1; y <= y2; y++) {
+        for (let x = x1; x <= x2; x++) STATION_FLOOR.add(`${x},${y}`);
+    }
+}
+const STATION_TILES = [...STATION_FLOOR].map(value => {
+    const [x, y] = value.split(',').map(Number);
+    return { x, y };
+});
+const STATION_WALLS = [...new Set(STATION_TILES.flatMap(({ x, y }) =>
+    [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]
+        .filter(([wallX, wallY]) => wallX > 0 && wallX < STATION_WIDTH - 1 && wallY > 0 && wallY < STATION_HEIGHT - 1)
+        .filter(([wallX, wallY]) => !STATION_FLOOR.has(`${wallX},${wallY}`))
+        .map(([wallX, wallY]) => `${wallX},${wallY}`)
+))].map(value => {
+    const [x, y] = value.split(',').map(Number);
+    return { x, y };
+});
+const STATION_CELLS = [
+    ...STATION_TILES.map(tile => ({ ...tile, wall: false })),
+    ...STATION_WALLS.map(tile => ({ ...tile, wall: true })),
+];
+const LEGACY_STATION_LAYOUT = [
     '  ....  ',
     ' ...... ',
     '........',
@@ -218,19 +290,35 @@ const STATION_LAYOUT = [
     ' ...... ',
     '  ....  ',
 ];
-const STATION_TILES = STATION_LAYOUT.flatMap((row, y) =>
+const LEGACY_STATION_TILES = LEGACY_STATION_LAYOUT.flatMap((row, y) =>
     Array.from(row).flatMap((tile, x) => tile === '.' ? [{ x, y }] : [])
 );
-const STATION_WALLS = STATION_LAYOUT.flatMap((row, y) =>
+const LEGACY_STATION_WALLS = LEGACY_STATION_LAYOUT.flatMap((row, y) =>
     Array.from(row).flatMap((tile, x) => tile === '#' ? [{ x, y }] : [])
 );
-const STATION_CELLS = [
-    ...STATION_TILES.map(tile => ({ ...tile, wall: false })),
-    ...STATION_WALLS.map(tile => ({ ...tile, wall: true })),
+const LEGACY_STATION_CELLS = [
+    ...LEGACY_STATION_TILES.map(tile => ({ ...tile, wall: false })),
+    ...LEGACY_STATION_WALLS.map(tile => ({ ...tile, wall: true })),
 ];
 const LEGACY_TILES = Array.from({ length: 6 }, (_, y) =>
     Array.from({ length: 6 }, (_, x) => ({ x, y }))
 ).flat();
+
+function isLargeStation(objects: MapObject[]): boolean {
+    return objects.some(object => object.kind === 'wall' && (object.x >= 8 || object.y >= 7));
+}
+
+function stationTilesFor(objects: MapObject[]) {
+    if (isLargeStation(objects)) return STATION_TILES;
+    if (objects.some(object => object.kind === 'wall')) return LEGACY_STATION_TILES;
+    return LEGACY_TILES;
+}
+
+function stationCellsFor(objects: MapObject[]) {
+    if (isLargeStation(objects)) return STATION_CELLS;
+    if (objects.some(object => object.kind === 'wall')) return LEGACY_STATION_CELLS;
+    return LEGACY_TILES.map(tile => ({ ...tile, wall: false }));
+}
 
 const INITIAL_INVENTORY = [
     { key: 'backpack_1', quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
@@ -286,8 +374,9 @@ async function getPlayer(env: Env, userId: number): Promise<PlayerRow> {
     return player;
 }
 
-function mapLoot(kind: MapObject['kind'], zone: RunRow['zone']): CargoItem[] {
-    const multiplier = zone === 'chaos' ? 1.7 : 1;
+function mapLoot(kind: MapObject['kind'], zone: RunRow['zone'], area?: MapObject['area']): CargoItem[] {
+    const coreBoost = area === 'core' || area === 'research';
+    const multiplier = (zone === 'chaos' ? 1.7 : 1) * (coreBoost ? 1.5 : 1);
     const materials = [
         'circuit_board', 'fiber_bundle', 'alloy_plate', 'med_gel', 'quantum_cell',
         'plasma_coil', 'nano_mesh', 'optic_lens', 'polymer_resin', 'bio_sample',
@@ -301,19 +390,31 @@ function mapLoot(kind: MapObject['kind'], zone: RunRow['zone']): CargoItem[] {
         key, quantity, durability: 0, maxDurability: 0, charges: 0,
     });
 
-    if (kind === 'server') {
+    if (kind === 'server' || kind === 'archive' || kind === 'lab') {
+        if (kind === 'archive') return [stack(pick(zone === 'chaos' || coreBoost ? collectibles : ['data_fragment', 'ancient_coin', 'encrypted_key']), 1)];
+        if (kind === 'lab') return [stack(pick(['bio_sample', 'optic_lens', 'quantum_cell', 'magnetic_core', 'signal_prism']), randomInt(1, zone === 'chaos' || coreBoost ? 2 : 1))];
         const electronic = zone === 'chaos'
             ? ['circuit_board', 'data_core', 'quantum_cell', 'plasma_coil', 'optic_lens', 'magnetic_core', 'signal_prism']
             : ['circuit_board', 'data_core', 'data_fragment', 'plasma_coil', 'optic_lens'];
+        if (coreBoost) electronic.push('magnetic_core', 'signal_prism');
         return [stack(pick(electronic), randomInt(1, zone === 'chaos' ? 3 : 2))];
     }
     if (kind === 'safe') {
-        const key = pick(collectibles);
+        const key = pick(zone === 'chaos' || coreBoost ? collectibles : ['data_core', 'antique_relic', 'data_fragment', 'encrypted_key', 'alien_ceramic', 'ancient_coin']);
         return [stack(key, 1), ...(Math.random() < 0.7 ? [stack(pick(materials), 1)] : [])];
+    }
+    if (kind === 'armory') {
+        const gearTier = zone === 'chaos' || coreBoost ? randomInt(2, 6) : randomInt(1, 3);
+        const gearKind = (['weapon', 'armor', 'backpack'] as const)[randomInt(0, 2)];
+        const key = gearKind === 'weapon' ? `weapon_${gearTier}` : `${gearKind}_${gearTier}`;
+        const maxDurability = item(key).maxDurability || 0;
+        return [{ key, quantity: 1, durability: gearKind === 'armor' ? maxDurability : 0, maxDurability, charges: gearKind === 'weapon' ? randomInt(2, 5) : 0 }];
     }
     if (kind === 'medical') {
         return [stack(Math.random() < 0.55 ? 'med_gel' : 'medkit', randomInt(1, 2))];
     }
+    if (kind === 'locker') return [stack(pick(['fiber_bundle', 'polymer_resin', 'alloy_plate', 'coolant_canister', 'ancient_coin']), randomInt(1, 2))];
+    if (kind === 'reactor') return [stack(pick(['reactor_shard', 'magnetic_core', 'coolant_canister', 'star_crystal']), randomInt(1, 2))];
     const material = pick(materials);
     const loot = [stack(material, randomInt(1, Math.ceil(2 * multiplier)))];
     if (zone === 'chaos' && Math.random() < 0.3) loot.push(stack('star_crystal', 1));
@@ -322,7 +423,7 @@ function mapLoot(kind: MapObject['kind'], zone: RunRow['zone']): CargoItem[] {
 
 function createMap(zone: RunRow['zone']): MapObject[] {
     const exitCandidates = STATION_TILES.filter(({ x, y }) =>
-        x === 0 || x === 7 || y === 0 || y === 6
+        x === 2 || x === STATION_WIDTH - 3 || y === 3 || y === STATION_HEIGHT - 4
     );
     const exit = exitCandidates[randomInt(0, exitCandidates.length - 1)];
     const objects: MapObject[] = [
@@ -332,33 +433,45 @@ function createMap(zone: RunRow['zone']): MapObject[] {
         { id: 'extract', ...exit, kind: 'extract', name: '边缘撤离平台' },
     ];
     const occupied = new Set([
-        '3,2', `${exit.x},${exit.y}`,
+        '7,8', `${exit.x},${exit.y}`,
         ...STATION_WALLS.map(({ x, y }) => `${x},${y}`),
     ]);
     const candidates = STATION_TILES.filter(({ x, y }) => !occupied.has(`${x},${y}`));
     const place = (object: Omit<MapObject, 'x' | 'y'>) => {
-        const index = randomInt(0, candidates.length - 1);
-        const [position] = candidates.splice(index, 1);
+        const available = candidates.filter(({ x, y }) => !object.area || stationArea(x, y) === object.area);
+        const index = randomInt(0, available.length - 1);
+        const position = available[index];
         if (!position) throw new Error('Not enough walkable station tiles to place map objects.');
         const { x, y } = position;
         occupied.add(`${x},${y}`);
+        candidates.splice(candidates.findIndex(candidate => candidate.x === x && candidate.y === y), 1);
         objects.push({ ...object, x, y });
     };
-    for (let index = 0; index < 4; index++) {
-        const kind = index === 0 ? 'safe' : index < 3 ? 'server' : 'supply';
+    const containers: Array<{ kind: MapObject['kind']; area: NonNullable<MapObject['area']>; name: string }> = [
+        { kind: 'locker', area: 'living', name: '船员储物柜' },
+        { kind: 'medical', area: 'living', name: '医疗柜' },
+        { kind: 'safe', area: 'management', name: '保险箱' },
+        { kind: 'archive', area: 'management', name: '档案终端' },
+        { kind: 'server', area: 'management', name: '服务器容器' },
+        { kind: 'lab', area: 'research', name: '低温样本舱' },
+        { kind: 'archive', area: 'research', name: '数据档案柜' },
+        { kind: 'server', area: 'research', name: '量子服务器' },
+        { kind: 'supply', area: 'reactor', name: '机组补给箱' },
+        { kind: 'reactor', area: 'reactor', name: '反应堆维护舱' },
+        { kind: 'safe', area: 'core', name: '核心保险箱' },
+        { kind: 'archive', area: 'core', name: '核心资料柜' },
+        { kind: 'server', area: 'core', name: '主控服务器' },
+        { kind: 'armory', area: 'engineering', name: '装备架' },
+        { kind: 'locker', area: 'engineering', name: '工程储物柜' },
+        { kind: 'medical', area: 'engineering', name: '医疗柜' },
+    ];
+    containers.forEach(({ kind, area, name }, index) => {
         place({
-            id: `container-${index + 1}`, kind,
-            name: kind === 'safe' ? '保险箱' : kind === 'server' ? '服务器容器' : '补给箱',
-            searched: false, loot: mapLoot(kind, zone),
+            id: `container-${index + 1}`, kind, area,
+            name, searched: false, loot: mapLoot(kind, zone, area),
         });
-    }
-    for (let index = 0; index < 2; index++) {
-        place({
-            id: `medical-${index + 1}`, kind: 'medical', name: '医疗柜',
-            searched: false, loot: mapLoot('medical', zone),
-        });
-    }
-    const enemyCount = zone === 'chaos' ? 7 : 4;
+    });
+    const enemyCount = zone === 'chaos' ? 15 : 10;
     const enemyTypes = zone === 'chaos'
         ? [
             { type: 'hunter' as const, name: '追猎型人机', health: 1, attack: 1.2 },
@@ -375,16 +488,23 @@ function createMap(zone: RunRow['zone']): MapObject[] {
     for (let index = 0; index < enemyCount; index++) {
         const bounds = ZONES[zone];
         const variant = enemyTypes[index % enemyTypes.length];
+        const area = STATION_REGIONS[index % STATION_REGIONS.length].id;
         const health = Math.round(randomInt(bounds.enemyHealth[0], bounds.enemyHealth[1]) * variant.health);
         place({
             id: `enemy-${index + 1}`, kind: 'enemy',
             name: variant.name, enemyType: variant.type,
+            area,
             defeated: false, health, maxHealth: health,
             attack: Math.round(randomInt(bounds.enemyAttack[0], bounds.enemyAttack[1]) * variant.attack),
             loot: enemyLoot(zone),
         });
     }
     return objects;
+}
+
+function stationArea(x: number, y: number): NonNullable<MapObject['area']> | undefined {
+    const region = STATION_REGIONS.find(value => x >= value.x1 && x <= value.x2 && y >= value.y1 && y <= value.y2);
+    return region?.id;
 }
 
 function enemyLoot(zone: RunRow['zone']): CargoItem[] {
@@ -407,6 +527,45 @@ function enemyLoot(zone: RunRow['zone']): CargoItem[] {
 
 function totalWeight(cargo: CargoItem[]): number {
     return cargo.reduce((total, entry) => total + item(entry.key).weight * entry.quantity, 0);
+}
+
+function backpackShape(tier: number): { width: number; height: number; hasCell: (x: number, y: number) => boolean } {
+    if (tier === 1) return { width: 5, height: 4, hasCell: (x, y) => x < 4 || (x === 4 && y < 2) };
+    const dimensions: Record<number, [number, number]> = {
+        2: [4, 6], 3: [5, 6], 4: [6, 6], 5: [6, 7], 6: [6, 8],
+    };
+    const [width, height] = dimensions[tier] || dimensions[1];
+    return { width, height, hasCell: (x, y) => x < width && y < height };
+}
+
+function cargoFitsBackpack(cargo: CargoItem[], tier: number): boolean {
+    const shape = backpackShape(tier);
+    const occupied = new Set<string>();
+    for (const entry of cargo) {
+        const definition = item(entry.key);
+        const stackable = !['weapon', 'armor', 'backpack'].includes(definition.kind);
+        const count = stackable ? 1 : entry.quantity;
+        for (let unit = 0; unit < count; unit++) {
+            let placed = false;
+            for (let y = 0; y <= shape.height - (definition.height || 1) && !placed; y++) {
+                for (let x = 0; x <= shape.width - (definition.width || 1) && !placed; x++) {
+                    const cells: string[] = [];
+                    for (let dy = 0; dy < (definition.height || 1); dy++) {
+                        for (let dx = 0; dx < (definition.width || 1); dx++) cells.push(`${x + dx},${y + dy}`);
+                    }
+                    if (cells.every(cell => {
+                        const [cellX, cellY] = cell.split(',').map(Number);
+                        return shape.hasCell(cellX, cellY) && !occupied.has(cell);
+                    })) {
+                        cells.forEach(cell => occupied.add(cell));
+                        placed = true;
+                    }
+                }
+            }
+            if (!placed) return false;
+        }
+    }
+    return true;
 }
 
 function mergeCargo(cargo: CargoItem[], incoming: CargoItem[]): CargoItem[] {
@@ -455,6 +614,8 @@ async function getState(env: Env, userId: number) {
     let run = null;
     if (activeRun) {
         const objects = safeJson<MapObject[]>(activeRun.map_json, []);
+        const largeStation = isLargeStation(objects);
+        const legacyStation = !largeStation && objects.some(object => object.kind === 'wall');
         const cargo = safeJson<CargoItem[]>(activeRun.cargo_json, []);
         const kit = safeJson<{ backpack: CargoItem; weapon: CargoItem; armor: CargoItem; capacity: number }>(activeRun.kit_json, {
             backpack: { key: '', quantity: 0, durability: 0, maxDurability: 0, charges: 0 },
@@ -466,9 +627,12 @@ async function getState(env: Env, userId: number) {
             id: activeRun.id, zone: activeRun.zone, x: activeRun.x, y: activeRun.y,
             health: activeRun.health, max_health: activeRun.max_health, turn: activeRun.turn,
             started_at: activeRun.started_at,
-            map_width: objects.some(object => object.kind === 'wall') ? 8 : 6,
-            map_height: objects.some(object => object.kind === 'wall') ? 7 : 6,
-            map_tiles: objects.some(object => object.kind === 'wall') ? STATION_CELLS : LEGACY_TILES,
+            map_width: largeStation ? STATION_WIDTH : legacyStation ? 8 : 6,
+            map_height: largeStation ? STATION_HEIGHT : legacyStation ? 7 : 6,
+            map_tiles: stationCellsFor(objects),
+                map_regions: (largeStation ? STATION_REGIONS : []).map(({ id, name, x1, x2, y1, y2 }) => ({
+                    id, name, x: (x1 + x2 + 1) * 36, y: (y1 + y2 + 1) * 36,
+                })),
             capacity: kit.capacity, cargo_weight: totalWeight(cargo),
             cargo: cargo.map(entry => ({ ...entry, ...item(entry.key) })),
             backpack: { ...kit.backpack, ...item(kit.backpack.key), durability: kit.backpack.durability },
@@ -775,6 +939,41 @@ async function startCraft(env: Env, player: PlayerRow, body: Record<string, unkn
     return jsonRes({ ok: true, notice: `${recipe.categoryName}已开始制造「${recipe.name}」，预计 ${recipe.minutes} 分钟完成。`, state: await getState(env, player.user_id) });
 }
 
+async function buyCraftMaterials(env: Env, player: PlayerRow, body: Record<string, unknown>): Promise<Response> {
+    const recipe = RECIPES.find(entry => entry.key === String(body.item || ''));
+    if (!recipe) return jsonRes({ error: '请选择有效的制造配方。' }, 400);
+    const inventory = await env.DB.prepare(
+        'SELECT id, item_key, quantity, durability, max_durability, charges FROM salvage_inventory WHERE user_id = ?'
+    ).bind(player.user_id).all<InventoryRow>();
+    const rows = inventory.results || [];
+    const missing = Object.entries(recipe.requirements).map(([key, required]) => {
+        const owned = rows.filter(row => row.item_key === key).reduce((sum, row) => sum + Number(row.quantity), 0);
+        return { key, quantity: Math.max(0, required - owned) };
+    }).filter(entry => entry.quantity > 0);
+    if (!missing.length) return jsonRes({ error: '制造材料已经齐全，无需购买。' }, 409);
+    const cost = missing.reduce((sum, entry) => sum + Math.ceil(item(entry.key).price * 1.1) * entry.quantity, 0);
+    if (player.star_coins < cost) return jsonRes({ error: `星币不足；补齐材料需要 ${cost} 星币。` }, 409);
+    const token = crypto.randomUUID();
+    const result = await env.DB.batch([
+        env.DB.prepare(`
+            UPDATE salvage_players SET star_coins = star_coins - ?, last_action_token = ?
+            WHERE user_id = ? AND last_action_token = ? AND star_coins >= ?
+              AND NOT EXISTS (SELECT 1 FROM salvage_runs WHERE user_id = ? AND status = 'active')
+        `).bind(cost, token, player.user_id, player.last_action_token, cost, player.user_id),
+        ...missing.map(entry => inventoryInsert(env, player.user_id, {
+            key: entry.key, quantity: entry.quantity, durability: 0, maxDurability: 0, charges: 0,
+        }, token)),
+    ]);
+    if (Number(result[0]?.meta?.changes || 0) !== 1) {
+        return jsonRes({ error: '星币不足、正在对局，或档案状态已变化，请刷新后重试。' }, 409);
+    }
+    return jsonRes({
+        ok: true,
+        notice: `已按材料原价的 1.1 倍补齐制造材料，花费 ${cost} 星币。`,
+        state: await getState(env, player.user_id),
+    });
+}
+
 async function claimCraft(env: Env, player: PlayerRow, body: Record<string, unknown>): Promise<Response> {
     const id = Number(body.job_id);
     const job = await env.DB.prepare("SELECT * FROM salvage_crafting WHERE id = ? AND user_id = ? AND status = 'running'")
@@ -895,6 +1094,7 @@ async function startRun(env: Env, player: PlayerRow, body: Record<string, unknow
     if (requestedMedkits) runItems.push({
         key: 'medkit', quantity: requestedMedkits, durability: 0, maxDurability: 0, charges: 0,
     });
+    const runCargo = runItems.filter(entry => entry.key === 'medkit');
     const kit = {
         backpack: runItems[0],
         weapon: runItems[1],
@@ -907,10 +1107,10 @@ async function startRun(env: Env, player: PlayerRow, body: Record<string, unknow
     const map = createMap(zone);
     const inserted = await env.DB.prepare(`
         INSERT INTO salvage_runs (user_id, zone, x, y, health, max_health, map_json, cargo_json, kit_json)
-        SELECT ?, ?, 3, 2, ?, ?, ?, ?, ? FROM salvage_players
+        SELECT ?, ?, 7, 8, ?, ?, ?, ?, ? FROM salvage_players
         WHERE user_id = ? AND last_action_token = ?
     `).bind(
-        player.user_id, zone, maxHealth, maxHealth, JSON.stringify(map), JSON.stringify(runItems),
+        player.user_id, zone, maxHealth, maxHealth, JSON.stringify(map), JSON.stringify(runCargo),
         JSON.stringify(kit), player.user_id, token,
     );
     const selectedRows = [backpack, weapon, armor];
@@ -986,7 +1186,7 @@ async function move(run: RunRow, body: Record<string, unknown>, env: Env): Promi
     const x = Number(body.x);
     const y = Number(body.y);
     const inMap = hasStationWalls
-        ? STATION_CELLS.some(tile => tile.x === x && tile.y === y)
+        ? stationCellsFor(objects).some(tile => tile.x === x && tile.y === y)
         : Number(body.x) >= 0 && Number(body.x) <= 5 && Number(body.y) >= 0 && Number(body.y) <= 5;
     if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || !inMap
         || Math.abs(x - run.x) + Math.abs(y - run.y) !== 1) {
@@ -1002,31 +1202,39 @@ async function move(run: RunRow, body: Record<string, unknown>, env: Env): Promi
 async function searchContainer(run: RunRow, env: Env): Promise<Response> {
     const objects = safeJson<MapObject[]>(run.map_json, []);
     const object = objects.find(entry => entry.x === run.x && entry.y === run.y);
-    if (!object || !['server', 'safe', 'medical', 'supply'].includes(object.kind)) {
+    if (!object || !isContainerKind(object.kind)) {
         return jsonRes({ error: '当前位置没有可搜索的容器。' }, 409);
     }
-    if (object.searched) return jsonRes({ error: '这个容器已经搜索过了。' }, 409);
+    if (object.searched && !(object.loot || []).length) return jsonRes({ error: '这个容器已经搜索过了。' }, 409);
     const cargo = safeJson<CargoItem[]>(run.cargo_json, []);
     const kit = loadout(run);
     const loot = object.loot || [];
     const added: CargoItem[] = [];
-    let capacity = kit.capacity - totalWeight(cargo);
+    const remaining: CargoItem[] = [];
+    let nextCargo = [...cargo];
     for (const entry of loot) {
         const definition = item(entry.key);
-        if (definition.weight === 0) {
-            added.push(entry);
+        const availableWeight = kit.capacity - totalWeight(nextCargo);
+        const quantity = definition.weight === 0
+            ? entry.quantity
+            : Math.min(entry.quantity, Math.floor(availableWeight / definition.weight));
+        if (quantity < 1) {
+            remaining.push(entry);
             continue;
         }
-        const fit = Math.min(entry.quantity, Math.floor(capacity / definition.weight));
-        if (fit > 0) {
-            added.push({ ...entry, quantity: fit });
-            capacity -= fit * definition.weight;
-        }
+        const candidate = { ...entry, quantity };
+        const packed = mergeCargo(nextCargo, [candidate]);
+        if (cargoFitsBackpack(packed, item(kit.backpack.key).tier)) {
+            added.push(candidate);
+            nextCargo = packed;
+            if (quantity < entry.quantity) remaining.push({ ...entry, quantity: entry.quantity - quantity });
+        } else remaining.push(entry);
     }
-    if (!added.length && loot.length) return jsonRes({ error: '背包已满，整理物资或前往撤离点后再来搜索。' }, 409);
+    if (!added.length && loot.length) {
+        return jsonRes({ error: '背包格子已满，整理物资或前往撤离点后再来搜索。' }, 409);
+    }
     object.searched = true;
-    object.loot = [];
-    const nextCargo = mergeCargo(cargo, added);
+    object.loot = remaining;
     if (!await updateRun(env, run, { map: objects, cargo: nextCargo, turnCost: 2 })) {
         return jsonRes({ error: '对局状态已变化，请刷新后继续。' }, 409);
     }
@@ -1172,7 +1380,7 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
                     || Boolean(submitted.defeated) !== (enemyHealth === 0)) return null;
                 return { ...original, health: enemyHealth, defeated: enemyHealth === 0 };
             }
-            if (['server', 'safe', 'medical', 'supply'].includes(original.kind)) {
+            if (isContainerKind(original.kind)) {
                 if (typeof submitted.searched !== 'boolean') return null;
                 return { ...original, searched: submitted.searched };
             }
@@ -1182,15 +1390,19 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
             return jsonRes({ error: '地图状态无效，无法结算。' }, 400);
         }
         const objects = resolvedObjects as MapObject[];
-        const tile = (originalObjects.some(object => object.kind === 'wall') ? STATION_TILES : LEGACY_TILES)
+        const tile = stationTilesFor(originalObjects)
             .some(candidate => candidate.x === x && candidate.y === y);
-        if (!tile || objects.some(object => object.kind === 'wall' && object.x === x && object.y === y)
-            || objects.some(object => object.kind === 'enemy' && !object.defeated && object.x === x && object.y === y)) {
+        if (!tile || objects.some(object => object.kind === 'wall' && object.x === x && object.y === y)) {
             return jsonRes({ error: '结算位置不在有效的开放舱室。' }, 400);
         }
         if (status === 'extracted') {
             const exit = objects.find(object => object.kind === 'extract');
-            if (!exit || exit.x !== x || exit.y !== y || health < 1 || health > run.max_health) {
+            const worldX = Number(result.world_x);
+            const worldY = Number(result.world_y);
+            if (!exit || !Number.isFinite(worldX) || !Number.isFinite(worldY)
+                || Math.abs(exit.x + 0.5 - worldX / 72) + Math.abs(exit.y + 0.5 - worldY / 72) > 1.5
+                || Math.floor(worldX / 72) !== x || Math.floor(worldY / 72) !== y
+                || health < 1 || health > run.max_health) {
                 return jsonRes({ error: '只有在撤离点存活时才能结算成功撤离。' }, 409);
             }
         } else if (health !== 0) {
@@ -1200,14 +1412,12 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
         const initialKit = loadout(run);
         const submittedKit = result.kit as Record<string, CargoItem> | undefined;
         if (!submittedKit || ['backpack', 'weapon', 'armor'].some(kind => {
-            const initial = initialKit[kind as 'backpack' | 'weapon' | 'armor'];
             const submitted = submittedKit[kind] as CargoItem | undefined;
-            return !submitted || submitted.key !== initial.key || submitted.quantity !== 1
-                || submitted.maxDurability !== initial.maxDurability
+            return !submitted || !ITEMS[submitted.key]
+                || item(submitted.key).kind !== kind || submitted.quantity !== 1
                 || !Number.isSafeInteger(submitted.durability) || submitted.durability < 0
-                || submitted.durability > initial.durability
-                || !Number.isSafeInteger(submitted.charges) || submitted.charges < 0
-                || submitted.charges > initial.charges;
+                || !Number.isSafeInteger(submitted.maxDurability) || submitted.maxDurability < 0
+                || !Number.isSafeInteger(submitted.charges) || submitted.charges < 0;
         })) {
             return jsonRes({ error: '出战装备记录无效。' }, 400);
         }
@@ -1216,10 +1426,43 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
         const allowedLoot = safeJson<CargoItem[]>(run.cargo_json, []).map(entry => ({ ...entry }));
         for (const object of objects) {
             if ((object.kind === 'enemy' && object.defeated)
-                || (['server', 'safe', 'medical', 'supply'].includes(object.kind) && object.searched)) {
+                || (isContainerKind(object.kind) && object.searched)) {
                 allowedLoot.push(...(object.loot || []));
             }
         }
+        const availableCrystals = allowedLoot.filter(entry => entry.key === 'star_crystal')
+            .reduce((sum, entry) => sum + entry.quantity, 0);
+        const carriedCrystals = (cargo as CargoItem[]).filter(entry => entry && entry.key === 'star_crystal')
+            .reduce((sum, entry) => sum + Number(entry.quantity || 0), 0);
+        if (carriedCrystals > availableCrystals) return jsonRes({ error: '星晶数量超过本局可获得数量。' }, 400);
+        const spentCrystals = availableCrystals - carriedCrystals;
+        const gearSources = [
+            ...allowedLoot.filter(entry => ['weapon', 'armor', 'backpack'].includes(item(entry.key).kind)),
+            initialKit.backpack, initialKit.weapon, initialKit.armor,
+        ].map(entry => ({ ...entry }));
+        const gearClaims = [
+            ...(cargo as CargoItem[]).filter(entry => entry && ITEMS[entry.key] && ['weapon', 'armor', 'backpack'].includes(item(entry.key).kind)),
+            ...['backpack', 'weapon', 'armor'].map(kind => submittedKit![kind] as CargoItem),
+        ];
+        let extraChargesUsed = 0;
+        for (const entry of gearClaims) {
+            if (!entry || !ITEMS[entry.key] || !Number.isSafeInteger(entry.quantity) || entry.quantity !== 1
+                || !Number.isSafeInteger(entry.durability) || entry.durability < 0
+                || !Number.isSafeInteger(entry.maxDurability) || entry.maxDurability < 0
+                || !Number.isSafeInteger(entry.charges) || entry.charges < 0) {
+                return jsonRes({ error: '装备物品记录无效。' }, 400);
+            }
+            const sourceIndex = gearSources.findIndex(source =>
+                source.key === entry.key
+                && source.maxDurability === entry.maxDurability
+                && entry.durability <= source.durability
+                && entry.charges <= source.charges + spentCrystals * 3
+            );
+            if (sourceIndex < 0) return jsonRes({ error: '局内装备来源、耐久或充能无效。' }, 400);
+            extraChargesUsed += Math.max(0, entry.charges - gearSources[sourceIndex].charges);
+            gearSources.splice(sourceIndex, 1);
+        }
+        if (extraChargesUsed > spentCrystals * 3) return jsonRes({ error: '星晶充能数量超过本局消耗。' }, 400);
         for (const entry of cargo as CargoItem[]) {
             if (!entry || typeof entry.key !== 'string' || !ITEMS[entry.key]
                 || !Number.isSafeInteger(entry.quantity) || entry.quantity < 1 || entry.quantity > 1000
@@ -1228,6 +1471,7 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
                 || !Number.isSafeInteger(entry.charges) || entry.charges < 0) {
                 return jsonRes({ error: '背包中包含无效物品。' }, 400);
             }
+            if (['weapon', 'armor', 'backpack'].includes(item(entry.key).kind)) continue;
             const matching = allowedLoot.filter(allowed => allowed.key === entry.key
                 && allowed.durability === entry.durability
                 && allowed.maxDurability === entry.maxDurability
@@ -1239,9 +1483,11 @@ async function finishClientRun(run: RunRow, env: Env, body: Record<string, unkno
             ).reduce((sum, candidate) => sum + candidate.quantity, 0);
             if (submittedQuantity > matching) return jsonRes({ error: '背包物品数量超过本局可获得数量。' }, 400);
         }
-        const finalCargo = cargo as CargoItem[];
-        if (totalWeight(finalCargo) > initialKit.capacity) {
-            return jsonRes({ error: '背包负重超过容量，无法结算。' }, 400);
+        const finalCargo = mergeCargo(cargo as CargoItem[], []);
+        const finalCapacity = 12 + item(submittedKit!.backpack.key).tier * 6;
+        if (totalWeight(finalCargo) > finalCapacity
+            || !cargoFitsBackpack(finalCargo, item(submittedKit!.backpack.key).tier)) {
+            return jsonRes({ error: '背包的格子空间或负重超过容量，无法结算。' }, 400);
         }
 
         const token = crypto.randomUUID();
@@ -1301,6 +1547,7 @@ export async function handleSalvage(request: Request, env: Env, path: string): P
     if (path === '/api/salvage/sell') return sellLoot(env, player, body);
     if (path === '/api/salvage/repair') return repairArmor(env, player, body);
     if (path === '/api/salvage/craft') return startCraft(env, player, body);
+    if (path === '/api/salvage/craft/materials') return buyCraftMaterials(env, player, body);
     if (path === '/api/salvage/craft/claim') return claimCraft(env, player, body);
     const run = await env.DB.prepare("SELECT * FROM salvage_runs WHERE user_id = ? AND status = 'active' LIMIT 1")
         .bind(userId).first<RunRow>();
