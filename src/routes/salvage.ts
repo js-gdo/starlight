@@ -23,7 +23,7 @@ const SALVAGE_STYLES = `
     .salvage-bar{height:8px;margin:6px 0 12px;overflow:hidden;border-radius:99px;background:#3c3340}
     .salvage-bar i{display:block;height:100%;background:linear-gradient(90deg,#59c9b9,#8ae2ae)}
     .salvage-map-frame{position:relative;overflow:hidden;padding:8px;border:1px solid #30465d;border-radius:13px;background:#101c2a;touch-action:none}
-    .salvage-map-svg{display:block;width:100%;height:min(66vh,680px);min-height:430px;margin:auto}
+    .salvage-map-svg{display:block;width:100%;height:min(82vh,850px);min-height:520px;margin:auto}
     .map-floor{fill:#243846;stroke:none}
     .map-floor-panel{fill:#2a3e4d;fill-opacity:.55;stroke:#4a5a65;stroke-width:1}
     .map-corridor{fill:#1c2c38;stroke:#405462;stroke-width:2}
@@ -132,7 +132,7 @@ const SALVAGE_STYLES = `
     .salvage-tutorial-card h2{margin:0 0 8px}
     .salvage-tutorial-card li{margin:8px 0;color:#bdcada;font-size:12px;line-height:1.6}
     .salvage-map-frame{position:relative}
-    .salvage-minimap{position:absolute;z-index:2;top:16px;right:16px;width:clamp(120px,18vw,210px);aspect-ratio:52/36;border:1px solid #9eb4c9;border-radius:8px;background:#08121ddd;box-shadow:0 5px 18px #0008;pointer-events:none}
+    .salvage-minimap{position:absolute;z-index:2;top:16px;right:16px;width:clamp(130px,20vw,240px);aspect-ratio:92/68;border:1px solid #9eb4c9;border-radius:8px;background:#08121ddd;box-shadow:0 5px 18px #0008;pointer-events:none}
     .salvage-minimap svg{display:block;width:100%;height:100%}
     .salvage-minimap-player{fill:#ffe18a;stroke:#fff7df;stroke-width:2}
     .salvage-minimap-enemy{fill:#f05b68;stroke:#ffbdc2;stroke-width:1}
@@ -146,7 +146,7 @@ const SALVAGE_STYLES = `
     .salvage-player-health-text{fill:#fff;font-size:8px;font-weight:900;text-anchor:middle}
     .salvage-damage-popup{fill:#ff766f;font-size:14px;font-weight:900;text-anchor:middle;paint-order:stroke;stroke:#17202b;stroke-width:3px}
     .salvage-warehouse-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-rows:52px;grid-auto-flow:row dense;gap:3px;overflow-x:auto;padding:6px;border:1px solid #30445a;border-radius:10px;background:#0d1927}
-    .salvage-grid-item{display:flex;min-width:0;min-height:0;align-items:center;gap:5px;overflow:hidden;padding:4px;border:1px solid #40566b;border-radius:6px;background:linear-gradient(145deg,#24384b,#172739);color:#e4edf7}
+    .salvage-grid-item{display:flex;min-width:0;min-height:0;align-items:center;gap:5px;overflow:hidden;padding:4px;border:1px solid #40566b;border-radius:6px;background:linear-gradient(145deg,#24384b,#172739);color:#e4edf7;font:inherit;text-align:left;cursor:pointer}
     .salvage-grid-item .salvage-item-art{flex:0 0 34px;width:34px;height:34px}
     .salvage-grid-item strong{display:block;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
     .salvage-grid-item small{display:block;overflow:hidden;color:#a9bacb;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
@@ -157,6 +157,32 @@ const SALVAGE_STYLES = `
     .salvage-backpack-cell .salvage-item-art{flex:0 0 34px;width:34px;height:34px}
     .salvage-backpack-cell strong{display:block;overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
     .salvage-backpack-cell small{display:block;overflow:hidden;color:#a9bacb;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+    .salvage-storage-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,230px);gap:10px;align-items:start}
+    .salvage-storage-extra{padding:8px;border:1px solid #6e6bb1;border-radius:10px;background:linear-gradient(145deg,#272547,#151b2c)}
+    .salvage-storage-extra strong{display:block;margin:0 0 6px;color:#cbc5ff;font-size:10px}
+    .salvage-ground-items{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .salvage-ground-item{display:grid;justify-items:center;gap:3px;min-width:72px;padding:6px;border:1px solid #607387;border-radius:8px;background:#192b3a;color:#e5eff7;font-size:8px}
+    .salvage-role-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:10px 0}
+    .salvage-role-card{display:grid;align-content:start;gap:6px;min-height:115px;text-align:left!important;background:linear-gradient(145deg,#22354a,#152437)!important;border-color:#425e78!important}
+    .salvage-role-card.selected{border-color:#f0ca73!important;box-shadow:inset 0 0 0 1px #f0ca7377}
+    .salvage-role-card strong{font-size:11px}
+    .salvage-role-card small{color:#bac9d8;font-size:8px;line-height:1.5}
+    .salvage-warehouse-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(225px,280px);gap:12px;align-items:start}
+    .salvage-warehouse-details{position:sticky;top:12px;min-height:140px}
+    .salvage-warehouse-tools{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .salvage-warehouse-check{position:absolute;z-index:1;top:4px;right:4px;width:16px;height:16px;margin:0;accent-color:#f0ca73}
+    .salvage-grid-item{position:relative}
+    .salvage-recipe-groups{display:grid;gap:8px}
+    .salvage-recipe-group{border:1px solid #35465d;border-radius:11px;background:#192a40}
+    .salvage-recipe-group summary{padding:11px;color:#eaf2ff;font-size:11px;font-weight:800;cursor:pointer}
+    .salvage-recipe-group[open] summary{border-bottom:1px solid #304158}
+    .salvage-recipe-group-content{padding:0 11px 8px}
+    .map-region{fill:#3e879933;stroke:#7ed5db77;stroke-width:2}
+    .map-region:nth-of-type(2n){fill:#7770bd2b;stroke:#b3a4ff70}
+    .map-region-core{fill:#c5913730;stroke:#f1c96e99}
+    .map-floor-mark{stroke-opacity:.28;stroke-width:1.5}
+    .salvage-pause-overlay{position:absolute;z-index:3;inset:8px;display:grid;place-items:center;border-radius:11px;background:#07111dcc;color:#fff;font-size:clamp(24px,5vw,42px);font-weight:900;letter-spacing:.2em}
+    @media(max-width:850px){.salvage-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.salvage-warehouse-layout{grid-template-columns:1fr}.salvage-warehouse-details{position:static}.salvage-storage-layout{grid-template-columns:1fr}}
     .salvage-item.rarity-tier-1,.salvage-item.rarity-tier-2,.salvage-item.rarity-tier-3,.salvage-item.rarity-tier-4,.salvage-item.rarity-tier-5,.salvage-item.rarity-tier-6,
     .salvage-kit-card.rarity-tier-1,.salvage-kit-card.rarity-tier-2,.salvage-kit-card.rarity-tier-3,.salvage-kit-card.rarity-tier-4,.salvage-kit-card.rarity-tier-5,.salvage-kit-card.rarity-tier-6,
     .salvage-run-item.rarity-tier-1,.salvage-run-item.rarity-tier-2,.salvage-run-item.rarity-tier-3,.salvage-run-item.rarity-tier-4,.salvage-run-item.rarity-tier-5,.salvage-run-item.rarity-tier-6{border-color:#304158;background:#1a2b3c;color:#c6d3e2}
@@ -184,6 +210,9 @@ function salvageMarkup(): string {
             var state=null;
             var selectedGear={backpack:0,weapon:0,armor:0};
             var selectedStashItem=0;
+            var selectedSaleIds={};
+            var saleMode=false;
+            var selectedRole='soldier';
             var requestPending=false;
             var pressedKeys={};
             var moveTarget=null;
@@ -199,22 +228,30 @@ function salvageMarkup(): string {
                 var size=sizes[Number(tier)]||sizes[2];
                 return {width:size[0],height:size[1],hasCell:function(x,y){return x<this.width&&y<this.height;}};
             }
-            function layoutItems(items,shape){
-                var occupied={};
+            function backpackCapacity(backpack){
+                return Number(backpack&&backpack.capacity)||12+Number(backpack&&backpack.tier||1)*6;
+            }
+            function layoutItems(items,shape,extraStorage){
+                var shapes=[shape];
+                if(extraStorage)shapes.push({width:3,height:3,hasCell:function(x,y){return x<3&&y<3;}});
+                var occupied=shapes.map(function(){return {};});
                 var result=[];
                 var ordered=items.map(function(item,index){return {item:item,index:index,size:dimensions(item)};})
                     .sort(function(a,b){return b.size.width*b.size.height-a.size.width*a.size.height;});
                 for(var i=0;i<ordered.length;i++){
                     var entry=ordered[i],placed=false;
-                    for(var y=0;y<=shape.height-entry.size.height&&!placed;y++){
-                        for(var x=0;x<=shape.width-entry.size.width&&!placed;x++){
-                            var cells=[],fits=true;
-                            for(var dy=0;dy<entry.size.height;dy++)for(var dx=0;dx<entry.size.width;dx++){
-                                var cell=(x+dx)+','+(y+dy);
-                                if(!shape.hasCell(x+dx,y+dy)||occupied[cell])fits=false;
-                                cells.push(cell);
+                    for(var grid=0;grid<shapes.length&&!placed;grid++){
+                        var target=shapes[grid];
+                        for(var y=0;y<=target.height-entry.size.height&&!placed;y++){
+                            for(var x=0;x<=target.width-entry.size.width&&!placed;x++){
+                                var cells=[],fits=true;
+                                for(var dy=0;dy<entry.size.height;dy++)for(var dx=0;dx<entry.size.width;dx++){
+                                    var cell=(x+dx)+','+(y+dy);
+                                    if(!target.hasCell(x+dx,y+dy)||occupied[grid][cell])fits=false;
+                                    cells.push(cell);
+                                }
+                                if(fits){cells.forEach(function(cell){occupied[grid][cell]=true;});result.push({item:entry.item,index:entry.index,x:x,y:y,width:entry.size.width,height:entry.size.height,grid:grid});placed=true;}
                             }
-                            if(fits){cells.forEach(function(cell){occupied[cell]=true;});result.push({item:entry.item,index:entry.index,x:x,y:y,width:entry.size.width,height:entry.size.height});placed=true;}
                         }
                     }
                     if(!placed)return null;
@@ -345,6 +382,11 @@ function salvageMarkup(): string {
                 if(object.kind==='extract'){
                     return '<g><ellipse cx="'+(x+36)+'" cy="'+(y+39)+'" rx="24" ry="10" fill="#1c5750" stroke="#7ce2ba" stroke-width="2"/><ellipse cx="'+(x+36)+'" cy="'+(y+39)+'" rx="16" ry="5" fill="#76d7b3" fill-opacity=".35"/><path d="M'+(x+36)+' '+(y+35)+'V'+(y+13)+'m-8 8 8-8 8 8" fill="none" stroke="#c7ffe4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>';
                 }
+                if(object.kind==='drop'){
+                    var dropped=object.item||{};
+                    var rarity=['#e8edf3','#63dc82','#54a5ff','#b77aff','#f4c64e','#f0646d'][Math.max(0,Math.min(5,(Number(dropped.tier)||1)-1))];
+                    return '<g><ellipse cx="'+(x+36)+'" cy="'+(y+51)+'" rx="25" ry="8" fill="#03070a" fill-opacity=".65"/><path d="M'+(x+17)+' '+(y+27)+'l19-12 19 12v17L36 55 17 44z" fill="#273b4b" stroke="'+rarity+'" stroke-width="2"/><path d="M'+(x+17)+' '+(y+27)+'l19 12 19-12M36 39v16" fill="none" stroke="'+rarity+'" stroke-width="1.5"/><circle cx="'+(x+49)+'" cy="'+(y+18)+'" r="8" fill="#111d29" stroke="'+rarity+'" stroke-width="1.5"/><text x="'+(x+49)+'" y="'+(y+21)+'" text-anchor="middle" fill="#fff" font-size="8" font-weight="900">'+Number(dropped.quantity||1)+'</text></g>';
+                }
                 var boxColor=object.kind==='safe'||object.kind==='reactor'?'#c9a66a':object.kind==='server'||object.kind==='archive'?'#5dc4d1':object.kind==='medical'||object.kind==='lab'?'#73d4b4':object.kind==='armory'?'#bd8cff':object.kind==='locker'?'#c8a77f':'#a8b6c7';
                 if(object.kind==='medical'){
                     return '<g><rect x="'+(x+16)+'" y="'+(y+15)+'" width="40" height="38" rx="5" fill="#285552" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+32)+' '+(y+23)+'h8v7h7v8h-7v7h-8v-7h-7v-8h7z" fill="#d9fff1"/><path d="M'+(x+22)+' '+(y+50)+'h28" stroke="#b0eed5" stroke-width="2"/></g>';
@@ -364,7 +406,7 @@ function salvageMarkup(): string {
                 return '<g><path d="M'+(x+12)+' '+(y+24)+'l24-13 24 13-24 13z" fill="'+(safe?'#806c4d':'#586c7b')+'" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+12)+' '+(y+24)+'v21l24 13V37z" fill="'+(safe?'#5a503f':'#405361')+'" stroke="'+boxColor+'" stroke-width="2"/><path d="M'+(x+60)+' '+(y+24)+'v21L'+(x+36)+' '+(y+58)+'V37z" fill="'+(safe?'#746047':'#4b6170')+'" stroke="'+boxColor+'" stroke-width="2"/>'+(safe?'<circle cx="'+(x+36)+'" cy="'+(y+34)+'" r="5" fill="#f2d88b" stroke="#fff2bd" stroke-width="2"/>':'<path d="M'+(x+26)+' '+(y+27)+'h20m-10-5v11" stroke="#dce9ed" stroke-width="2"/>')+'</g>';
             }
             function equipmentCard(item,label){
-                var detail=item.kind==='armor'?'耐久 '+number(item.durability)+' / '+number(item.max_durability):item.kind==='weapon'?'充能 '+number(item.charges):'负重上限 '+number(12+item.tier*6);
+                var detail=item.kind==='armor'?'耐久 '+number(item.durability)+' / '+number(item.max_durability):item.kind==='weapon'?'充能 '+number(item.charges):'负重上限 '+number(backpackCapacity(item));
                 return '<div class="salvage-kit-card '+rarityClass(item)+'">'+itemSvg(item)+'<div><strong>'+esc(label||item.name)+'</strong><small>'+esc(detail)+' · '+item.tier+' 级</small></div></div>';
             }
             function playerSvg(run,x,y){
@@ -414,15 +456,23 @@ function salvageMarkup(): string {
                     var size=dimensions(item);
                     var condition=item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability)
                         :item.kind==='weapon'?'充能 '+number(item.charges)
-                        :item.kind==='backpack'?'容量 '+size.width+'×'+size.height
+                        :item.kind==='backpack'?'负重 '+number(item.capacity||12+item.tier*6)
                         :'数量 '+number(item.quantity)+' · 单件估值 '+number(item.value)+' 星币';
                     if(item.kind==='armor'&&Number(item.sale_value)<Number(item.value))condition+=' · 磨损折价 '+number(item.sale_value)+' 星币';
                     var action=['backpack','weapon','armor'].indexOf(item.kind)>=0?'select-gear':'select-warehouse';
-                    return '<button class="salvage-grid-item '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'" data-action="'+action+'" data-id="'+item.id+'" title="'+esc(item.name+' · '+size.width+'×'+size.height+' · '+condition)+'" style="grid-column:span '+size.width+';grid-row:span '+size.height+'">'+itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(size.width+'×'+size.height+' · '+condition)+'</small></span></button>';
+                    var disabledSale=item.kind==='weapon'&&Number(item.charges)>0;
+                    return '<div class="salvage-grid-item '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'" role="button" tabindex="0" data-action="'+action+'" data-id="'+item.id+'" title="'+esc(item.name+' · '+size.width+'×'+size.height+' · '+condition)+'" style="grid-column:span '+size.width+';grid-row:span '+size.height+'">'+
+                        (saleMode?'<input class="salvage-warehouse-check" type="checkbox" data-action="toggle-sale" data-id="'+item.id+'" '+(selectedSaleIds[item.id]?'checked':'')+(disabledSale?' disabled':'')+' aria-label="选择出售 '+esc(item.name)+'">':'')+
+                        itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(size.width+'×'+size.height+' · '+condition)+'</small></span></div>';
                 }).join('');
                 var selected=state.items.find(function(item){return Number(item.id)===Number(selectedStashItem);});
                 var details=selected?'<div class="salvage-object"><div class="salvage-item-main">'+itemSvg(selected)+'<span><strong>'+esc(selected.name)+'</strong><small>'+esc(selected.description)+' · '+dimensions(selected).width+'×'+dimensions(selected).height+'</small></span></div><div class="salvage-item-actions">'+itemActions(selected)+'</div></div>':'<div class="salvage-empty">点击物品查看详情；同类堆叠物品共用一个仓库格。</div>';
-                return '<div class="salvage-warehouse-grid">'+grid+'</div>'+details;
+                var saleIds=Object.keys(selectedSaleIds).filter(function(id){return selectedSaleIds[id]&&state.items.some(function(item){return String(item.id)===id;});});
+                var totalValue=saleIds.reduce(function(total,id){var item=state.items.find(function(value){return String(value.id)===id;});return total+(item?Number(item.sale_value)*Number(item.quantity):0);},0);
+                var tools='<div class="salvage-warehouse-tools"><span class="salvage-pill">'+(saleMode?'已选 '+saleIds.length+' 件 · 预计 '+number(totalValue)+' 星币':'点击仓库物品查看详情；格子可纵向滚动')+'</span>'+
+                    '<div class="salvage-controls"><button class="secondary" data-action="toggle-sale-mode">'+(saleMode?'退出多选':'多选出售')+'</button>'+
+                    (saleMode?'<button class="gold" data-action="sell-selected"'+(!saleIds.length?' disabled':'')+'>出售选中物品</button>':'')+'</div></div>';
+                return tools+'<div class="salvage-warehouse-layout"><div class="salvage-warehouse-grid">'+grid+'</div><aside class="salvage-warehouse-details">'+details+'</aside></div>';
             }
             function renderRun(run){
                 var containerKinds=['server','safe','medical','supply'];
@@ -491,40 +541,50 @@ function salvageMarkup(): string {
                 var floorPath=(run.map_tiles||[]).filter(function(tile){return !tile.wall;}).map(function(tile){
                     return 'M'+(tile.x*72)+' '+(tile.y*72)+'h72v72h-72z';
                 }).join('');
-                var objects=(run.objects||[]).map(function(object){
+                var regionShapes=(run.map_regions||[]).map(function(region,index){
+                    var points=region.polygon||[];
+                    if(!points.length)return '';
+                    return '<path class="map-region '+(region.id==='core'?'map-region-core':'')+'" d="M'+points.map(function(point){return point[0]+' '+point[1];}).join('L')+'Z"><title>'+esc(region.name)+'</title></path>';
+                }).join('');
+                var objects=(run.objects||[]).concat(run.drops||[]).map(function(object){
                     var point=objectPosition(object);
                     return '<g class="salvage-entity" data-entity="'+esc(object.id)+'" transform="translate('+(point.x-36)+' '+(point.y-36)+')">'+mapFeatureSvg(object,0,0)+'</g>';
                 }).join('');
                 var panels=(run.map_regions||[]).map(function(region){
                     return '<text class="salvage-region-label" x="'+region.x+'" y="'+region.y+'">'+esc(region.name)+'</text>';
                 }).join('');
-                var cameraWidth=Math.min(width*72,1296),cameraHeight=Math.min(height*72,720);
+                var cameraWidth=Math.min(width*72,1512),cameraHeight=Math.min(height*72,864);
                 var cameraX=Math.max(0,Math.min(width*72-cameraWidth,playerX-cameraWidth/2));
                 var cameraY=Math.max(0,Math.min(height*72-cameraHeight,playerY-cameraHeight/2));
                 run.camera_width=cameraWidth;run.camera_height=cameraHeight;
                 var map='<div class="salvage-map-frame"><svg id="salvageMap" class="salvage-map-svg" viewBox="'+cameraX+' '+cameraY+' '+cameraWidth+' '+cameraHeight+'" role="application" aria-label="空间站视野地图">'+
                     '<defs><clipPath id="stationFloor"><path d="'+floorPath+'"/></clipPath></defs>'+
                     '<rect width="'+(width*72)+'" height="'+(height*72)+'" fill="#111c28"/><path class="map-floor" d="'+floorPath+'"/>'+
-                    '<g clip-path="url(#stationFloor)">'+panels+'</g>'+objects+playerSvg(run,playerX,playerY)+
+                    '<g clip-path="url(#stationFloor)">'+regionShapes+panels+'</g>'+objects+playerSvg(run,playerX,playerY)+
                     '</svg><div class="salvage-minimap"><svg id="salvageMinimap" viewBox="0 0 '+(width*72)+' '+(height*72)+'" aria-label="空间站全图">'+
                     '<path d="'+floorPath+'" fill="#536776" stroke="#a7bac7" stroke-width="22"/>'+
+                    (run.map_regions||[]).map(function(region){var points=region.polygon||[];return points.length?'<path d="M'+points.map(function(point){return point[0]+' '+point[1];}).join('L')+'Z" fill="#79aeb433" stroke="#b5d3e155" stroke-width="14"/>':'';}).join('')+
                     (run.objects||[]).filter(function(object){return object.kind==='extract';}).map(function(object){var p=objectPosition(object);return '<circle class="salvage-minimap-exit" cx="'+p.x+'" cy="'+p.y+'" r="110"/>';}).join('')+
                     (run.objects||[]).filter(function(object){return object.kind==='enemy'&&!object.defeated;}).map(function(object){var p=objectPosition(object);return '<circle id="minimapEnemy-'+esc(object.id)+'" class="salvage-minimap-enemy" cx="'+p.x+'" cy="'+p.y+'" r="75"/>';}).join('')+
                     '<circle id="minimapPlayer" class="salvage-minimap-player" cx="'+playerX+'" cy="'+playerY+'" r="115"/></svg></div>'+
-                    '<div class="salvage-map-hint"><span>视野随玩家移动 · WASD / 方向键持续移动 · 点击地面行走</span><span>右上角为玩家小地图</span></div></div>';
+                    (run.paused?'<div class="salvage-pause-overlay">行动暂停 · 按 L 继续</div>':'')+
+                    '<div class="salvage-map-hint"><span>视野随玩家移动 · WASD 行走 · L 暂停</span><span>按 P 使用角色技能 · 右上角为全站小地图</span></div></div>';
                 var cargo=renderBackpack(run,containers);
                 var shape=backpackShape(run.backpack.tier);
                 var areaCells=0;
                 for(var cellY=0;cellY<shape.height;cellY++)for(var cellX=0;cellX<shape.width;cellX++)if(shape.hasCell(cellX,cellY))areaCells++;
-                var usedLayout=layoutItems(run.cargo||[],shape);
+                if(run.role==='technician')areaCells+=9;
+                var usedLayout=layoutItems(run.cargo||[],shape,run.role==='technician');
                 var usedCells=usedLayout?usedLayout.reduce(function(total,place){return total+place.width*place.height;},0):areaCells;
+                var roleNames={doctor:'医生',engineer:'工兵',technician:'工程师',soldier:'士兵'};
+                var cooldown=Math.max(0,Math.ceil((Number(run.abilityReadyAt||0)-(run.paused?Number(run.pausedAt||Date.now()):Date.now()))/1000));
                 return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · 实时行动</h2><p>区域间由隔离墙分隔；人机在地图中巡逻并会追击、攻击进入警戒范围的玩家。撤离或阵亡时一次提交本局记录。</p></div><span class="salvage-pill">行动 '+number(run.turn)+' · 本地</span></div>'+
                     '<div class="salvage-stats"><div class="salvage-stat"><span>生命值</span><strong id="runHealth">'+number(run.health)+' / '+number(run.max_health)+'</strong></div><div class="salvage-stat"><span>背包空间</span><strong id="runWeight">'+usedCells+' / '+areaCells+' 格</strong></div><div class="salvage-stat"><span>武器充能</span><strong id="runCharges">'+number(run.weapon.charges)+'</strong></div><div class="salvage-stat"><span>护甲耐久</span><strong id="runArmor">'+number(run.armor.durability)+' / '+number(run.armor.maxDurability)+'</strong></div></div>'+
                     '<div class="salvage-bar"><i id="runHealthBar" style="width:'+Math.max(0,Math.min(100,run.health/run.max_health*100))+'%"></i></div>'+
-                    map+'<div class="salvage-legend"><span>生活区</span><span>管理区</span><span>研发区</span><span>机组区</span><span>核心区（高价值）</span><span>工程区</span></div>'+
-                    '<div class="salvage-object"><strong id="runPrompt">'+esc(run.finishError?'提交失败：'+run.finishError:run.terminalStatus?'本局记录正在提交，失败时可点击重试。':'正在扫描周边目标…')+'</strong><small>WASD / 方向键移动 · T 攻击 · F 搜索 · E 交互；交互、攻击与撤离均在曼哈顿距离 ≤ 1.5 时启用</small></div>'+
-                    '<div id="runInteractions" class="salvage-controls">'+(run.terminalStatus?'<button data-action="retry-finish">重试提交本局记录</button>':'')+'</div><div class="salvage-controls"><button class="secondary" data-action="heal">使用急救包（恢复 45）</button></div>'+
-                    '<div class="salvage-object"><strong>本局背包 · '+shape.width+'×'+shape.height+'（实际 '+areaCells+' 格）</strong>'+cargo+'</div>'+
+                    map+'<div class="salvage-legend">'+(run.map_regions||[]).map(function(region){return '<span>'+esc(region.name)+'</span>';}).join('')+'</div>'+
+                    '<div class="salvage-object"><strong id="runPrompt">'+esc(run.finishError?'提交失败：'+run.finishError:run.terminalStatus?'本局记录正在提交，失败时可点击重试。':'正在扫描周边目标…')+'</strong><small>'+esc(roleNames[run.role]||'士兵')+' · WASD 移动 · T 攻击 · F 搜索 · E 交互 · P 角色技能（'+(cooldown?cooldown+' 秒':'就绪')+'） · L 暂停</small></div>'+
+                    '<div id="runInteractions" class="salvage-controls">'+(run.terminalStatus?'<button data-action="retry-finish">重试提交本局记录</button>':'')+'<button class="secondary" data-action="toggle-auto-pickup">'+(run.autoPickup?'关闭自动拾取':'开启自动拾取')+'</button><button class="secondary" data-action="toggle-pause">'+(run.paused?'继续游戏':'暂停游戏（L）')+'</button><button data-action="use-ability"'+(cooldown||run.paused?' disabled':'')+'>角色技能（P） · '+(cooldown?cooldown+'s':'就绪')+'</button></div><div class="salvage-controls"><button class="secondary" data-action="heal"'+(run.paused?' disabled':'')+'>使用急救包（恢复 45）</button></div>'+
+                    '<div class="salvage-object"><strong>本局背包 · '+shape.width+'×'+shape.height+'（实际 '+areaCells+' 格）'+(run.role==='technician'?' · 工程师额外 3×3':'')+'</strong>'+cargo+'</div>'+
                     '<div class="salvage-object"><strong>当前穿戴装备</strong><div class="salvage-equipped">'+equipmentCard(run.backpack,'背包 · '+run.backpack.name)+equipmentCard(run.weapon,'武器 · '+run.weapon.name)+equipmentCard(run.armor,'护甲 · '+run.armor.name)+'</div><small>撤离后带回；阵亡则全部遗失。</small></div></section>';
             }
             function objectPosition(object){
@@ -535,6 +595,7 @@ function salvageMarkup(): string {
             }
             function runItemActions(item,index){
                 var actions='';
+                actions+='<button class="secondary" data-action="drop-item" data-index="'+index+'">丢弃 1 件</button>';
                 if(['weapon','armor','backpack'].indexOf(item.kind)>=0){
                     actions+='<button class="secondary" data-action="run-equip" data-index="'+index+'">使用 / 装备</button>';
                 }
@@ -546,49 +607,64 @@ function salvageMarkup(): string {
             function renderBackpack(run){
                 var shape=backpackShape(run.backpack.tier);
                 var items=(run.cargo||[]).map(function(item,index){return Object.assign({},item,{cargoIndex:index});});
-                var layout=layoutItems(items,shape);
-                var cells='';
-                for(var y=0;y<shape.height;y++)for(var x=0;x<shape.width;x++){
-                    if(shape.hasCell(x,y))cells+='<span class="salvage-backpack-empty" style="grid-column:'+(x+1)+';grid-row:'+(y+1)+'"></span>';
+                var hasExtra=run.role==='technician';
+                var layout=layoutItems(items,shape,hasExtra);
+                if(!layout)return '<div class="salvage-warning">当前物品无法在背包中排布，请整理或丢弃物品。</div>';
+                function renderGrid(gridIndex,target,title){
+                    var cells='';
+                    for(var y=0;y<target.height;y++)for(var x=0;x<target.width;x++){
+                        if(target.hasCell(x,y))cells+='<span class="salvage-backpack-empty" style="grid-column:'+(x+1)+';grid-row:'+(y+1)+'"></span>';
+                    }
+                    var content=layout.filter(function(place){return place.grid===gridIndex;}).map(function(place){
+                        var item=place.item,index=item.cargoIndex;
+                        return '<div class="salvage-backpack-cell" style="grid-column:'+(place.x+1)+' / span '+place.width+';grid-row:'+(place.y+1)+' / span '+place.height+'" title="'+esc(item.name+' · '+place.width+'×'+place.height)+'">'+
+                            itemSvg(item)+'<span><strong>'+esc(item.name)+' ×'+number(item.quantity)+'</strong><small>'+place.width+'×'+place.height+' · '+number(item.weight*item.quantity)+' 负重</small>'+runItemActions(item,index)+'</span></div>';
+                    }).join('');
+                    return '<div'+(gridIndex?' class="salvage-storage-extra"':'')+'>'+(title?'<strong>'+title+'</strong>':'')+
+                        '<div class="salvage-backpack-grid" style="grid-template-columns:repeat('+target.width+',minmax(0,1fr))">'+cells+content+'</div></div>';
                 }
-                if(!layout)return '<div class="salvage-warning">当前物品无法在背包中排布，请使用或整理物品。</div>'+cells;
-                var content=layout.map(function(place){
-                    var item=place.item;
-                    var index=item.cargoIndex;
-                    return '<div class="salvage-backpack-cell" style="grid-column:'+(place.x+1)+' / span '+place.width+';grid-row:'+(place.y+1)+' / span '+place.height+'" title="'+esc(item.name+' · '+place.width+'×'+place.height)+'">'+
-                        itemSvg(item)+'<span><strong>'+esc(item.name)+' ×'+number(item.quantity)+'</strong><small>'+place.width+'×'+place.height+' · '+number(item.weight*item.quantity)+' 负重</small>'+runItemActions(item,index)+'</span></div>';
-                }).join('');
-                return '<div class="salvage-backpack-grid" style="grid-template-columns:repeat('+shape.width+',minmax(0,1fr))">'+cells+content+'</div>';
+                var main=renderGrid(0,shape,'');
+                if(!hasExtra)return main;
+                return '<div class="salvage-storage-layout">'+main+renderGrid(1,{width:3,height:3,hasCell:function(x,y){return x<3&&y<3;}},'工程师加装储物舱')+'</div>';
             }
             function refreshInteractionUi(run){
                 var controls=document.getElementById('runInteractions');
                 var prompt=document.getElementById('runPrompt');
                 if(!controls||!prompt)return;
                 var container=activeObject('container',null,true);
+                var drop=activeObject('drop');
                 var exit=activeObject('extract');
                 var enemy=activeObject('enemy');
                 var pieces=[];
-                if(container)pieces.push(container.searched&&!(container.loot||[]).length?'<span class="salvage-pill">已搜索：'+esc(container.name)+'</span>':'<button data-action="search">搜索 '+esc(container.name)+'</button>');
-                if(exit)pieces.push('<button class="gold" data-action="extract">撤离 '+esc(exit.name)+'</button>');
-                if(enemy)pieces.push('<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'">攻击 '+esc(enemy.name)+' · '+number(enemy.health)+' / '+number(enemy.maxHealth)+' HP</button>');
+                if(container)pieces.push(container.searched&&!(container.loot||[]).length?'<span class="salvage-pill">已搜索：'+esc(container.name)+'</span>':'<button data-action="search"'+(run.paused?' disabled':'')+'>搜索 '+esc(container.name)+'</button>');
+                if(drop)pieces.push('<button data-action="pickup-drop" data-id="'+esc(drop.id)+'"'+(run.paused?' disabled':'')+'>拾取地面物资：'+esc(drop.item.name)+' ×'+number(drop.item.quantity)+'</button>');
+                if(exit)pieces.push('<button class="gold" data-action="extract"'+(run.paused?' disabled':'')+'>撤离 '+esc(exit.name)+'</button>');
+                if(enemy)pieces.push('<button class="danger" data-action="attack" data-id="'+esc(enemy.id)+'"'+(run.paused?' disabled':'')+'>攻击 '+esc(enemy.name)+' · '+number(enemy.health)+' / '+number(enemy.maxHealth)+' HP</button>');
                 if(run.terminalStatus)pieces=['<button data-action="retry-finish">重试提交本局记录</button>'];
+                else{
+                    var cooldown=Math.max(0,Math.ceil((Number(run.abilityReadyAt||0)-(run.paused?Number(run.pausedAt||Date.now()):Date.now()))/1000));
+                    if(!container&&!drop&&!exit&&!enemy)pieces.push('<span class="salvage-pill">附近没有可交互目标</span>');
+                    pieces.push('<button class="secondary" data-action="toggle-auto-pickup">'+(run.autoPickup?'关闭自动拾取':'开启自动拾取')+'</button>');
+                    pieces.push('<button class="secondary" data-action="toggle-pause">'+(run.paused?'继续游戏（L）':'暂停游戏（L）')+'</button>');
+                    pieces.push('<button data-action="use-ability"'+(cooldown||run.paused?' disabled':'')+'>角色技能（P） · '+(cooldown?cooldown+'s':'就绪')+'</button>');
+                }
                 if(!pieces.length)pieces.push('<span class="salvage-pill">距离可交互目标超过 1.5 单位</span>');
                 var signature=pieces.join('|');
                 if(run.interactionSignature!==signature){
                     controls.innerHTML=pieces.join('');
                     run.interactionSignature=signature;
                 }
-                var target=container||exit||enemy;
+                var target=container||drop||exit||enemy;
                 prompt.textContent=target?'附近：'+target.name+(target.kind==='enemy'?' · '+Math.ceil(target.health)+' HP':''):'探索 '+areaAt(run.world_x/72,run.world_y/72);
             }
             function areaAt(x,y){
-                var regions=[
-                    {name:'生活区',x1:2,x2:13,y1:3,y2:13},{name:'管理区',x1:18,x2:29,y1:3,y2:13},
-                    {name:'研发区',x1:34,x2:49,y1:3,y2:13},{name:'机组区',x1:2,x2:15,y1:21,y2:32},
-                    {name:'核心区',x1:20,x2:31,y1:18,y2:31},{name:'工程区',x1:36,x2:49,y1:21,y2:32}
-                ];
-                var region=regions.find(function(value){return x>=value.x1&&x<=value.x2&&y>=value.y1&&y<=value.y2;});
-                return region?region.name:'连接廊道';
+                var regions=(state.run&&state.run.map_regions)||[];
+                var nearest=regions.reduce(function(best,region){
+                    var centerX=Number(region.x||0)/72,centerY=Number(region.y||0)/72;
+                    var distance=Math.hypot(centerX-x,centerY-y);
+                    return !best||distance<best.distance?{name:region.name,distance:distance}:best;
+                },null);
+                return nearest?nearest.name:'连接廊道';
             }
             function initializeClientRun(){
                 if(!state.run)return;
@@ -604,6 +680,10 @@ function salvageMarkup(): string {
                     run.world_y=(run.y+.5)*72;
                     run.turn=0;
                     run.started_client_at=Date.now();
+                    run.drops=[];
+                    run.autoPickup=false;
+                    run.paused=false;
+                    run.abilityReadyAt=0;
                     run.kit={
                         backpack:{key:run.backpack.key,quantity:1,durability:run.backpack.durability,maxDurability:run.backpack.maxDurability,charges:run.backpack.charges||0},
                         weapon:{key:run.weapon.key,quantity:1,durability:run.weapon.durability||0,maxDurability:run.weapon.maxDurability||0,charges:run.weapon.charges||0},
@@ -613,12 +693,17 @@ function salvageMarkup(): string {
                     state.run=run;
                     saveClientRun();
                 }
+                if(!Array.isArray(state.run.drops))state.run.drops=[];
+                if(!state.run.role)state.run.role='soldier';
+                state.run.floorLookup=Object.create(null);
+                (state.run.map_tiles||[]).forEach(function(tile){if(!tile.wall)state.run.floorLookup[tile.x+','+tile.y]=true;});
             }
             function saveClientRun(){
                 if(!state||!state.run)return;
                 try{
                     var snapshot=Object.assign({},state.run);
                     delete snapshot.map_tiles;delete snapshot.map_regions;delete snapshot.client_objects;
+                    delete snapshot.floorLookup;
                     localStorage.setItem('salvage-client-run-'+state.run.id,JSON.stringify(snapshot));
                 }
                 catch(error){feedback('本地行动存档失败；请勿刷新或关闭页面，直到本局结算。',true);}
@@ -632,12 +717,9 @@ function salvageMarkup(): string {
             }
             function walkable(run,x,y,ignoreEnemy){
                 var tileX=Math.floor(x/72),tileY=Math.floor(y/72);
-                var tile=(run.map_tiles||[]).find(function(value){return value.x===tileX&&value.y===tileY;});
-                if(!tile||tile.wall||x<8||y<8||x>=run.map_width*72-8||y>=run.map_height*72-8)return false;
+                var hasFloor=run.floorLookup?run.floorLookup[tileX+','+tileY]:(run.map_tiles||[]).some(function(value){return value.x===tileX&&value.y===tileY&&!value.wall;});
+                if(!hasFloor||x<8||y<8||x>=run.map_width*72-8||y>=run.map_height*72-8)return false;
                 return !(run.objects||[]).some(function(object){
-                    if(object.kind==='wall'){
-                        return Math.abs((object.x+.5)*72-x)<24&&Math.abs((object.y+.5)*72-y)<24;
-                    }
                     if(object.kind==='enemy'&&!object.defeated&&object.id!==ignoreEnemy){
                         var point=objectPosition(object);
                         var dx=point.x-x,dy=point.y-y;
@@ -659,29 +741,104 @@ function salvageMarkup(): string {
             }
             function animationFrame(now){
                 if(state&&state.run&&!state.run.terminalStatus){
+                    var run=state.run;
+                    if(run.paused){
+                        lastFrame=0;
+                        refreshInteractionUi(run);
+                        window.requestAnimationFrame(animationFrame);return;
+                    }
                     var dt=lastFrame?Math.min(.05,(now-lastFrame)/1000):0;
                     lastFrame=now;
-                    advanceEnemies(state.run,dt,now);
-                    if(state.run.terminalStatus){window.requestAnimationFrame(animationFrame);return;}
+                    advanceRoleEffects(run,dt,Date.now());
+                    advanceEnemies(run,dt,Date.now());
+                    if(run.terminalStatus){window.requestAnimationFrame(animationFrame);return;}
                     var dx=(pressedKeys.d?1:0)-(pressedKeys.a?1:0);
                     var dy=(pressedKeys.s?1:0)-(pressedKeys.w?1:0);
                     if(moveTarget&&!dx&&!dy){
-                        dx=moveTarget.x-state.run.world_x;
-                        dy=moveTarget.y-state.run.world_y;
+                        dx=moveTarget.x-run.world_x;
+                        dy=moveTarget.y-run.world_y;
                         var distance=Math.sqrt(dx*dx+dy*dy);
                         if(distance<4){moveTarget=null;dx=0;dy=0;}
                         else{dx/=distance;dy/=distance;}
                     }
                     if(dx||dy){
                         var magnitude=Math.sqrt(dx*dx+dy*dy)||1;
-                        movePlayer(dx/magnitude*115*dt,dy/magnitude*115*dt);
-                        if(now-lastSnapshot>1200){lastSnapshot=now;saveClientRun();}
+                        movePlayer(dx/magnitude*115*movementMultiplier(run)*dt,dy/magnitude*115*movementMultiplier(run)*dt);
                         updateRunHud();
                     }
-                    updateDynamicMap(state.run);
-                    refreshInteractionUi(state.run);
+                    updateDynamicMap(run);
+                    refreshInteractionUi(run);
                 }else lastFrame=0;
                 window.requestAnimationFrame(animationFrame);
+            }
+            function movementMultiplier(run){
+                var now=Date.now(),multiplier=run.role==='engineer'?1.5:1;
+                if(Number(run.abilityUntil||0)>now){
+                    if(run.role==='engineer')multiplier=3;
+                    if(run.role==='soldier')multiplier=2;
+                }
+                return multiplier;
+            }
+            function advanceRoleEffects(run,dt,now){
+                var healingRate=run.role==='doctor'?1:0;
+                if(run.role==='doctor'&&Number(run.abilityUntil||0)>now)healingRate=10;
+                if(healingRate>0&&run.health<run.max_health){
+                    run.healAccumulator=(Number(run.healAccumulator)||0)+healingRate*dt;
+                    var healing=Math.floor(run.healAccumulator);
+                    if(healing>0){
+                        run.health=Math.min(run.max_health,run.health+healing);
+                        run.healAccumulator-=healing;
+                        updateRunHud();
+                    }
+                }else if(run.health>=run.max_health)run.healAccumulator=0;
+                if(now-lastSnapshot>1200){lastSnapshot=now;saveClientRun();}
+            }
+            function togglePause(){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus)return;
+                var now=Date.now();
+                if(!run.paused){
+                    run.paused=true;run.pausedAt=now;pressedKeys={};moveTarget=null;
+                    feedback('游戏已暂停，按 L 或点击继续恢复行动。',false);
+                }else{
+                    var pausedFor=Math.max(0,now-Number(run.pausedAt||now));
+                    ['abilityReadyAt','abilityUntil'].forEach(function(key){if(run[key])run[key]+=pausedFor;});
+                    (run.objects||[]).forEach(function(object){
+                        if(object.nextAttackAt)object.nextAttackAt+=pausedFor;
+                        if(object.frozenUntil)object.frozenUntil+=pausedFor;
+                    });
+                    run.paused=false;run.pausedAt=0;
+                    feedback('游戏继续。',false);
+                }
+                run.interactionSignature='';
+                saveClientRun();draw();
+            }
+            function useRoleAbility(){
+                var run=state&&state.run;
+                if(!run||run.terminalStatus||run.paused)return;
+                var now=Date.now();
+                if(Number(run.abilityReadyAt||0)>now){feedback('角色技能还需冷却 '+Math.ceil((run.abilityReadyAt-now)/1000)+' 秒。',true);return;}
+                if(run.role==='technician'){
+                    var nearby=(run.objects||[]).filter(function(enemy){
+                        if(enemy.kind!=='enemy'||enemy.defeated)return false;
+                        var point=objectPosition(enemy);
+                        return Math.abs(point.x/72-run.world_x/72)+Math.abs(point.y/72-run.world_y/72)<=6;
+                    });
+                    if(!nearby.length){feedback('附近没有可冻结的人机，技能未进入冷却。',true);return;}
+                    nearby.forEach(function(enemy){enemy.frozenUntil=now+3000;});
+                    feedback('工程师脉冲已冻结附近 '+nearby.length+' 台人机 3 秒。',false);
+                }else if(run.role==='doctor'){
+                    run.abilityUntil=now+5000;run.healAccumulator=Number(run.healAccumulator)||0;
+                    feedback('医疗增幅启动：每秒恢复 10 HP，持续 5 秒。',false);
+                }else if(run.role==='engineer'){
+                    run.abilityUntil=now+10000;
+                    feedback('工兵冲刺启动：移动速度提升 200%，持续 10 秒。',false);
+                }else{
+                    run.abilityUntil=now+10000;
+                    feedback('士兵战斗兴奋剂启动：移速提升 100%、攻击伤害提升 20%，持续 10 秒。',false);
+                }
+                run.abilityReadyAt=now+40000;run.interactionSignature='';
+                saveClientRun();draw();
             }
             function updateRunHud(){
                 var run=state&&state.run;
@@ -696,7 +853,8 @@ function salvageMarkup(): string {
                 var shape=backpackShape(run.backpack.tier);
                 var cells=0;
                 for(var y=0;y<shape.height;y++)for(var x=0;x<shape.width;x++)if(shape.hasCell(x,y))cells++;
-                var layout=layoutItems(run.cargo||[],shape);
+                if(run.role==='technician')cells+=9;
+                var layout=layoutItems(run.cargo||[],shape,run.role==='technician');
                 var used=layout?layout.reduce(function(total,entry){return total+entry.width*entry.height;},0):cells;
                 if(weight)weight.textContent=used+' / '+cells+' 格';
                 if(charges)charges.textContent=number(run.weapon.charges);
@@ -744,12 +902,13 @@ function salvageMarkup(): string {
                 for(var i=0;i<run.objects.length;i++){
                     var enemy=run.objects[i];
                     if(enemy.kind!=='enemy'||enemy.defeated)continue;
+                    if(Number(enemy.frozenUntil||0)>now)continue;
                     if(!Number.isFinite(enemy.visual_x)){enemy.visual_x=(enemy.x+.5)*72;enemy.visual_y=(enemy.y+.5)*72;}
                     var point=objectPosition(enemy);
                     var manhattan=Math.abs(point.x/72-playerX/72)+Math.abs(point.y/72-playerY/72);
                     if(manhattan<=1.5&&now>=Number(enemy.nextAttackAt||0)){
                         var reduction=run.armor.durability>0?(Number(run.armor.tier)||1)*3:0;
-                        var incoming=Math.max(1,Number(enemy.attack||1)-reduction);
+                        var incoming=Math.max(1,Math.ceil((Number(enemy.attack||1)-reduction)*(run.role==='soldier'?.95:1)));
                         run.armor.durability=Math.max(0,run.armor.durability-1);
                         run.kit.armor.durability=run.armor.durability;
                         run.health=Math.max(0,run.health-incoming);
@@ -797,8 +956,10 @@ function salvageMarkup(): string {
             function activeObject(kind,id,includeSearched){
                 var run=state.run;
                 var px=run.world_x,py=run.world_y;
-                var eligible=run.objects.filter(function(object){
+                var source=kind==='drop'?(run.drops||[]):run.objects;
+                var eligible=source.filter(function(object){
                     if(kind==='enemy'&&(object.kind!=='enemy'||object.defeated))return false;
+                    if(kind==='drop'&&object.kind!=='drop')return false;
                     if(kind==='container'&&['server','safe','medical','supply','archive','armory','lab','locker','reactor'].indexOf(object.kind)<0
                         &&!(object.kind==='enemy'&&object.defeated&&(object.loot||[]).length))return false;
                     if(kind==='extract'&&object.kind!=='extract')return false;
@@ -843,9 +1004,11 @@ function salvageMarkup(): string {
             }
             function interact(){
                 var run=state&&state.run;
-                if(!run||run.terminalStatus)return;
+                if(!run||run.terminalStatus||run.paused)return;
                 var container=activeObject('container');
                 if(container){performLocalAction('search',container.id);return;}
+                var drop=activeObject('drop');
+                if(drop){performLocalAction('pickup',drop.id);return;}
                 var exit=activeObject('extract');
                 if(exit){finishClientRun('extracted');return;}
                 var enemy=activeObject('enemy');
@@ -859,27 +1022,97 @@ function salvageMarkup(): string {
             function searchNearbyContainer(){
                 var container=activeObject('container');
                 if(container)performLocalAction('search',container.id);
-                else feedback('曼哈顿距离 1.5 单位内没有可搜索的容器。',true);
+                else{
+                    var drop=activeObject('drop');
+                    if(drop)performLocalAction('pickup',drop.id);
+                    else feedback('曼哈顿距离 1.5 单位内没有可搜索容器或地面物资。',true);
+                }
             }
-            function cargoCanFit(run,cargo,backpackTier){
-                var shape=backpackShape(backpackTier);
-                return layoutItems(cargo,shape)!==null&&cargoWeight({cargo:cargo})<=12+Number(backpackTier)*6;
+            function cargoCanFit(run,cargo,backpack){
+                var bag=typeof backpack==='object'?backpack:run.backpack;
+                var shape=backpackShape(Number(bag.tier)||1);
+                return layoutItems(cargo,shape,run.role==='technician')!==null&&cargoWeight({cargo:cargo})<=backpackCapacity(bag);
+            }
+            function addGroundDrop(run,entry){
+                var item=Object.assign({},enrichCargo(entry));
+                run.drops.push({
+                    id:'drop-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
+                    kind:'drop',name:item.name+' ×'+item.quantity,
+                    x:Math.floor(run.world_x/72),y:Math.floor(run.world_y/72),
+                    visual_x:run.world_x,visual_y:run.world_y,item:item
+                });
+            }
+            function dropCargoItem(index,quantity){
+                var run=state&&state.run,entry=run&&run.cargo[index];
+                if(!run||run.terminalStatus||run.paused||!entry)return;
+                var amount=Math.max(1,Math.min(Number(quantity)||1,Number(entry.quantity)||1));
+                var dropped=Object.assign({},entry,{quantity:amount});
+                entry.quantity-=amount;
+                if(entry.quantity<1)run.cargo.splice(index,1);
+                addGroundDrop(run,dropped);
+                run.cargo_weight=cargoWeight(run);
+                run.turn+=1;saveClientRun();draw();
+                feedback('已将 '+dropped.name+' ×'+amount+' 丢弃在地面，可靠近后拾取。',false);
+            }
+            function lootDensity(entry){
+                var definition=state.catalog.find(function(value){return value.key===entry.key;})||entry;
+                var size=dimensions(definition);
+                return Number(definition.value||0)/(size.width*size.height);
+            }
+            function pickupPlan(run,entry){
+                var definition=state.catalog.find(function(value){return value.key===entry.key;});
+                if(!definition)return null;
+                var maxQuantity=Math.max(0,Math.floor(Number(entry.quantity)||0));
+                var base=run.cargo.map(function(value){return Object.assign({},value);});
+                function tryQuantities(cargo){
+                    for(var quantity=maxQuantity;quantity>0;quantity--){
+                        var candidate=Object.assign({},entry,{quantity:quantity});
+                        var trial=cargo.map(function(value){return Object.assign({},value);});
+                        var stackable=['weapon','armor','backpack'].indexOf(definition.kind)<0;
+                        var existing=stackable&&trial.find(function(value){return value.key===candidate.key;});
+                        if(existing)existing.quantity+=quantity;else trial.push(enrichCargo(candidate));
+                        if(cargoCanFit(run,trial,run.backpack))return {cargo:trial,quantity:quantity};
+                    }
+                    return null;
+                }
+                var direct=tryQuantities(base);
+                if(direct)return Object.assign(direct,{dropped:[]});
+                if(!run.autoPickup)return null;
+                var incomingDensity=lootDensity(entry);
+                var discardable=base.map(function(value,index){return {value:value,index:index,density:lootDensity(value)};})
+                    .filter(function(candidate){return candidate.density<incomingDensity;})
+                    .sort(function(a,b){return a.density-b.density;});
+                var temporary=base.map(function(value){return Object.assign({},value);});
+                var dropped=[];
+                for(var i=0;i<discardable.length;i++){
+                    var original=discardable[i].value;
+                    var live=temporary.find(function(value){return value.key===original.key;});
+                    if(!live)continue;
+                    while(live&&live.quantity>0){
+                        live.quantity-=1;
+                        dropped.push(Object.assign({},live,{quantity:1}));
+                        if(live.quantity<1)temporary=temporary.filter(function(value){return value!==live;});
+                        var replaced=tryQuantities(temporary);
+                        if(replaced)return Object.assign(replaced,{dropped:dropped});
+                    }
+                }
+                return null;
             }
             function useRunEquipment(index){
                 var run=state&&state.run;
-                if(!run||run.terminalStatus)return;
+                if(!run||run.terminalStatus||run.paused)return;
                 var incoming=run.cargo[index];
                 if(!incoming||['backpack','weapon','armor'].indexOf(incoming.kind)<0){feedback('该物品不能直接装备。',true);return;}
                 var kind=incoming.kind;
                 var nextCargo=run.cargo.filter(function(value,itemIndex){return itemIndex!==index;}).map(function(value){return Object.assign({},value);});
                 var old=run[kind];
                 nextCargo.push(enrichCargo({key:old.key,quantity:1,durability:Number(old.durability)||0,maxDurability:Number(old.maxDurability)||0,charges:Number(old.charges)||0}));
-                var nextTier=kind==='backpack'?Number(incoming.tier):Number(run.backpack.tier);
-                if(!cargoCanFit(run,nextCargo,nextTier)){feedback('换装后剩余物品无法按实际形状放入背包。',true);return;}
+                var nextBackpack=kind==='backpack'?incoming:run.backpack;
+                if(!cargoCanFit(run,nextCargo,nextBackpack)){feedback('换装后剩余物品无法按实际形状放入背包。',true);return;}
                 run.cargo=nextCargo;
                 run[kind]=enrichCargo(incoming);
                 run.kit[kind]={key:incoming.key,quantity:1,durability:Number(incoming.durability)||0,maxDurability:Number(incoming.maxDurability)||0,charges:Number(incoming.charges)||0};
-                if(kind==='backpack')run.capacity=12+nextTier*6;
+                if(kind==='backpack')run.capacity=backpackCapacity(incoming);
                 if(kind==='weapon')run.weaponTier=Number(incoming.tier);
                 if(kind==='armor')run.armorTier=Number(incoming.tier);
                 run.cargo_weight=cargoWeight(run);
@@ -890,7 +1123,7 @@ function salvageMarkup(): string {
             function chargeRunWeapon(index){
                 var run=state&&state.run;
                 var crystal=run&&run.cargo[index];
-                if(!run||run.terminalStatus||!crystal||crystal.key!=='star_crystal'){feedback('请选择背包中的星晶。',true);return;}
+                if(!run||run.terminalStatus||run.paused||!crystal||crystal.key!=='star_crystal'){feedback('请选择背包中的星晶。',true);return;}
                 crystal.quantity-=1;
                 run.cargo=run.cargo.filter(function(entry){return entry.quantity>0;});
                 run.weapon.charges=Number(run.weapon.charges||0)+3;
@@ -901,38 +1134,46 @@ function salvageMarkup(): string {
             }
             function performLocalAction(action,id){
                 var run=state&&state.run;
-                if(!run||run.terminalStatus)return;
+                if(!run||run.terminalStatus||run.paused)return;
                 if(action==='search'){
                     var container=activeObject('container',id);
                     if(!container){feedback('靠近未搜索的容器后再搜索。',true);return;}
                     var collected=[];
                     var remaining=[];
                     (container.loot||[]).forEach(function(entry){
-                        var definition=state.catalog.find(function(value){return value.key===entry.key;});
-                        if(!definition){remaining.push(entry);return;}
-                        var quantity=definition.weight===0?entry.quantity:Math.min(entry.quantity,Math.floor(Math.max(0,run.capacity-cargoWeight(run))/definition.weight));
-                        if(quantity<1){remaining.push(entry);return;}
-                        var incoming=Object.assign({},entry,{quantity:quantity});
-                        var trial=run.cargo.map(function(value){return Object.assign({},value);});
-                        var merged=trial.find(function(value){return value.key===incoming.key&&['weapon','armor','backpack'].indexOf(definition.kind)<0;});
-                        if(merged)merged.quantity+=incoming.quantity;else trial.push(enrichCargo(incoming));
-                        if(cargoCanFit(run,trial,run.backpack.tier)){
-                            collected.push(incoming);
-                            if(merged){var live=run.cargo.find(function(value){return value.key===incoming.key;});if(live)live.quantity+=incoming.quantity;else addCargo(run,[incoming]);}
-                            else addCargo(run,[incoming]);
-                            if(quantity<entry.quantity)remaining.push(Object.assign({},entry,{quantity:entry.quantity-quantity}));
-                        }else remaining.push(entry);
+                        var plan=pickupPlan(run,entry);
+                        if(!plan){remaining.push(entry);return;}
+                        var incoming=Object.assign({},entry,{quantity:plan.quantity});
+                        run.cargo=plan.cargo;
+                        plan.dropped.forEach(function(value){addGroundDrop(run,value);});
+                        collected.push(incoming);
+                        if(plan.quantity<entry.quantity)remaining.push(Object.assign({},entry,{quantity:entry.quantity-plan.quantity}));
                     });
                     run.cargo_weight=cargoWeight(run);
                     container.searched=true;container.loot=remaining;
                     run.turn+=2;
-                    feedback(collected.length?'搜刮获得 '+collected.map(function(entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return (def?def.name:entry.key)+' ×'+entry.quantity;}).join('、')+(remaining.length?'；不适配的物品留在容器中，可整理背包后再搜索。':''):'物品形状或负重不适配，仍留在容器中。',false);
+                    feedback(collected.length?'搜刮获得 '+collected.map(function(entry){var def=state.catalog.find(function(value){return value.key===entry.key;});return (def?def.name:entry.key)+' ×'+entry.quantity;}).join('、')+
+                        (run.drops.length&&run.autoPickup?'；自动拾取替换的低价值物品已掉在地上。':'')+(remaining.length?'；未能装入的物品留在容器中。':''):'物品形状或负重不适配，仍留在容器中。',false);
+                }else if(action==='pickup'){
+                    var drop=activeObject('drop',id);
+                    if(!drop){feedback('靠近地面物资后再拾取。',true);return;}
+                    var trialCargo=run.cargo.map(function(value){return Object.assign({},value);});
+                    var droppedItem=drop.item;
+                    var stackable=['weapon','armor','backpack'].indexOf(droppedItem.kind)<0;
+                    var existing=stackable&&trialCargo.find(function(value){return value.key===droppedItem.key;});
+                    if(existing)existing.quantity+=droppedItem.quantity;else trialCargo.push(enrichCargo(droppedItem));
+                    if(!cargoCanFit(run,trialCargo,run.backpack)){
+                        feedback('背包没有适配空间；请先整理或丢弃其他物品。',true);return;
+                    }
+                    run.cargo=trialCargo;run.drops=run.drops.filter(function(value){return value.id!==drop.id;});
+                    run.turn+=1;feedback('已拾取 '+droppedItem.name+' ×'+droppedItem.quantity+'。',false);
                 }else if(action==='attack'){
                     var enemy=activeObject('enemy',id);
                     if(!enemy){feedback('靠近敌人后再攻击。',true);return;}
                     if(run.weapon.charges<1){feedback('武器充能不足，需撤离后购买星晶充能。',true);return;}
                     var definition=state.catalog.find(function(value){return value.key===run.weapon.key;})||{};
                     var damage=Number(definition.damage)||10+(Number(run.weapon.tier)||1)*7;
+                    if(run.role==='soldier'&&Number(run.abilityUntil||0)>Date.now())damage=Math.ceil(damage*1.2);
                     run.weapon.charges=Math.max(0,run.weapon.charges-1);
                     enemy.health=Math.max(0,enemy.health-damage);
                     if(enemy.health===0){
@@ -949,7 +1190,7 @@ function salvageMarkup(): string {
                         feedback('已击败'+enemy.name+'。'+(drops.length?'获得可装入背包的掉落物资。':'')+(leftovers.length?'其余物资留在残骸中，可靠近后再拾取。':''),false);
                     }else{
                         var reduction=run.armor.durability>0?(Number(run.armor.tier)||1)*3:0;
-                        var incoming=Math.max(1,Number(enemy.attack||1)-reduction);
+                        var incoming=Math.max(1,Math.ceil((Number(enemy.attack||1)-reduction)*(run.role==='soldier'?.95:1)));
                         run.armor.durability=Math.max(0,run.armor.durability-1);
                         run.kit.armor.durability=run.armor.durability;
                         run.health=Math.max(0,run.health-incoming);
@@ -986,23 +1227,28 @@ function salvageMarkup(): string {
                 var slots='<div class="salvage-slot-list">'+['backpack','weapon','armor'].map(function(kind){
                     var names={backpack:'背包槽位',weapon:'武器槽位',armor:'护甲槽位'};
                     var chosen=state.items.find(function(item){return Number(item.id)===Number(selectedGear[kind]);});
-                    var backpackText=chosen&&kind==='backpack'?(chosen.tier===1?'4×4 + 1×2 · 18 格':dimensions(chosen).width+'×'+dimensions(chosen).height+' 格'):'';
+                    var backpackText=chosen&&kind==='backpack'?'负重 '+number(chosen.capacity||12+chosen.tier*6)+' · '+({low:'低',medium:'中',high:'高'}[chosen.backpackVariant]||'低')+'容量':'';
                     return '<button class="salvage-slot '+(chosen?rarityClass(chosen):'')+' '+(selectedStashItem?'selected':'')+'" data-action="assign-gear" data-kind="'+kind+'">'+
                         (chosen?itemSvg(chosen):'')+'<span><strong>'+names[kind]+'</strong><small>'+(chosen?esc(chosen.name)+' · '+(kind==='weapon'?'充能 '+number(chosen.charges):kind==='armor'?'耐久 '+number(chosen.durability)+'/'+number(chosen.max_durability):backpackText)+' · 价值 '+number(chosen.value)+' 星币':'尚未选择')+'</small></span></button>';
                 }).join('')+'</div>';
                 var gearCards=ownedGear.length?'<div class="salvage-list">'+ownedGear.map(function(item){
-                    var detail=item.kind==='weapon'?'充能 '+number(item.charges):item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):(item.tier===1?'4×4 + 1×2 · 18 格':dimensions(item).width+'×'+dimensions(item).height+' 格');
+                    var detail=item.kind==='weapon'?'充能 '+number(item.charges):item.kind==='armor'?'耐久 '+number(item.durability)+'/'+number(item.max_durability):'负重 '+number(item.capacity||12+item.tier*6)+' · '+({low:'低',medium:'中',high:'高'}[item.backpackVariant]||'低')+'容量';
                     return '<div class="salvage-item '+rarityClass(item)+' '+(Number(selectedStashItem)===Number(item.id)?'is-selected':'')+'"><button class="salvage-slot salvage-selectable '+rarityClass(item)+'" data-action="select-gear" data-id="'+item.id+'">'+itemSvg(item)+'<span><strong>'+esc(item.name)+'</strong><small>'+esc(detail)+' · 价值 '+number(item.value)+' 星币</small></span></button><div class="salvage-item-actions">'+itemActions(item)+'</div></div>';
                 }).join('')+'</div>':'';
                 var medkits=inventoryKind('medicine').reduce(function(total,item){return total+Number(item.quantity);},0);
+                var roleCards='<div class="salvage-role-grid">'+Object.keys(state.roles).map(function(role){
+                    var value=state.roles[role];
+                    return '<button class="salvage-role-card '+(selectedRole===role?'selected':'')+'" data-action="select-role" data-role="'+role+'"><strong>'+esc(value.name)+(selectedRole===role?' · 已选择':'')+'</strong><small>'+esc(value.description)+'</small></button>';
+                }).join('')+'</div>';
                 var zoneCards='<div class="salvage-grid"><div class="salvage-panel salvage-tactical"><div class="salvage-heading"><div><h2>战术配装 · 选择地图与出战装备</h2><p>先点击左侧仓库中的装备，再点击右侧对应槽位完成配装。</p></div></div>'+
                     (gear?'<div class="salvage-stash-grid"><div><div class="salvage-stash-categories"><span>仓库装备 · '+number(ownedGear.length)+' 件</span><span>点击物品选择</span></div>'+gearCards+'</div>'+slots+'</div>':'<div class="salvage-warning">仓库需要各有一件背包、武器和护甲才能出发。可在下方商店购买；首次档案附有一套 1 级装备。</div>')+
+                    '<strong>选择出战角色</strong>'+roleCards+
                     (gear?'<div class="salvage-wallet"><span>本次配装估值 '+number(selectedValue)+' 星币</span></div><label class="salvage-inline-field" style="max-width:180px;margin-top:8px">携带急救包（仓库 '+number(medkits)+'）<input type="number" min="0" max="5" value="'+Math.min(2,medkits)+'" data-medkits></label>':'')+
                     '<div class="salvage-controls">'+
                     (gear?'<button data-action="start" data-zone="safe">进入安全区</button><button class="danger" data-action="start" data-zone="chaos">进入混乱区（装备价值需 ≥ '+number(state.zones.chaos.entry_value)+'）</button>':'')+
-                    '<button class="secondary" data-action="tutorial">查看行动教程</button></div><div class="salvage-warning">混乱区装备价值门槛按本次携带的背包、武器和护甲计算。移动耗时 1 分钟，搜索耗时 2 分钟；护甲减伤、武器伤害和背包负重随等级提升。</div></div>'+
+                    '<button class="secondary" data-action="tutorial">查看行动教程</button></div><div class="salvage-warning">混乱区装备价值门槛按本次携带的背包、武器和护甲计算。移动耗时 1 分钟，搜索耗时 2 分钟；护甲减伤、武器伤害和背包容量随等级与规格提升。</div></div>'+
                     '<div class="salvage-panel"><div class="salvage-heading"><div><h2>装备商店</h2><p>星币独立于其他游戏经济；每级装备均可购买。</p></div></div>'+
-                    '<div class="salvage-list">'+['backpack','weapon','armor'].map(function(kind){var names={backpack:'背包',weapon:'武器',armor:'护甲'};return '<div class="salvage-object"><strong>'+names[kind]+' · 1～6 级</strong><div class="salvage-controls">'+[1,2,3,4,5,6].map(function(tier){return state.catalog.filter(function(def){return def.kind===kind&&def.tier===tier;}).map(function(def){var current=state.items.filter(function(item){return item.item_key===def.key;}).length;var stat=kind==='backpack'?'负重 '+(12+tier*6):kind==='weapon'?'伤害 '+number(def.damage||10+tier*7)+' · '+(def.weaponBranch==='rail'?'磁轨':def.weaponBranch==='scatter'?'散射':'脉冲'): '减伤 '+(tier*3)+' · 耐久 '+(45+tier*9);return '<button class="secondary '+rarityClass(def)+'" data-action="purchase" data-item="'+esc(def.key)+'">'+itemSvg(def)+'<span>'+tier+'级 · '+esc(def.name)+'<br>'+stat+' · '+number(def.price)+' 星币'+(current?' ×'+number(current):'')+'</span></button>';}).join('');}).join('')+'</div></div>';}).join('')+
+                    '<div class="salvage-list">'+['backpack','weapon','armor'].map(function(kind){var names={backpack:'背包',weapon:'武器',armor:'护甲'};return '<div class="salvage-object"><strong>'+names[kind]+' · 1～6 级</strong><div class="salvage-controls">'+[1,2,3,4,5,6].map(function(tier){return state.catalog.filter(function(def){return def.kind===kind&&def.tier===tier;}).map(function(def){var current=state.items.filter(function(item){return item.item_key===def.key;}).length;var stat=kind==='backpack'?'负重 '+number(def.capacity||12+tier*6)+' · '+({low:'低',medium:'中',high:'高'}[def.backpackVariant]||''):kind==='weapon'?'伤害 '+number(def.damage||10+tier*7)+' · '+(def.weaponBranch==='rail'?'磁轨':def.weaponBranch==='scatter'?'散射':'脉冲'): '减伤 '+(tier*3)+' · 耐久 '+(45+tier*9);return '<button class="secondary '+rarityClass(def)+'" data-action="purchase" data-item="'+esc(def.key)+'">'+itemSvg(def)+'<span>'+tier+'级 · '+esc(def.name)+'<br>'+stat+' · '+number(def.price)+' 星币'+(current?' ×'+number(current):'')+'</span></button>';}).join('');}).join('')+'</div></div>';}).join('')+
                     '<div class="salvage-object"><strong>补给与充能材料</strong><div class="salvage-controls"><label class="salvage-inline-field">数量<input type="number" min="1" max="50" value="2" data-supply-quantity></label><button data-action="supplies" data-item="medkit">'+itemSvg(state.catalog.find(function(item){return item.key==='medkit';}))+'购买急救包（80 星币）</button><button class="secondary" data-action="supplies" data-item="star_crystal">'+itemSvg(state.catalog.find(function(item){return item.key==='star_crystal';}))+'购买星晶（45 星币）</button></div></div></div></div></div>';
                 return zoneCards;
             }
@@ -1011,7 +1257,7 @@ function salvageMarkup(): string {
                 state.recipes.forEach(function(recipe){(byCategory[recipe.category]||(byCategory[recipe.category]=[])).push(recipe);});
                 var names={crystal:'星晶制造商',backpack:'背包制造商',weapon:'武器制造商',armor:'护甲制造商',medicine:'药品制造商'};
                 return '<section class="salvage-panel"><div class="salvage-heading"><div><h2>制造商</h2><p>各类别生产线可并行制造；同一生产线需先领取完成品再排产。启动时会提交配方材料。</p></div></div>'+
-                    '<div class="salvage-manufacturers">'+Object.keys(names).map(function(category){var job=state.jobs.find(function(value){return value.category===category;});return '<div class="salvage-manufacturer"><h3>'+names[category]+'</h3>'+
+                    '<div class="salvage-recipe-groups">'+Object.keys(names).map(function(category){var job=state.jobs.find(function(value){return value.category===category;});return '<details class="salvage-recipe-group" '+(job?'open':'')+'><summary>'+names[category]+' · '+(job?'有进行中的任务':(byCategory[category]||[]).length+' 个配方')+'</summary><div class="salvage-recipe-group-content">'+
                         (job?'<div class="salvage-job"><strong>'+esc(job.recipe?job.recipe.name:job.item_key)+'</strong><small>'+(job.ready?'制造完成，可以领取。':'完成时间：'+esc(new Date(job.finishes_at).toLocaleString('zh-CN')))+'</small>'+(job.ready?'<button data-action="claim-craft" data-id="'+job.id+'">领取成品</button>':'')+'</div>':
                             byCategory[category].map(function(recipe){
                                 var missing=[];
@@ -1026,7 +1272,7 @@ function salvageMarkup(): string {
                                 var product=state.catalog.find(function(item){return item.key===recipe.key;});
                                 return '<div class="salvage-recipe"><span>'+itemSvg(product)+esc(recipe.name)+'<br>'+esc(ingredients)+' · '+number(recipe.minutes)+' 分钟</span><div class="salvage-controls"><button data-action="craft" data-item="'+esc(recipe.key)+'">制造</button>'+
                                     (missing.length?'<button class="secondary" data-action="buy-craft-materials" data-item="'+esc(recipe.key)+'"'+(buyCost>state.player.star_coins?' disabled':'')+'>按原价 1.1 倍补齐（'+number(buyCost)+' 星币）</button>':'<span class="salvage-pill">材料已齐</span>')+'</div></div>';
-                            }).join(''))+'</div>';}).join('')+'</div></section>';
+                            }).join(''))+'</div></details>';}).join('')+'</div></section>';
             }
             function draw(){
                 document.getElementById('salvageWallet').innerHTML='<span>✦ '+number(state.player.star_coins)+' 星币</span><span>✧ '+number(state.player.star_crystals)+' 星晶</span><span>仓库装备估值 '+number(state.player.total_equipment_value)+'</span>';
@@ -1036,12 +1282,27 @@ function salvageMarkup(): string {
                 var recent=state.history.length?'<div class="salvage-list">'+state.history.map(function(run){return '<div class="salvage-item"><strong>'+esc(run.zone==='chaos'?'混乱区':'安全区')+' · '+esc(run.status==='dead'?'阵亡':'已撤离')+'</strong><small>'+esc(new Date(run.ended_at||run.started_at).toLocaleString('zh-CN'))+'</small></div>';}).join('')+'</div>':'<div class="salvage-empty">尚无已结束的对局</div>';
                 document.getElementById('salvageContent').innerHTML=main+stash+renderCrafting()+'<section class="salvage-panel"><div class="salvage-heading"><div><h2>行动记录</h2><p>最近八局结果</p></div></div>'+recent+'</section>';
             }
+            function drawPreservingScroll(){
+                var scrollY=window.scrollY;
+                var inventory=document.querySelector('.salvage-inventory');
+                var inventoryScroll=inventory?inventory.scrollTop:0;
+                var warehouse=document.querySelector('.salvage-warehouse-grid');
+                var warehouseScroll=warehouse?warehouse.scrollTop:0;
+                draw();
+                window.requestAnimationFrame(function(){
+                    window.scrollTo(0,scrollY);
+                    var nextInventory=document.querySelector('.salvage-inventory');
+                    var nextWarehouse=document.querySelector('.salvage-warehouse-grid');
+                    if(nextInventory)nextInventory.scrollTop=inventoryScroll;
+                    if(nextWarehouse)nextWarehouse.scrollTop=warehouseScroll;
+                });
+            }
             function showTutorial(){
                 var overlay=document.createElement('div');
                 overlay.className='salvage-tutorial';
                 overlay.setAttribute('role','dialog');
                 overlay.setAttribute('aria-modal','true');
-                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击一件背包、武器或护甲，再点击右侧对应槽位完成配装；本次配装估值会影响混乱区准入。</li><li>仓库和背包按物品实际尺寸自动排布；背包只接收有真实空位的物品，空格总数相同不代表形状一定放得下。</li><li>对局中按住 WASD / 方向键连续移动，也可点击地图；屏幕只显示附近区域，右上角小地图显示整站。</li><li>人机会巡逻、追击并攻击玩家；按 T 攻击曼哈顿距离 1.5 内血量最高的人机，敌人和玩家头顶都有血条。</li><li>按 F 搜索 1.5 单位内的容器；在背包点“使用 / 装备”可直接更换局内找到的武器、护甲和背包，星晶可为当前武器增加 3 次充能。</li><li>靠近边缘撤离平台后按 E 撤离；局内只在撤离或阵亡时提交一次记录，仓库和制造商在对局中隐藏。</li><li>稀有度颜色仅显示在物品图标：1 白、2 绿、3 蓝、4 紫、5 金、6 红。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
+                overlay.innerHTML='<section class="salvage-tutorial-card"><span class="salvage-kicker">STATION FIELD GUIDE</span><h2>空间站行动教程</h2><ul><li>局外先点击背包、武器或护甲，再点右侧槽位完成配装；每级背包有低、中、高三种容量规格。</li><li>选择出战角色：医生持续回血；工兵移速 +50%；工程师拥有独立 3×3 储物网格；士兵生命 +10%、受伤减伤 5%。角色技能按 P 使用，冷却 40 秒。</li><li>仓库和背包按物品实际尺寸自动排布。点击背包物品的“丢弃 1 件”会生成地面物资，靠近后可拾取。</li><li>对局中按住 WASD 连续移动，也可点击地图；新地图为不规则舱段群，屏幕显示周边视野，小地图显示全站。</li><li>按 T 攻击附近血量最高的人机；按 F 搜索容器或拾取附近地面物资；靠近撤离平台按 E 撤离。</li><li>开启自动拾取后，背包空间不足时会按每格价值比较，只会丢弃价值低于新物资的背包物品，被替换物会掉在地上。</li><li>按 L 随时暂停或继续；暂停期间人机、移动、回血和技能计时都会停止。</li><li>局内只在撤离或阵亡时提交一次记录；稀有度颜色仅显示在物品图标：1 白、2 绿、3 蓝、4 紫、5 金、6 红。</li></ul><div class="salvage-controls"><button data-action="close-tutorial">开始行动</button></div></section>';
                 root.appendChild(overlay);
             }
             async function load(){
@@ -1049,6 +1310,8 @@ function salvageMarkup(): string {
                 var data=await response.json();
                 if(!response.ok)throw new Error(data.error||'空间站档案暂不可用。');
                 state=data;
+                var storedRole=localStorage.getItem('salvage-selected-role');
+                if(storedRole&&state.roles&&Object.prototype.hasOwnProperty.call(state.roles,storedRole))selectedRole=storedRole;
                 if(state.run)initializeClientRun();
                 draw();
             }
@@ -1078,18 +1341,39 @@ function salvageMarkup(): string {
                 }
                 finally{requestPending=false;}
             }
+            root.addEventListener('keydown',function(event){
+                var item=event.target.closest&&event.target.closest('.salvage-grid-item');
+                if(item&&event.target===item&&(event.key==='Enter'||event.key===' ')){
+                    event.preventDefault();item.click();
+                }
+            });
             root.addEventListener('click',function(event){
                 var button=event.target.closest('[data-action]');
                 if(!button||!root.contains(button))return;
                 if(button.getAttribute('aria-disabled')==='true')return;
                 var action=button.dataset.action;
                 if(action==='start'){
-                    var payload={zone:button.dataset.zone,medkits:Number(root.querySelector('[data-medkits]')?.value||0)};
+                    var payload={zone:button.dataset.zone,role:selectedRole,medkits:Number(root.querySelector('[data-medkits]')?.value||0)};
                     ['backpack','weapon','armor'].forEach(function(kind){payload[kind+'_id']=Number(selectedGear[kind])||0;});
                     post('/api/salvage/start',payload);return;
                 }
-                if(action==='select-gear'){selectedStashItem=Number(button.dataset.id);draw();return;}
-                if(action==='select-warehouse'){selectedStashItem=Number(button.dataset.id);draw();return;}
+                if(action==='select-gear'){selectedStashItem=Number(button.dataset.id);drawPreservingScroll();return;}
+                if(action==='select-warehouse'){selectedStashItem=Number(button.dataset.id);drawPreservingScroll();return;}
+                if(action==='toggle-sale-mode'){saleMode=!saleMode;selectedSaleIds={};drawPreservingScroll();return;}
+                if(action==='toggle-sale'){
+                    var saleId=button.dataset.id;
+                    if(selectedSaleIds[saleId])delete selectedSaleIds[saleId];else selectedSaleIds[saleId]=true;
+                    drawPreservingScroll();return;
+                }
+                if(action==='sell-selected'){
+                    var selectedIds=Object.keys(selectedSaleIds).filter(function(id){return selectedSaleIds[id]&&state.items.some(function(item){return String(item.id)===id;});}).map(Number);
+                    if(selectedIds.length)post('/api/salvage/sell',{item_ids:selectedIds});return;
+                }
+                if(action==='select-role'){
+                    selectedRole=button.dataset.role;
+                    localStorage.setItem('salvage-selected-role',selectedRole);
+                    drawPreservingScroll();return;
+                }
                 if(action==='assign-gear'){
                     var selected=state.items.find(function(item){return Number(item.id)===Number(selectedStashItem);});
                     if(!selected){feedback('请先点击仓库中的一件装备。',true);return;}
@@ -1098,6 +1382,14 @@ function salvageMarkup(): string {
                 }
                 if(action==='tutorial'){showTutorial();return;}
                 if(action==='close-tutorial'){button.closest('.salvage-tutorial').remove();localStorage.setItem('salvage-tutorial-seen','1');return;}
+                if(action==='toggle-auto-pickup'&&state.run&&!state.run.terminalStatus){
+                    state.run.autoPickup=!state.run.autoPickup;state.run.interactionSignature='';
+                    saveClientRun();draw();feedback('自动拾取已'+(state.run.autoPickup?'开启：背包满时将按每格价值替换低价值物品。':'关闭。'),false);return;
+                }
+                if(action==='toggle-pause'){togglePause();return;}
+                if(action==='use-ability'){useRoleAbility();return;}
+                if(action==='drop-item'){dropCargoItem(Number(button.dataset.index),1);return;}
+                if(action==='pickup-drop'){performLocalAction('pickup',button.dataset.id);return;}
                 if(action==='attack'){performLocalAction('attack',button.dataset.id);return;}
                 if(action==='search'){performLocalAction('search');return;}
                 if(action==='run-equip'){useRunEquipment(Number(button.dataset.index));return;}
@@ -1133,6 +1425,9 @@ function salvageMarkup(): string {
                 var target=event.target;
                 if(target&&target.closest&&target.closest('input,select,textarea,[contenteditable="true"]'))return;
                 var key=event.key.toLowerCase();
+                if(key==='l'){event.preventDefault();togglePause();return;}
+                if(state.run.paused)return;
+                if(key==='p'){event.preventDefault();useRoleAbility();return;}
                 if(key==='t'){event.preventDefault();attackHighestHealthEnemy();return;}
                 if(key==='f'){event.preventDefault();searchNearbyContainer();return;}
                 if(key==='e'){event.preventDefault();interact();return;}
