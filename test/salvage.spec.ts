@@ -46,6 +46,12 @@ describe("space-station salvage game", () => {
 		expect(pageHtml).toContain("requestAnimationFrame(animationFrame)");
 		expect(pageHtml).toContain("salvage/finish");
 		expect(pageHtml).toContain("连续移动");
+		expect(pageHtml).toContain("key==='t'");
+		expect(pageHtml).toContain("key==='f'");
+		expect(pageHtml).toContain("healthDifference");
+		expect(pageHtml).toContain("<=1.5");
+		expect(pageHtml).toContain("rarity-tier-6");
+		expect(pageHtml).toContain("var colors=['#edf1f5','#63dc82','#54a5ff','#b77aff','#f4c64e','#f0646d']");
 
 		const initial = await request("/api/salvage/state");
 		expect(initial.status).toBe(200);
