@@ -56,6 +56,14 @@ describe("space-station salvage game", () => {
 		expect(pageHtml).toContain("salvage-backpack-grid");
 		expect(pageHtml).toContain("buy-craft-materials");
 		expect(pageHtml).toContain("run-equip");
+		expect(pageHtml).toContain("key==='p'");
+		expect(pageHtml).toContain("key==='l'");
+		expect(pageHtml).toContain("toggle-auto-pickup");
+		expect(pageHtml).toContain("pickupPlan");
+		expect(pageHtml).toContain("salvage-role-card");
+		expect(pageHtml).toContain("salvage-recipe-group");
+		expect(pageHtml).toContain("sell-selected");
+		expect(pageHtml).toContain("map-region");
 		expect(pageHtml).toContain("playerDamagePopup");
 		expect(pageHtml).toContain("rarity-tier-6");
 		expect(pageHtml).toContain("var colors=['#edf1f5','#63dc82','#54a5ff','#b77aff','#f4c64e','#f0646d']");
@@ -65,7 +73,7 @@ describe("space-station salvage game", () => {
 		const initialState = await initial.json() as {
 			player: { star_coins: number; star_crystals: number };
 			items: Array<{ id: number; item_key: string }>;
-			catalog: Array<{ key: string; kind: string; name: string; width: number; height: number; price: number }>;
+			catalog: Array<{ key: string; kind: string; name: string; width: number; height: number; price: number; capacity?: number; backpackVariant?: string }>;
 		};
 		expect(initialState.player).toMatchObject({ star_coins: 1400, star_crystals: 8 });
 		expect(initialState.catalog.length).toBeGreaterThanOrEqual(40);
@@ -76,6 +84,8 @@ describe("space-station salvage game", () => {
 		expect(initialState.catalog.find((item) => item.key === "magnetic_core")).toMatchObject({ width: 3, height: 3 });
 		expect(initialState.catalog.find((item) => item.key === "starlight_crown")).toMatchObject({ width: 1, height: 1 });
 		expect(initialState.catalog.find((item) => item.key === "backpack_1")).toMatchObject({ width: 2, height: 2 });
+		expect(initialState.catalog.find((item) => item.key === "backpack_1_mid")).toMatchObject({ capacity: 23, backpackVariant: "medium" });
+		expect(initialState.catalog.find((item) => item.key === "backpack_1_high")).toMatchObject({ capacity: 27, backpackVariant: "high" });
 		expect(initialState.catalog.find((item) => item.key === "alloy_plate")?.price).toBeGreaterThan(0);
 
 		const materialsPurchased = await request("/api/salvage/craft/materials", { item: "star_crystal" });
@@ -101,14 +111,15 @@ describe("space-station salvage game", () => {
 		expect(blockedZone.status).toBe(409);
 
 		const starts = await Promise.all([
-			request("/api/salvage/start", { ...loadout, zone: "safe", medkits: 1 }),
-			request("/api/salvage/start", { ...loadout, zone: "safe", medkits: 1 }),
+			request("/api/salvage/start", { ...loadout, zone: "safe", role: "doctor", medkits: 1 }),
+			request("/api/salvage/start", { ...loadout, zone: "safe", role: "doctor", medkits: 1 }),
 		]);
 		expect(starts.map((response) => response.status).sort()).toEqual([200, 409]);
 		const active = await request("/api/salvage/state");
 		const activeState = await active.json() as {
 			run: {
 				zone: string;
+				role: string;
 				x: number;
 				y: number;
 				cargo: Array<{ key: string; quantity: number }>;
@@ -120,22 +131,23 @@ describe("space-station salvage game", () => {
 			};
 		};
 		expect(activeState.run.zone).toBe("safe");
+		expect(activeState.run.role).toBe("doctor");
 		expect(activeState.run.cargo).toContainEqual(expect.objectContaining({ key: "medkit", quantity: 1 }));
 		expect(JSON.stringify(activeState.run.objects)).not.toContain('"loot"');
-		expect(activeState.run).toMatchObject({ map_width: 52, map_height: 36, x: 7, y: 8 });
+		expect(activeState.run).toMatchObject({ map_width: 92, map_height: 68, x: 7, y: 8 });
 		expect(activeState.run.map_tiles.some((tile) => tile.wall)).toBe(true);
 		expect(activeState.run.map_regions.map((region) => region.name)).toEqual(
-			expect.arrayContaining(["生活区", "管理区", "研发区", "机组区", "核心区", "工程区"]),
+			expect.arrayContaining(["生活区", "管理区", "研发区", "机组区", "核心区", "工程区", "观测穹顶", "生态温室", "外环机库"]),
 		);
 		expect(activeState.run.objects.filter((object) => object.kind === "wall").length).toBeGreaterThan(2);
 		expect(activeState.run.objects.filter((object) =>
 			["server", "safe", "medical", "supply", "archive", "armory", "lab", "locker", "reactor"].includes(object.kind)
-		).length).toBeGreaterThanOrEqual(16);
+		).length).toBeGreaterThanOrEqual(24);
 		expect(new Set(activeState.run.objects.filter((object) => object.kind === "enemy").map((object) => object.enemyType)).size)
 			.toBeGreaterThan(1);
 		const exit = activeState.run.objects.find((object) => object.kind === "extract");
 		if (!exit) throw new Error("The raid map did not generate an extraction point.");
-		expect(exit.x === 2 || exit.x === 49 || exit.y === 3 || exit.y === 32).toBe(true);
+		expect(exit.x === 2 || exit.x === 89 || exit.y === 2 || exit.y === 65).toBe(true);
 		expect((await request("/api/salvage/move", { x: 3, y: 3 })).status).toBe(400);
 		expect((await request("/api/salvage/move", { x: 0, y: 0 })).status).toBe(400);
 		expect((await request("/api/salvage/purchase", { item: "weapon_2" })).status).toBe(409);
@@ -230,6 +242,16 @@ describe("space-station salvage game", () => {
 		if (!railWeapon) throw new Error("The rail weapon was not added to the stash.");
 		expect(railWeapon.charges).toBe(0);
 		expect((await request("/api/salvage/sell", { item_id: railWeapon.id, quantity: 1 })).status).toBe(200);
+		const bulkOne = await env.DB.prepare(
+			"INSERT INTO salvage_inventory (user_id, item_key, quantity, durability, max_durability, charges) VALUES (?, 'fiber_bundle', 1, 0, 0, 0)"
+		).bind(userId).run();
+		const bulkTwo = await env.DB.prepare(
+			"INSERT INTO salvage_inventory (user_id, item_key, quantity, durability, max_durability, charges) VALUES (?, 'optic_lens', 1, 0, 0, 0)"
+		).bind(userId).run();
+		const bulkSale = await request("/api/salvage/sell", {
+			item_ids: [Number(bulkOne.meta.last_row_id), Number(bulkTwo.meta.last_row_id)],
+		});
+		expect(bulkSale.status).toBe(200);
 
 		const crafted = await request("/api/salvage/craft", { item: "backpack_1" });
 		expect(crafted.status).toBe(200);
@@ -289,11 +311,12 @@ describe("space-station salvage game", () => {
 			armor_id: clientGearState.items.find((entry) => entry.item_key === "armor_1")!.id,
 		};
 		expect((await request("/api/salvage/charge", { item_id: clientLoadout.weapon_id, crystals: 1 })).status).toBe(200);
-		expect((await request("/api/salvage/start", { ...clientLoadout, zone: "safe" })).status).toBe(200);
+		expect((await request("/api/salvage/start", { ...clientLoadout, zone: "safe", role: "technician" })).status).toBe(200);
 		const clientRunResponse = await request("/api/salvage/state");
 		const clientState = await clientRunResponse.json() as {
 			run: {
 				id: number;
+				role: string;
 				x: number;
 				y: number;
 				health: number;
@@ -305,6 +328,7 @@ describe("space-station salvage game", () => {
 				weapon: { key: string; durability: number; maxDurability: number; charges: number };
 				armor: { key: string; durability: number; maxDurability: number; charges: number };
 			};
+			expect(clientState.run.role).toBe("technician");
 		};
 		expect(clientState.run.client_objects.some((object) => "loot" in object)).toBe(true);
 		expect(JSON.stringify(clientState.run.objects)).not.toContain('"loot"');
@@ -355,7 +379,7 @@ describe("space-station salvage game", () => {
 			{ key: "weapon_1", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
 			{ key: "weapon_rail_2", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
 			{ key: "fiber_bundle", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
-			{ key: "alloy_plate", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
+			{ key: "magnetic_core", quantity: 1, durability: 0, maxDurability: 0, charges: 0 },
 		];
 		const serverContainer = clientState.run.client_objects.find((object) => object.kind === "server");
 		if (!serverContainer) throw new Error("The client-side raid is missing its server container.");
@@ -370,7 +394,7 @@ describe("space-station salvage game", () => {
 		finishResult.cargo = regressionLoot;
 		const clientFinish = await request("/api/salvage/finish", { result: finishResult });
 		expect(clientFinish.status).toBe(200);
-		expect(((await clientFinish.json()) as { run: null }).run).toBeNull();
+		expect(((await clientFinish.json()) as { state: { run: null } }).state.run).toBeNull();
 		expect((await request("/api/salvage/finish", { result: finishResult })).status).toBe(409);
 	});
 });
